@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Demo 设置"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="iFinD Refresh Token（本机加密保存）"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etIfindRefreshToken"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="refresh_token"
+            android:inputType="textPassword" />
+
+        <Button
+            android:id="@+id/btnTestIfind"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="测试 iFinD" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="自选代码（逗号分隔）"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etWatchCodes"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="000636.SZ,000938.SZ,600667.SH,002579.SZ"
+            android:inputType="text" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="持仓（每行：代码,名称,股数,成本,角色）\n角色：CORE / ATTACK / TRADE / LONG"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etPositions"
+            android:layout_width="match_parent"
+            android:layout_height="160dp"
+            android:gravity="top"
+            android:hint="000636.SZ,风华高科,500,45.679,CORE"
+            android:inputType="textMultiLine" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="当前总仓位（%）"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etPositionRatio"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="65.8"
+            android:inputType="numberDecimal" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="AI 主接口（OpenAI-compatible Responses）"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etPrimaryBaseUrl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="https://api.openai.com/v1"
+            android:inputType="textUri" />
+
+        <EditText
+            android:id="@+id/etPrimaryApiKey"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="API Key（手动输入，本机加密保存）"
+            android:inputType="textPassword" />
+
+        <EditText
+            android:id="@+id/etPrimaryModel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="gpt-5.6" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="AI 备用接口（可选）"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etBackupBaseUrl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="备用 OpenAI-compatible base URL"
+            android:inputType="textUri" />
+
+        <EditText
+            android:id="@+id/etBackupApiKey"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="备用 API Key"
+            android:inputType="textPassword" />
+
+        <EditText
+            android:id="@+id/etBackupModel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="备用 model" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="额外请求头 JSON（不要在这里放密钥）"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etExtraHeaders"
+            android:layout_width="match_parent"
+            android:layout_height="100dp"
+            android:gravity="top"
+            android:hint="{&quot;X-Provider&quot;:&quot;demo&quot;}"
+            android:inputType="textMultiLine" />
+
+        <Button
+            android:id="@+id/btnTestAi"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="测试 AI 接口" />
+
+        <Button
+            android:id="@+id/btnSave"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="保存" />
+
+        <TextView
+            android:id="@+id/tvTestResult"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:padding="8dp"
+            android:text="" />
+
+    </LinearLayout>
+</ScrollView>
