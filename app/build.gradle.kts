@@ -7,15 +7,13 @@ plugins {
 android {
     namespace = "com.locogo.astockguard"
     compileSdk = 35
-
     defaultConfig {
         applicationId = "com.locogo.astockguard"
         minSdk = 26
         targetSdk = 35
-        versionCode = 28
-        versionName = "2.8.0"
+        versionCode = 29
+        versionName = "2.9.0"
     }
-
     buildFeatures { viewBinding = true; compose = true }
     composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }

@@ -29,7 +29,8 @@ fun DashboardScreen(
     onStopMonitor: () -> Unit,
     onSettings: () -> Unit,
     onSelectStock: (String) -> Unit,
-    onSectorType: (String) -> Unit
+    onSectorType: (String) -> Unit,
+    onRecordTrade: (String, Int, Double) -> Unit
 ) {
     var question by rememberSaveable { mutableStateOf("") }
     val snapshot = state.snapshot
@@ -47,11 +48,7 @@ fun DashboardScreen(
             }
         }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item { MarketStatusCard(state) }
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -67,6 +64,7 @@ fun DashboardScreen(
 
             item { R2ScannerCard(state) }
             item { SignalLifecycleCard(state) }
+            item { ReviewDashboardCard(state, onRecordTrade) }
 
             item { SectionTitle("资金流") }
             item { StockFundFlowCard(state.stockFundFlow, state.fundFlowLoading) }

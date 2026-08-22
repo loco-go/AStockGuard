@@ -30,7 +30,7 @@ class MainActivity : AppCompatActivity() {
     private var pendingManualPrompt: String = ""
     private val viewModel: MainViewModel by viewModels {
         val c = appContainer
-        MainViewModel.Factory(c.settings, c.marketRepository, c.fundFlowRepository, c.r2Scanner, c.aiClient, c.database.cacheDao())
+        MainViewModel.Factory(c.settings, c.marketRepository, c.fundFlowRepository, c.r2Scanner, c.reviewRepository, c.aiClient, c.database.cacheDao())
     }
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     private val webAiLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
@@ -54,7 +54,8 @@ class MainActivity : AppCompatActivity() {
                     state = state, positions = settings.positions(), onRefresh = viewModel::refresh,
                     onAnalyze = viewModel::analyze, onStartMonitor = ::startMonitor, onStopMonitor = ::stopMonitor,
                     onSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
-                    onSelectStock = viewModel::selectStock, onSectorType = viewModel::refreshSectorFlow
+                    onSelectStock = viewModel::selectStock, onSectorType = viewModel::refreshSectorFlow,
+                    onRecordTrade = viewModel::recordTrade
                 )
             }
         }

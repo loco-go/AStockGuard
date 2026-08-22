@@ -7,6 +7,8 @@ import com.locogo.astockguard.data.ai.AiStrategy
 import com.locogo.astockguard.data.fundflow.SectorFundFlowResult
 import com.locogo.astockguard.data.fundflow.StockFundFlow
 import com.locogo.astockguard.data.local.SignalStateEntity
+import com.locogo.astockguard.domain.review.SignalReviewStats
+import com.locogo.astockguard.domain.review.TradeReviewStats
 import com.locogo.astockguard.domain.signal.R2ScanRow
 
 data class MainUiState(
@@ -24,5 +26,7 @@ data class MainUiState(
     val fundFlowLoading: Boolean = false,
     val r2ScanRows: List<R2ScanRow> = emptyList(),
     val signalStates: List<SignalStateEntity> = emptyList(),
+    val signalReviewStats: SignalReviewStats = SignalReviewStats(),
+    val tradeReviewStats: TradeReviewStats = TradeReviewStats(),
     val error: String? = null
 )
