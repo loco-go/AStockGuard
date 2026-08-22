@@ -65,6 +65,9 @@ fun DashboardScreen(
             if (rows.isEmpty()) item { Text("暂无行情，请先刷新。") }
             else items(rows, key = { it.code }) { row -> StrategyRow(row) { onSelectStock(row.code) } }
 
+            item { R2ScannerCard(state) }
+            item { SignalLifecycleCard(state) }
+
             item { SectionTitle("资金流") }
             item { StockFundFlowCard(state.stockFundFlow, state.fundFlowLoading) }
             item {
@@ -92,22 +95,11 @@ fun DashboardScreen(
             }
 
             item { SectionTitle("持仓组合净值") }
-            item {
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp)) {
-                        Text("基准=100，按当前持股数量回放近30日", style = MaterialTheme.typography.bodySmall)
-                        EquityCurve(state.equityCurve)
-                    }
-                }
-            }
+            item { Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) { Text("基准=100，按当前持股数量回放近30日", style = MaterialTheme.typography.bodySmall); EquityCurve(state.equityCurve) } } }
 
             item { SectionTitle("AI 综合判断") }
             item { OutlinedTextField(value = question, onValueChange = { question = it }, modifier = Modifier.fillMaxWidth(), label = { Text("可选：补充你的问题") }, minLines = 2, maxLines = 4) }
-            item {
-                Button(onClick = { onAnalyze(question) }, enabled = !state.aiLoading && snapshot != null, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (state.aiLoading) "AI 分析中…" else "后台 AI 分析")
-                }
-            }
+            item { Button(onClick = { onAnalyze(question) }, enabled = !state.aiLoading && snapshot != null, modifier = Modifier.fillMaxWidth()) { Text(if (state.aiLoading) "AI 分析中…" else "后台 AI 分析") } }
             item { Card(Modifier.fillMaxWidth()) { Text(state.aiText, Modifier.padding(14.dp)) } }
         }
     }
@@ -119,13 +111,8 @@ private fun MarketStatusCard(state: MainUiState) {
     Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column {
-                    Text("市场状态", style = MaterialTheme.typography.labelLarge)
-                    Text("${a?.eventRisk ?: "E?"}  ${a?.marketPhase ?: "M?"}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("当前仓位"); Text(s?.positionRatio?.let { "%.1f%%".format(it) } ?: "-", fontWeight = FontWeight.Bold)
-                }
+                Column { Text("市场状态", style = MaterialTheme.typography.labelLarge); Text("${a?.eventRisk ?: "E?"}  ${a?.marketPhase ?: "M?"}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) }
+                Column(horizontalAlignment = Alignment.End) { Text("当前仓位"); Text(s?.positionRatio?.let { "%.1f%%".format(it) } ?: "-", fontWeight = FontWeight.Bold) }
             }
             Text("建议上限 ${a?.maxPositionRatio?.let { "%.0f%%".format(it * 100) } ?: "-"} · 观察池 ${a?.avgChange?.let { "%+.2f%%".format(it) } ?: "-"}")
             Text(s?.dataHealth?.let { "${it.source}${if (it.isStale) " · 缓存/禁止实时动作" else " · 实时"}" } ?: "尚未加载数据", style = MaterialTheme.typography.bodySmall)
@@ -139,14 +126,8 @@ private fun StrategyRow(row: StockStrategyUiModel, onClick: () -> Unit) {
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column(Modifier.weight(1f)) {
-                    Text("${row.name}  ${row.code}", fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text("${row.role} · R2 ${row.r2Grade}/${row.r2Score}", style = MaterialTheme.typography.bodySmall)
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(row.price?.let { "%.2f".format(it) } ?: "-")
-                    Text(row.changeRatio?.let { "%+.2f%%".format(it) } ?: "-")
-                }
+                Column(Modifier.weight(1f)) { Text("${row.name}  ${row.code}", fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis); Text("${row.role} · R2 ${row.r2Grade}/${row.r2Score}", style = MaterialTheme.typography.bodySmall) }
+                Column(horizontalAlignment = Alignment.End) { Text(row.price?.let { "%.2f".format(it) } ?: "-"); Text(row.changeRatio?.let { "%+.2f%%".format(it) } ?: "-") }
             }
             HorizontalDivider()
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -171,14 +152,8 @@ private fun StockFundFlowCard(flow: StockFundFlow?, loading: Boolean) {
             else if (flow == null) Text("暂无资金流数据", style = MaterialTheme.typography.bodySmall)
             else {
                 Text("数据源 ${flow.source}${if (flow.stale) " · 缓存" else " · 实时/最新"}", style = MaterialTheme.typography.bodySmall)
-                flow.periods.forEach { p ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("${p.days}日"); Text("主力 ${formatMoney(p.mainNet)}"); Text("超大 ${formatMoney(p.superLargeNet)}")
-                    }
-                }
-                flow.minute.lastOrNull()?.let { last ->
-                    Text("盘中 ${last.time}：主力 ${formatMoney(last.mainNet)} · 大单 ${formatMoney(last.largeNet)} · 中单 ${formatMoney(last.mediumNet)} · 小单 ${formatMoney(last.smallNet)}", style = MaterialTheme.typography.bodySmall)
-                }
+                flow.periods.forEach { p -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("${p.days}日"); Text("主力 ${formatMoney(p.mainNet)}"); Text("超大 ${formatMoney(p.superLargeNet)}") } }
+                flow.minute.lastOrNull()?.let { last -> Text("盘中 ${last.time}：主力 ${formatMoney(last.mainNet)} · 大单 ${formatMoney(last.largeNet)} · 中单 ${formatMoney(last.mediumNet)} · 小单 ${formatMoney(last.smallNet)}", style = MaterialTheme.typography.bodySmall) }
                 Text("注：主力/大单属于东方财富数据商分类口径，不等同于交易所识别的真实机构账户。", style = MaterialTheme.typography.labelSmall)
             }
         }
@@ -193,12 +168,7 @@ private fun SectorFundFlowCard(result: SectorFundFlowResult?) {
             if (result == null || result.rows.isEmpty()) Text("暂无板块资金数据", style = MaterialTheme.typography.bodySmall)
             else {
                 Text("${result.type} · ${result.source}${if (result.stale) " · 缓存" else ""}", style = MaterialTheme.typography.bodySmall)
-                result.rows.take(10).forEachIndexed { index, row ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("${index + 1}. ${row.name}", modifier = Modifier.weight(1f), maxLines = 1)
-                        Text("${"%+.2f%%".format(row.changePct)}  ${formatMoney(row.mainNet)}")
-                    }
-                }
+                result.rows.take(10).forEachIndexed { index, row -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("${index + 1}. ${row.name}", modifier = Modifier.weight(1f), maxLines = 1); Text("${"%+.2f%%".format(row.changePct)}  ${formatMoney(row.mainNet)}") } }
             }
         }
     }

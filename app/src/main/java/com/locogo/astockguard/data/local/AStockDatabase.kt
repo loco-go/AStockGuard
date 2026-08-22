@@ -8,15 +8,9 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [
-        QuoteCacheEntity::class,
-        DailyBarCacheEntity::class,
-        MinuteBarCacheEntity::class,
-        FundFlowCacheEntity::class,
-        SectorFundFlowCacheEntity::class,
-        AiAnalysisEntity::class
-    ],
-    version = 3,
+    entities = [QuoteCacheEntity::class, DailyBarCacheEntity::class, MinuteBarCacheEntity::class,
+        FundFlowCacheEntity::class, SectorFundFlowCacheEntity::class, SignalStateEntity::class, AiAnalysisEntity::class],
+    version = 4,
     exportSchema = true
 )
 abstract class AStockDatabase : RoomDatabase() {
@@ -27,21 +21,13 @@ abstract class AStockDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("""
                     CREATE TABLE IF NOT EXISTS minute_bar_cache (
-                        code TEXT NOT NULL,
-                        time TEXT NOT NULL,
-                        price REAL NOT NULL,
-                        avgPrice REAL NOT NULL,
-                        high REAL NOT NULL,
-                        low REAL NOT NULL,
-                        volume REAL NOT NULL,
-                        amount REAL NOT NULL,
-                        cachedAt INTEGER NOT NULL,
-                        PRIMARY KEY(code, time)
+                        code TEXT NOT NULL, time TEXT NOT NULL, price REAL NOT NULL, avgPrice REAL NOT NULL,
+                        high REAL NOT NULL, low REAL NOT NULL, volume REAL NOT NULL, amount REAL NOT NULL,
+                        cachedAt INTEGER NOT NULL, PRIMARY KEY(code, time)
                     )
                 """.trimIndent())
             }
         }
-
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("""
@@ -63,13 +49,23 @@ abstract class AStockDatabase : RoomDatabase() {
                 """.trimIndent())
             }
         }
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS signal_state (
+                        code TEXT NOT NULL PRIMARY KEY, stage TEXT NOT NULL, lastAction TEXT NOT NULL,
+                        consecutiveCount INTEGER NOT NULL, lastTransitionAt INTEGER NOT NULL,
+                        lastNotifiedAt INTEGER NOT NULL, reason TEXT NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
 
         @Volatile private var instance: AStockDatabase? = null
         fun get(context: Context): AStockDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, AStockDatabase::class.java, "astock_guard.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
-                .build()
-                .also { instance = it }
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .build().also { instance = it }
         }
     }
 }

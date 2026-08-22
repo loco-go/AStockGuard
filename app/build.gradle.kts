@@ -12,21 +12,13 @@ android {
         applicationId = "com.locogo.astockguard"
         minSdk = 26
         targetSdk = 35
-        versionCode = 27
-        versionName = "2.7.0"
+        versionCode = 28
+        versionName = "2.8.0"
     }
 
-    buildFeatures {
-        viewBinding = true
-        compose = true
-    }
-
+    buildFeatures { viewBinding = true; compose = true }
     composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
+    compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
 }
 
@@ -51,6 +43,4 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
 
-kapt {
-    arguments { arg("room.schemaLocation", "$projectDir/schemas") }
-}
+kapt { arguments { arg("room.schemaLocation", "$projectDir/schemas") } }
