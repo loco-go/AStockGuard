@@ -32,7 +32,8 @@ fun DashboardScreen(
     onSettings: () -> Unit,
     onSelectStock: (String) -> Unit,
     onSectorType: (String) -> Unit,
-    onRecordTrade: (String, Int, Double) -> Unit
+    onRecordTrade: (String, Int, Double) -> Unit,
+    onRefreshNews: () -> Unit
 ) {
     var question: String by rememberSaveable { mutableStateOf("") }
     val snapshot = state.snapshot
@@ -52,6 +53,7 @@ fun DashboardScreen(
     ) { padding ->
         LazyColumn(modifier = Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item { MarketStatusCard(state) }
+            item { NewsRiskCard(state, onRefreshNews) }
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = onRefresh, enabled = !state.loading, modifier = Modifier.weight(1f)) { Text(if (state.loading) "刷新中" else "刷新") }
@@ -110,6 +112,28 @@ fun DashboardScreen(
             }
             item { Button(onClick = { onAnalyze(question) }, enabled = !state.aiLoading && snapshot != null, modifier = Modifier.fillMaxWidth()) { Text(if (state.aiLoading) "AI 分析中…" else "后台 AI 分析") } }
             item { Card(Modifier.fillMaxWidth()) { Text(state.aiText, Modifier.padding(14.dp)) } }
+        }
+    }
+}
+
+@Composable
+private fun NewsRiskCard(state: MainUiState, onRefreshNews: () -> Unit) {
+    val news = state.newsRisk
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column {
+                    Text("新闻 / 黑天鹅覆盖层", fontWeight = FontWeight.Bold)
+                    Text("${news.level} · score ${news.score}${if (news.stale) " · 缓存" else ""}", style = MaterialTheme.typography.titleMedium)
+                }
+                TextButton(onClick = onRefreshNews, enabled = !state.newsLoading) { Text(if (state.newsLoading) "刷新中" else "刷新新闻") }
+            }
+            if (state.newsLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (news.evidence.isEmpty()) {
+                Text("24小时内没有命中高风险关键词的新闻证据；新闻层不会覆盖 R2/VWAP/资金规则。", style = MaterialTheme.typography.bodySmall)
+            } else {
+                news.evidence.take(5).forEach { item -> Text("• [${item.source}] ${item.title}", style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+            }
         }
     }
 }
