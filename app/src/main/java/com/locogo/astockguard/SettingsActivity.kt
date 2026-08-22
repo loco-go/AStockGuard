@@ -3,6 +3,7 @@ package com.locogo.astockguard
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
@@ -14,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.locogo.astockguard.databinding.ActivitySettingsBinding
+import com.locogo.astockguard.integration.ths.ThsTradeSyncActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -57,12 +59,14 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menu.add(0, MENU_BACKUP, 0, "导出备份").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(0, MENU_RESTORE, 1, "恢复备份").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(0, MENU_THS_SYNC, 0, "同花顺交易同步").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(0, MENU_BACKUP, 1, "导出备份").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(0, MENU_RESTORE, 2, "恢复备份").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         return true
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
+        MENU_THS_SYNC -> { startActivity(Intent(this, ThsTradeSyncActivity::class.java)); true }
         MENU_BACKUP -> { createBackupFile.launch("AStockGuard-backup-${System.currentTimeMillis()}.json"); true }
         MENU_RESTORE -> { openBackupFile.launch(arrayOf("application/json", "text/plain")); true }
         else -> super.onOptionsItemSelected(item)
@@ -196,7 +200,7 @@ class SettingsActivity : AppCompatActivity() {
         save()
         if (settings.primaryType == "CHATGPT_WEB") {
             binding.tvTestResult.text = "CHATGPT_WEB 使用 WebView 登录态：正常分析隐藏运行；若登录失效只需在 WebView 中手动登录。"
-            startActivity(android.content.Intent(this, ChatGptWebActivity::class.java).putExtra(ChatGptWebActivity.EXTRA_PROMPT, "只回复：OK")); return
+            startActivity(Intent(this, ChatGptWebActivity::class.java).putExtra(ChatGptWebActivity.EXTRA_PROMPT, "只回复：OK")); return
         }
         lifecycleScope.launch {
             binding.tvTestResult.text = "测试 AI..."
@@ -207,5 +211,9 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun mask(v: String): String = if (v.length < 12) { if (v.isBlank()) "未识别" else "***" } else v.take(6) + "…" + v.takeLast(4)
 
-    companion object { private const val MENU_BACKUP = 1001; private const val MENU_RESTORE = 1002 }
+    companion object {
+        private const val MENU_THS_SYNC = 1000
+        private const val MENU_BACKUP = 1001
+        private const val MENU_RESTORE = 1002
+    }
 }
