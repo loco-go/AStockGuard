@@ -13,8 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.locogo.astockguard.DailyBar
 import com.locogo.astockguard.MinuteBar
 import com.locogo.astockguard.data.local.TradeRecordEntity
@@ -24,8 +24,13 @@ import org.json.JSONObject
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlin.math.abs
 
 enum class TradingChartMode { MINUTE, DAILY }
+
+private val CHINA_ZONE: ZoneId = ZoneId.of("Asia/Shanghai")
+private val TRADE_DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(CHINA_ZONE)
+private val TRADE_TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm").withZone(CHINA_ZONE)
 
 private class TradingChartBridge(private val onBuyAnchor: (Double) -> Unit) {
     @JavascriptInterface
@@ -46,8 +51,16 @@ fun EChartsTradingChart(
     modifier: Modifier = Modifier
 ) {
     val dark = isSystemInDarkTheme()
-    val html = remember(dailyBars, minuteBars, trades, plan, mode, dark) {
-        buildTradingChartHtml(dailyBars, minuteBars, trades, plan, mode, dark)
+    val minuteTradeDate = dailyBars.lastOrNull()?.date
+    val effectiveTrades = remember(trades, mode, minuteTradeDate) {
+        if (mode == TradingChartMode.MINUTE && !minuteTradeDate.isNullOrBlank()) {
+            trades.filter { trade -> TRADE_DATE_FORMATTER.format(Instant.ofEpochMilli(trade.tradeAt)) == minuteTradeDate }
+        } else {
+            trades
+        }
+    }
+    val html = remember(dailyBars, minuteBars, effectiveTrades, plan, mode, dark) {
+        buildTradingChartHtml(dailyBars, minuteBars, effectiveTrades, plan, mode, dark)
     }
 
     AndroidView(
@@ -69,13 +82,17 @@ fun EChartsTradingChart(
             }
         },
         update = { webView ->
-            webView.loadDataWithBaseURL(
-                "https://cdn.jsdelivr.net/",
-                html,
-                "text/html",
-                "UTF-8",
-                null
-            )
+            val contentKey = html.hashCode()
+            if (webView.tag != contentKey) {
+                webView.tag = contentKey
+                webView.loadDataWithBaseURL(
+                    "https://cdn.jsdelivr.net/",
+                    html,
+                    "text/html",
+                    "UTF-8",
+                    null
+                )
+            }
         }
     )
 }
@@ -122,11 +139,12 @@ private fun buildTradingChartHtml(
             chart.setOption(option);
             chart.on('click', 'series', function(params) {
               let price = null;
-              if (Array.isArray(params.value)) {
-                if (params.seriesType === 'candlestick') price = Number(params.value[1]);
-                else price = Number(params.value[1]);
+              if (params.seriesType === 'candlestick' && Array.isArray(params.value)) {
+                price = Number(params.value[1]);
               } else if (typeof params.value === 'number') {
                 price = Number(params.value);
+              } else if (Array.isArray(params.value) && params.value.length > 1) {
+                price = Number(params.value[1]);
               }
               if (price && price > 0 && window.AStockBridge) window.AStockBridge.selectBuyAnchor(price);
             });
@@ -150,8 +168,8 @@ private fun minuteOption(
     invalidColor: String
 ): String {
     val x = JSONArray(bars.map { it.time })
-    val price = JSONArray(bars.map { JSONArray(listOf(it.time, it.price)) })
-    val avg = JSONArray(bars.map { JSONArray(listOf(it.time, it.avgPrice)) })
+    val price = JSONArray(bars.map { it.price })
+    val avg = JSONArray(bars.map { it.avgPrice })
     val volume = JSONArray(bars.map { it.volume })
     val marks = tradeMarksMinute(bars, trades, buyColor, sellColor)
     val overlays = planOverlay(plan, planColor, invalidColor)
@@ -171,16 +189,18 @@ private fun minuteOption(
             .put(JSONObject().put("scale", true).put("splitLine", splitLine(gridColor)).put("axisLabel", axisLabel(text)))
             .put(JSONObject().put("scale", true).put("gridIndex", 1).put("splitLine", JSONObject().put("show", false)).put("axisLabel", axisLabel(text))))
         put("dataZoom", JSONArray()
-            .put(JSONObject().put("type", "inside").put("xAxisIndex", JSONArray(listOf(0,1))).put("start", 45).put("end", 100))
-            .put(JSONObject().put("type", "slider").put("xAxisIndex", JSONArray(listOf(0,1))).put("height", 18).put("bottom", 4).put("start", 45).put("end", 100)))
+            .put(JSONObject().put("type", "inside").put("xAxisIndex", JSONArray(listOf(0, 1))).put("start", 45).put("end", 100))
+            .put(JSONObject().put("type", "slider").put("xAxisIndex", JSONArray(listOf(0, 1))).put("height", 18).put("bottom", 4).put("start", 45).put("end", 100)))
         put("series", JSONArray()
             .put(JSONObject().put("name", "价格").put("type", "line").put("showSymbol", false).put("smooth", false).put("data", price)
                 .put("lineStyle", JSONObject().put("width", 1.6).put("color", "#4C8DFF"))
                 .put("markPoint", JSONObject().put("data", marks))
                 .put("markArea", overlays.first)
                 .put("markLine", overlays.second))
-            .put(JSONObject().put("name", "均价").put("type", "line").put("showSymbol", false).put("data", avg).put("lineStyle", JSONObject().put("width", 1.2).put("color", "#F1C75B")))
-            .put(JSONObject().put("name", "成交量").put("type", "bar").put("xAxisIndex", 1).put("yAxisIndex", 1).put("data", volume).put("itemStyle", JSONObject().put("color", "#526078"))))
+            .put(JSONObject().put("name", "均价").put("type", "line").put("showSymbol", false).put("data", avg)
+                .put("lineStyle", JSONObject().put("width", 1.2).put("color", "#F1C75B")))
+            .put(JSONObject().put("name", "成交量").put("type", "bar").put("xAxisIndex", 1).put("yAxisIndex", 1).put("data", volume)
+                .put("itemStyle", JSONObject().put("color", "#526078"))))
     }.toString()
 }
 
@@ -197,7 +217,6 @@ private fun dailyOption(
     invalidColor: String
 ): String {
     val dates = JSONArray(bars.map { it.date })
-    // ECharts candlestick order: open, close, low, high
     val kData = JSONArray(bars.map { JSONArray(listOf(it.open, it.close, it.low, it.high)) })
     val volume = JSONArray(bars.map { it.volume })
     val marks = tradeMarksDaily(bars, trades, buyColor, sellColor)
@@ -218,37 +237,47 @@ private fun dailyOption(
             .put(JSONObject().put("scale", true).put("splitLine", splitLine(gridColor)).put("axisLabel", axisLabel(text)))
             .put(JSONObject().put("scale", true).put("gridIndex", 1).put("splitLine", JSONObject().put("show", false)).put("axisLabel", axisLabel(text))))
         put("dataZoom", JSONArray()
-            .put(JSONObject().put("type", "inside").put("xAxisIndex", JSONArray(listOf(0,1))).put("start", 20).put("end", 100))
-            .put(JSONObject().put("type", "slider").put("xAxisIndex", JSONArray(listOf(0,1))).put("height", 18).put("bottom", 4).put("start", 20).put("end", 100)))
+            .put(JSONObject().put("type", "inside").put("xAxisIndex", JSONArray(listOf(0, 1))).put("start", 20).put("end", 100))
+            .put(JSONObject().put("type", "slider").put("xAxisIndex", JSONArray(listOf(0, 1))).put("height", 18).put("bottom", 4).put("start", 20).put("end", 100)))
         put("series", JSONArray()
             .put(JSONObject().put("name", "K线").put("type", "candlestick").put("data", kData)
                 .put("itemStyle", JSONObject().put("color", "#E84C4C").put("color0", "#16A085").put("borderColor", "#E84C4C").put("borderColor0", "#16A085"))
                 .put("markPoint", JSONObject().put("data", marks))
                 .put("markArea", overlays.first)
                 .put("markLine", overlays.second))
-            .put(JSONObject().put("name", "成交量").put("type", "bar").put("xAxisIndex", 1).put("yAxisIndex", 1).put("data", volume).put("itemStyle", JSONObject().put("color", "#526078"))))
+            .put(JSONObject().put("name", "成交量").put("type", "bar").put("xAxisIndex", 1).put("yAxisIndex", 1).put("data", volume)
+                .put("itemStyle", JSONObject().put("color", "#526078"))))
     }.toString()
 }
 
-private fun tradeMarksDaily(bars: List<DailyBar>, trades: List<TradeRecordEntity>, buyColor: String, sellColor: String): JSONArray {
+private fun tradeMarksDaily(
+    bars: List<DailyBar>,
+    trades: List<TradeRecordEntity>,
+    buyColor: String,
+    sellColor: String
+): JSONArray {
     val dateSet = bars.map { it.date }.toHashSet()
-    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.of("Asia/Shanghai"))
     val result = JSONArray()
     trades.forEach { trade ->
-        val date = formatter.format(Instant.ofEpochMilli(trade.tradeAt))
+        val date = TRADE_DATE_FORMATTER.format(Instant.ofEpochMilli(trade.tradeAt))
         if (date !in dateSet) return@forEach
         result.put(markPoint(date, trade.price, trade.side, trade.quantity, if (trade.side.uppercase() == "BUY") buyColor else sellColor))
     }
     return result
 }
 
-private fun tradeMarksMinute(bars: List<MinuteBar>, trades: List<TradeRecordEntity>, buyColor: String, sellColor: String): JSONArray {
-    val timeSet = bars.map { it.time }.toHashSet()
-    val formatter = DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.of("Asia/Shanghai"))
+private fun tradeMarksMinute(
+    bars: List<MinuteBar>,
+    trades: List<TradeRecordEntity>,
+    buyColor: String,
+    sellColor: String
+): JSONArray {
+    if (bars.isEmpty()) return JSONArray()
+    val times = bars.map { it.time }
     val result = JSONArray()
     trades.forEach { trade ->
-        val time = formatter.format(Instant.ofEpochMilli(trade.tradeAt))
-        val closest = timeSet.minByOrNull { kotlin.math.abs(minutes(it) - minutes(time)) } ?: return@forEach
+        val time = TRADE_TIME_FORMATTER.format(Instant.ofEpochMilli(trade.tradeAt))
+        val closest = times.minByOrNull { abs(minutes(it) - minutes(time)) } ?: return@forEach
         result.put(markPoint(closest, trade.price, trade.side, trade.quantity, if (trade.side.uppercase() == "BUY") buyColor else sellColor))
     }
     return result
@@ -277,19 +306,34 @@ private fun planOverlay(plan: TTradePlan?, planColor: String, invalidColor: Stri
             .put(JSONObject().put("yAxis", plan.sellZoneHigh)))
     }
     if (plan != null && plan.manualAnchorPrice != null) {
-        lines.put(JSONObject().put("name", "手选买点").put("yAxis", plan.manualAnchorPrice).put("lineStyle", JSONObject().put("color", planColor).put("type", "dashed")))
+        lines.put(JSONObject().put("name", "手选买点").put("yAxis", plan.manualAnchorPrice)
+            .put("lineStyle", JSONObject().put("color", planColor).put("type", "dashed")))
     }
     if (plan != null && plan.invalidPrice > 0) {
-        lines.put(JSONObject().put("name", "失效位").put("yAxis", plan.invalidPrice).put("lineStyle", JSONObject().put("color", invalidColor).put("type", "dashed")))
+        lines.put(JSONObject().put("name", "失效位").put("yAxis", plan.invalidPrice)
+            .put("lineStyle", JSONObject().put("color", invalidColor).put("type", "dashed")))
     }
     return JSONObject().put("silent", true).put("data", areas) to
-        JSONObject().put("silent", true).put("symbol", JSONArray(listOf("none", "none"))).put("label", JSONObject().put("show", true)).put("data", lines)
+        JSONObject().put("silent", true)
+            .put("symbol", JSONArray(listOf("none", "none")))
+            .put("label", JSONObject().put("show", true))
+            .put("data", lines)
 }
 
 private fun axisLine(color: String) = JSONObject().put("lineStyle", JSONObject().put("color", color))
 private fun axisLabel(color: String) = JSONObject().put("color", color).put("fontSize", 10)
 private fun splitLine(color: String) = JSONObject().put("lineStyle", JSONObject().put("color", color).put("opacity", 0.55))
+
 private fun minutes(value: String): Int {
-    val p = value.takeLast(5).split(':')
-    return if (p.size == 2) (p[0].toIntOrNull() ?: 0) * 60 + (p[1].toIntOrNull() ?: 0) else 0
+    val trimmed = value.trim()
+    if (':' in trimmed) {
+        val p = trimmed.takeLast(5).split(':')
+        if (p.size == 2) return (p[0].toIntOrNull() ?: 0) * 60 + (p[1].toIntOrNull() ?: 0)
+    }
+    val digits = trimmed.filter(Char::isDigit)
+    if (digits.length >= 4) {
+        val hhmm = digits.takeLast(4)
+        return (hhmm.take(2).toIntOrNull() ?: 0) * 60 + (hhmm.takeLast(2).toIntOrNull() ?: 0)
+    }
+    return 0
 }
