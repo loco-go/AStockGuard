@@ -33,7 +33,8 @@ fun DashboardScreen(
     onSelectStock: (String) -> Unit,
     onSectorType: (String) -> Unit,
     onRecordTrade: (String, Int, Double) -> Unit,
-    onRefreshNews: () -> Unit
+    onRefreshNews: () -> Unit,
+    onRefreshLevel2: () -> Unit
 ) {
     var question: String by rememberSaveable { mutableStateOf("") }
     val snapshot = state.snapshot
@@ -79,6 +80,9 @@ fun DashboardScreen(
                 }
             }
             item { SectorFundFlowCard(state.sectorFundFlow) }
+
+            item { SectionTitle("Level2 盘口") }
+            item { Level2Card(state.level2, state.level2Loading, onRefreshLevel2) }
 
             item { SectionTitle("分时 / K线") }
             item {
