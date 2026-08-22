@@ -82,7 +82,9 @@ class MainActivity : AppCompatActivity() {
                     onReplayStep = viewModel::stepReplay,
                     onReplayPlay = { viewModel.startReplay(5) },
                     onReplayPause = viewModel::pauseReplay,
-                    onRunBacktest = viewModel::runReplayBacktest
+                    onRunBacktest = viewModel::runReplayBacktest,
+                    onSetBuyAnchor = viewModel::setBuyAnchor,
+                    onClearBuyAnchor = viewModel::clearBuyAnchor
                 )
             }
         }
