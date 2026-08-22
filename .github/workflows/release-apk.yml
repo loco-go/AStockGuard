@@ -4,14 +4,14 @@ on:
   push:
     branches:
       - master
-      - feature/v3.4-release-echarts-trade-ui
+      - 'feature/**'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: apk-release-${{ github.ref }}
+  group: apk-release-${{ github.ref_name == 'master' && 'master' || 'dev' }}
   cancel-in-progress: true
 
 jobs:
