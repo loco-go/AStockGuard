@@ -6,7 +6,8 @@ object PromptBuilder {
         positions: List<Position>,
         question: String = "",
         stockFundFlow: com.locogo.astockguard.data.fundflow.StockFundFlow? = null,
-        sectorFundFlow: com.locogo.astockguard.data.fundflow.SectorFundFlowResult? = null
+        sectorFundFlow: com.locogo.astockguard.data.fundflow.SectorFundFlowResult? = null,
+        newsRisk: com.locogo.astockguard.data.news.NewsRiskAssessment? = null
     ): String {
         val pos = positions.associateBy { it.code }
         return buildString {
@@ -15,6 +16,11 @@ object PromptBuilder {
             appendLine("本地风险模型：${snapshot.assessment.eventRisk}/${snapshot.assessment.marketPhase}")
             appendLine("建议仓位上限：${"%.0f".format(snapshot.assessment.maxPositionRatio * 100)}%")
             appendLine("观察池平均涨跌：${"%+.2f".format(snapshot.assessment.avgChange)}%")
+            newsRisk?.let { n ->
+                appendLine("新闻风险覆盖层：${n.level} score=${n.score} ${if (n.stale) "(缓存/可能过期)" else "(最新抓取)"}")
+                n.evidence.take(5).forEach { appendLine("- [${it.source}] ${it.title}") }
+                appendLine("新闻风险只作为风险覆盖层，不得单独覆盖本地 R2/VWAP/资金流规则；若证据不足必须明确说明。")
+            }
             appendLine("行情：")
             snapshot.quotes.forEach { q ->
                 val p = pos[q.code]
