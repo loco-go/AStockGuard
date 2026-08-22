@@ -7,7 +7,8 @@ object PromptBuilder {
         question: String = "",
         stockFundFlow: com.locogo.astockguard.data.fundflow.StockFundFlow? = null,
         sectorFundFlow: com.locogo.astockguard.data.fundflow.SectorFundFlowResult? = null,
-        newsRisk: com.locogo.astockguard.data.news.NewsRiskAssessment? = null
+        newsRisk: com.locogo.astockguard.data.news.NewsRiskAssessment? = null,
+        level2: com.locogo.astockguard.data.level2.Level2Snapshot? = null
     ): String {
         val pos = positions.associateBy { it.code }
         return buildString {
@@ -41,6 +42,17 @@ object PromptBuilder {
             sectorFundFlow?.let { sectors ->
                 appendLine("${sectors.type}板块资金Top5（${sectors.source}）：")
                 sectors.rows.take(5).forEach { appendLine("- ${it.name} 涨跌=${it.changePct}% 主力净流入=${it.mainNet} 主力占比=${it.mainPct}%") }
+            }
+            if (level2 != null) {
+                if (level2.simulated) {
+                    appendLine("Level2：当前仅有 MOCK 模拟盘口，因此不得作为 AI 实盘判断证据。")
+                } else {
+                    appendLine("Level2（${level2.source}${if (level2.stale) "/缓存STALE" else "/实时"}）：")
+                    appendLine("- 买盘：${level2.bids.take(5).joinToString { "${it.price}@${it.volume}" }}")
+                    appendLine("- 卖盘：${level2.asks.take(5).joinToString { "${it.price}@${it.volume}" }}")
+                    appendLine("- 最近成交：${level2.trades.take(8).joinToString { "${it.time}:${it.side}:${it.price}@${it.volume}" }}")
+                    if (level2.stale) appendLine("Level2 已过期，只能作为历史参考，不得据此给出即时买卖动作。")
+                }
             }
             appendLine("资金流是数据商订单规模分类口径，只能作为一个因子，不得等价为机构真实买卖。")
             appendLine("数据状态：${if (snapshot.dataHealth.isStale) "缓存/非实时" else "实时"} ${snapshot.dataHealth.source} ${snapshot.dataHealth.message}")
