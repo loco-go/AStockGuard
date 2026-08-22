@@ -31,7 +31,6 @@ class MainViewModel(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
-
     private val _effects = MutableSharedFlow<MainEffect>(extraBufferCapacity = 1)
     val effects: SharedFlow<MainEffect> = _effects.asSharedFlow()
 
@@ -63,15 +62,13 @@ class MainViewModel(
         viewModelScope.launch {
             runCatching { aiClient.analyze(settings.primaryProvider(), settings.backupProvider(), prompt) }
                 .onSuccess { onAiAnswer(prompt, it) }
-                .onFailure { t ->
-                    _uiState.update { it.copy(aiLoading = false, aiText = "AI调用失败：${t.message}") }
-                }
+                .onFailure { t -> _uiState.update { it.copy(aiLoading = false, aiText = "AI调用失败：${t.message}") } }
         }
     }
 
     fun onAiAnswer(prompt: String, answer: String) {
         val strategy = AiStrategyParser.parse(answer)
-        _uiState.update { it.copy(aiLoading = false, aiText = AiStrategyParser.displayText(answer), error = null) }
+        _uiState.update { it.copy(aiLoading = false, aiText = AiStrategyParser.displayText(answer), aiStrategy = strategy, error = null) }
         viewModelScope.launch {
             runCatching {
                 cacheDao.insertAiAnalysis(
@@ -89,17 +86,9 @@ class MainViewModel(
         }
     }
 
-    fun onAiStatus(message: String) {
-        _uiState.update { it.copy(aiLoading = true, aiText = message, error = null) }
-    }
-
-    fun onAiFailed(message: String) {
-        _uiState.update { it.copy(aiLoading = false, aiText = "AI分析需要人工处理：$message") }
-    }
-
-    fun consumeError() {
-        _uiState.update { it.copy(error = null) }
-    }
+    fun onAiStatus(message: String) { _uiState.update { it.copy(aiLoading = true, aiText = message, error = null) } }
+    fun onAiFailed(message: String) { _uiState.update { it.copy(aiLoading = false, aiText = "AI分析需要人工处理：$message") } }
+    fun consumeError() { _uiState.update { it.copy(error = null) } }
 
     class Factory(
         private val settings: SettingsRepository,
@@ -108,7 +97,6 @@ class MainViewModel(
         private val cacheDao: CacheDao
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            MainViewModel(settings, marketRepository, aiClient, cacheDao) as T
+        override fun <T : ViewModel> create(modelClass: Class<T>): T = MainViewModel(settings, marketRepository, aiClient, cacheDao) as T
     }
 }

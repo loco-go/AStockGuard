@@ -1,0 +1,142 @@
+package com.locogo.astockguard.ui.main
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.locogo.astockguard.Position
+
+@Composable
+fun DashboardScreen(
+    state: MainUiState,
+    positions: List<Position>,
+    onRefresh: () -> Unit,
+    onAnalyze: (String) -> Unit,
+    onStartMonitor: () -> Unit,
+    onStopMonitor: () -> Unit,
+    onSettings: () -> Unit
+) {
+    var question by rememberSaveable { mutableStateOf("") }
+    val snapshot = state.snapshot
+    val rows = remember(snapshot, positions, state.aiStrategy) {
+        StrategyUiMapper.map(snapshot, positions, state.aiStrategy)
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("A股实时交易驾驶舱", fontWeight = FontWeight.Bold) },
+                actions = { TextButton(onClick = onSettings) { Text("设置") } }
+            )
+        },
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(true, {}, { Text("首页") }, icon = {})
+                NavigationBarItem(false, {}, { Text("行情") }, icon = {})
+                NavigationBarItem(false, {}, { Text("持仓") }, icon = {})
+                NavigationBarItem(false, {}, { Text("信号") }, icon = {})
+                NavigationBarItem(false, onSettings, { Text("设置") }, icon = {})
+            }
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item { MarketStatusCard(state) }
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onRefresh, enabled = !state.loading, modifier = Modifier.weight(1f)) { Text(if (state.loading) "刷新中" else "刷新") }
+                    OutlinedButton(onClick = onStartMonitor, modifier = Modifier.weight(1f)) { Text("启动监控") }
+                    OutlinedButton(onClick = onStopMonitor, modifier = Modifier.weight(1f)) { Text("停止") }
+                }
+            }
+            item { SectionTitle("持仓 / 观察池策略") }
+            if (rows.isEmpty()) item { Text("暂无行情，请先刷新。") }
+            else items(rows, key = { it.code }) { StrategyRow(it) }
+            item { SectionTitle("AI 综合判断") }
+            item {
+                OutlinedTextField(
+                    value = question,
+                    onValueChange = { question = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("可选：补充你的问题") },
+                    minLines = 2,
+                    maxLines = 4
+                )
+            }
+            item {
+                Button(onClick = { onAnalyze(question) }, enabled = !state.aiLoading && snapshot != null, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (state.aiLoading) "AI 分析中…" else "后台 AI 分析")
+                }
+            }
+            item {
+                Card(Modifier.fillMaxWidth()) {
+                    Text(state.aiText, Modifier.padding(14.dp), style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MarketStatusCard(state: MainUiState) {
+    val s = state.snapshot
+    val a = s?.assessment
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text("市场状态", style = MaterialTheme.typography.labelLarge)
+                    Text("${a?.eventRisk ?: "E?"}  ${a?.marketPhase ?: "M?"}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("当前仓位")
+                    Text("${s?.positionRatio?.let { "%.1f%%".format(it) } ?: "-"}", fontWeight = FontWeight.Bold)
+                }
+            }
+            Text("建议上限 ${a?.maxPositionRatio?.let { "%.0f%%".format(it * 100) } ?: "-"} · 观察池 ${a?.avgChange?.let { "%+.2f%%".format(it) } ?: "-"}")
+            Text(s?.dataHealth?.let { "${it.source}${if (it.isStale) " · 缓存/禁止实时动作" else " · 实时"}" } ?: "尚未加载数据", style = MaterialTheme.typography.bodySmall)
+            if (!a?.advice.isNullOrBlank()) Text(a!!.advice, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+@Composable
+private fun StrategyRow(row: StockStrategyUiModel) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column(Modifier.weight(1f)) {
+                    Text("${row.name}  ${row.code}", fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("${row.role} · R2 ${row.r2Grade}/${row.r2Score}", style = MaterialTheme.typography.bodySmall)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(row.price?.let { "%.2f".format(it) } ?: "-")
+                    Text(row.changeRatio?.let { "%+.2f%%".format(it) } ?: "-")
+                }
+            }
+            HorizontalDivider()
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                AssistChip(onClick = {}, label = { Text("本地 ${row.localAction}") })
+                AssistChip(onClick = {}, label = { Text(if (row.aiAction == "-") "AI 未分析" else "AI ${row.aiAction} ${row.aiConfidence}%") })
+                if (row.conflict) SuggestionChip(onClick = {}, label = { Text("⚠ 冲突") })
+                if (row.stale) SuggestionChip(onClick = {}, label = { Text("STALE") })
+            }
+            if (row.aiTargetPositionPct > 0) Text("AI目标仓位 ${row.aiTargetPositionPct}%", style = MaterialTheme.typography.bodySmall)
+            val reason = if (row.aiReason.isNotBlank()) row.aiReason else row.localReason
+            if (reason.isNotBlank()) Text(reason, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+@Composable
+private fun SectionTitle(text: String) = Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
