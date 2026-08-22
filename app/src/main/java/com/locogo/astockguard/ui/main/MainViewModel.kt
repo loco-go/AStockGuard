@@ -17,6 +17,7 @@ import com.locogo.astockguard.domain.paper.PaperTradingRepository
 import com.locogo.astockguard.domain.replay.ReplayEngine
 import com.locogo.astockguard.domain.review.ReviewRepository
 import com.locogo.astockguard.domain.signal.R2Scanner
+import com.locogo.astockguard.domain.trading.TTradePlanner
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -71,6 +72,8 @@ class MainViewModel(
                 selectedCode = code,
                 fundFlowLoading = true,
                 level2Loading = true,
+                manualBuyAnchor = if (changed) null else it.manualBuyAnchor,
+                tTradePlan = if (changed) null else it.tTradePlan,
                 replayIndex = if (changed) -1 else it.replayIndex,
                 replayReport = if (changed) null else it.replayReport
             )
@@ -81,6 +84,7 @@ class MainViewModel(
             val flow = runCatching { fundFlowRepository.stock(code) }.getOrNull()
             val referencePrice = _uiState.value.snapshot?.quotes?.firstOrNull { it.code == code }?.latest
             val level2 = runCatching { level2Repository.snapshot(code, referencePrice) }.getOrNull()
+            val trades = runCatching { cacheDao.getTradeRecords().filter { it.code == code } }.getOrDefault(emptyList())
             if (_uiState.value.selectedCode == code) {
                 _uiState.update {
                     it.copy(
@@ -89,11 +93,43 @@ class MainViewModel(
                         stockFundFlow = flow,
                         fundFlowLoading = false,
                         level2 = level2,
-                        level2Loading = false
+                        level2Loading = false,
+                        tradeRecords = trades
                     )
                 }
+                recalculateTPlan(code)
             }
         }
+    }
+
+    fun setBuyAnchor(price: Double) {
+        if (!price.isFinite() || price <= 0.0) return
+        val code = _uiState.value.selectedCode ?: return
+        _uiState.update { it.copy(manualBuyAnchor = price) }
+        recalculateTPlan(code)
+    }
+
+    fun clearBuyAnchor() {
+        val code = _uiState.value.selectedCode ?: return
+        _uiState.update { it.copy(manualBuyAnchor = null) }
+        recalculateTPlan(code)
+    }
+
+    private fun recalculateTPlan(code: String) {
+        val state = _uiState.value
+        val snapshot = state.snapshot ?: return
+        val quote = snapshot.quotes.firstOrNull { it.code == code }
+        val position = settings.positions().firstOrNull { it.code == code }
+        val plan = TTradePlanner.plan(
+            quote = quote,
+            position = position,
+            minuteBars = state.minuteBars,
+            fundFlow = state.stockFundFlow,
+            marketPhase = snapshot.assessment.marketPhase,
+            dataStale = snapshot.dataHealth.isStale,
+            manualAnchorPrice = state.manualBuyAnchor
+        )
+        if (_uiState.value.selectedCode == code) _uiState.update { it.copy(tTradePlan = plan) }
     }
 
     fun refreshLevel2() {
@@ -207,8 +243,10 @@ class MainViewModel(
     fun refreshReviews() {
         viewModelScope.launch {
             val signals = runCatching { reviewRepository.signalStats() }.getOrDefault(com.locogo.astockguard.domain.review.SignalReviewStats())
-            val trades = runCatching { reviewRepository.tradeStats() }.getOrDefault(com.locogo.astockguard.domain.review.TradeReviewStats())
-            _uiState.update { it.copy(signalReviewStats = signals, tradeReviewStats = trades) }
+            val tradeStats = runCatching { reviewRepository.tradeStats() }.getOrDefault(com.locogo.astockguard.domain.review.TradeReviewStats())
+            val code = _uiState.value.selectedCode
+            val tradeRecords = runCatching { cacheDao.getTradeRecords().filter { code == null || it.code == code } }.getOrDefault(emptyList())
+            _uiState.update { it.copy(signalReviewStats = signals, tradeReviewStats = tradeStats, tradeRecords = tradeRecords) }
         }
     }
 
