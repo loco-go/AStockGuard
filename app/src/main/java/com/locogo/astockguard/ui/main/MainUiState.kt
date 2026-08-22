@@ -9,6 +9,8 @@ import com.locogo.astockguard.data.fundflow.StockFundFlow
 import com.locogo.astockguard.data.level2.Level2Snapshot
 import com.locogo.astockguard.data.local.SignalStateEntity
 import com.locogo.astockguard.data.news.NewsRiskAssessment
+import com.locogo.astockguard.domain.paper.PaperSummary
+import com.locogo.astockguard.domain.replay.ReplayReport
 import com.locogo.astockguard.domain.review.SignalReviewStats
 import com.locogo.astockguard.domain.review.TradeReviewStats
 import com.locogo.astockguard.domain.signal.R2ScanRow
@@ -28,6 +30,11 @@ data class MainUiState(
     val fundFlowLoading: Boolean = false,
     val level2: Level2Snapshot? = null,
     val level2Loading: Boolean = false,
+    val paperSummary: PaperSummary = PaperSummary(),
+    val paperLoading: Boolean = false,
+    val replayIndex: Int = -1,
+    val replayReport: ReplayReport? = null,
+    val replayRunning: Boolean = false,
     val r2ScanRows: List<R2ScanRow> = emptyList(),
     val signalStates: List<SignalStateEntity> = emptyList(),
     val signalReviewStats: SignalReviewStats = SignalReviewStats(),
