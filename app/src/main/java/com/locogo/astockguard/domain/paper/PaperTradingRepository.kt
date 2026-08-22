@@ -53,7 +53,7 @@ class PaperTradingRepository(private val database: AStockDatabase) {
         val normalizedSide = side.uppercase()
         require(normalizedSide == "BUY" || normalizedSide == "SELL") { "side必须为BUY/SELL" }
         val now = System.currentTimeMillis()
-        val order = database.withTransaction {
+        return database.withTransaction {
             val account = ensureAccount()
             val position = dao.getPaperPosition(code)
             val fee = 0.0 // 研究模拟默认不假定当前券商费率；后续可配置费率模型。
@@ -63,7 +63,7 @@ class PaperTradingRepository(private val database: AStockDatabase) {
                 val oldQty = position?.quantity ?: 0
                 val oldCost = position?.avgCost ?: 0.0
                 val newQty = oldQty + quantity
-                val newAvg = if (newQty == 0) 0.0 else (oldCost * oldQty + price * quantity + fee) / newQty
+                val newAvg = (oldCost * oldQty + price * quantity + fee) / newQty
                 dao.upsertPaperPosition(PaperPositionEntity(code, newQty, newAvg, now))
                 dao.upsertPaperAccount(account.copy(cash = account.cash - cost, updatedAt = now))
             } else {
@@ -78,10 +78,8 @@ class PaperTradingRepository(private val database: AStockDatabase) {
                 createdAt = now, code = code, side = normalizedSide, quantity = quantity,
                 price = price, fee = fee, status = "FILLED", source = source, note = note
             )
-            val id = dao.insertPaperOrder(filled)
-            filled.copy(id = id)
+            filled.copy(id = dao.insertPaperOrder(filled))
         }
-        return order
     }
 
     suspend fun summary(quotes: List<Quote>): PaperSummary {
@@ -102,7 +100,11 @@ class PaperTradingRepository(private val database: AStockDatabase) {
         val marketValue = positions.sumOf { it.marketValue }
         val equity = account.cash + marketValue
         val returnPct = if (account.initialCash > 0) (equity / account.initialCash - 1.0) * 100.0 else 0.0
-        dao.insertPaperEquity(PaperEquityEntity(recordedAt = System.currentTimeMillis(), equity = equity, cash = account.cash, marketValue = marketValue))
+        val now = System.currentTimeMillis()
+        val lastEquity = dao.getLatestPaperEquity()
+        if (lastEquity == null || now - lastEquity.recordedAt >= 60_000L) {
+            dao.insertPaperEquity(PaperEquityEntity(recordedAt = now, equity = equity, cash = account.cash, marketValue = marketValue))
+        }
         return PaperSummary(
             initialCash = account.initialCash,
             cash = account.cash,
