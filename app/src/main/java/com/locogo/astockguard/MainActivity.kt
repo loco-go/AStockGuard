@@ -36,6 +36,8 @@ class MainActivity : AppCompatActivity() {
             c.fundFlowRepository,
             c.newsRepository,
             c.level2Repository,
+            c.paperTradingRepository,
+            c.replayEngine,
             c.r2Scanner,
             c.reviewRepository,
             c.aiClient,
@@ -61,13 +63,26 @@ class MainActivity : AppCompatActivity() {
             val state by viewModel.uiState.collectAsStateWithLifecycle()
             AStockGuardTheme {
                 DashboardScreen(
-                    state = state, positions = settings.positions(), onRefresh = viewModel::refresh,
-                    onAnalyze = viewModel::analyze, onStartMonitor = ::startMonitor, onStopMonitor = ::stopMonitor,
+                    state = state,
+                    positions = settings.positions(),
+                    onRefresh = viewModel::refresh,
+                    onAnalyze = viewModel::analyze,
+                    onStartMonitor = ::startMonitor,
+                    onStopMonitor = ::stopMonitor,
                     onSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
-                    onSelectStock = viewModel::selectStock, onSectorType = viewModel::refreshSectorFlow,
+                    onSelectStock = viewModel::selectStock,
+                    onSectorType = viewModel::refreshSectorFlow,
                     onRecordTrade = viewModel::recordTrade,
                     onRefreshNews = { viewModel.refreshNews(force = true) },
-                    onRefreshLevel2 = viewModel::refreshLevel2
+                    onRefreshLevel2 = viewModel::refreshLevel2,
+                    onPaperBuy = { viewModel.paperTrade("BUY") },
+                    onPaperSell = { viewModel.paperTrade("SELL") },
+                    onResetPaper = viewModel::resetPaper,
+                    onReplayReset = viewModel::resetReplay,
+                    onReplayStep = viewModel::stepReplay,
+                    onReplayPlay = { viewModel.startReplay(5) },
+                    onReplayPause = viewModel::pauseReplay,
+                    onRunBacktest = viewModel::runReplayBacktest
                 )
             }
         }
