@@ -34,7 +34,15 @@ fun DashboardScreen(
     onSectorType: (String) -> Unit,
     onRecordTrade: (String, Int, Double) -> Unit,
     onRefreshNews: () -> Unit,
-    onRefreshLevel2: () -> Unit
+    onRefreshLevel2: () -> Unit,
+    onPaperBuy: () -> Unit,
+    onPaperSell: () -> Unit,
+    onResetPaper: () -> Unit,
+    onReplayReset: () -> Unit,
+    onReplayStep: () -> Unit,
+    onReplayPlay: () -> Unit,
+    onReplayPause: () -> Unit,
+    onRunBacktest: () -> Unit
 ) {
     var question: String by rememberSaveable { mutableStateOf("") }
     val snapshot = state.snapshot
@@ -70,6 +78,21 @@ fun DashboardScreen(
             item { R2ScannerCard(state) }
             item { SignalLifecycleCard(state) }
             item { ReviewDashboardCard(state, onRecordTrade) }
+
+            item { SectionTitle("模拟盘 / Replay") }
+            item {
+                PaperReplayCard(
+                    state = state,
+                    onPaperBuy = onPaperBuy,
+                    onPaperSell = onPaperSell,
+                    onResetPaper = onResetPaper,
+                    onReplayReset = onReplayReset,
+                    onReplayStep = onReplayStep,
+                    onReplayPlay = onReplayPlay,
+                    onReplayPause = onReplayPause,
+                    onRunBacktest = onRunBacktest
+                )
+            }
 
             item { SectionTitle("资金流") }
             item { StockFundFlowCard(state.stockFundFlow, state.fundFlowLoading) }
