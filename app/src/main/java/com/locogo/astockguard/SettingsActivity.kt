@@ -48,7 +48,7 @@ class SettingsActivity : AppCompatActivity() {
         binding.btnImportFile.setOnClickListener { openImportFile.launch(arrayOf("application/json", "text/plain", "text/*", "*/*")) }
         binding.btnClearImport.setOnClickListener { binding.etImportText.text?.clear(); binding.tvImportResult.text = "尚未解析" }
         binding.btnParseImport.setOnClickListener { parseImport(binding.etImportText.text.toString()) }
-        binding.btnSave.setOnClickListener { save(); binding.tvTestResult.text = "已保存：Token/Session/Cookie 使用 Android Keystore AES-GCM 加密。" }
+        binding.btnSave.setOnClickListener { save(); binding.tvTestResult.text = "已保存：敏感凭据继续使用 Android Keystore AES-GCM 加密。" }
         binding.btnTestMarket.setOnClickListener { testMarket() }
         binding.btnTestAi.setOnClickListener { testAi() }
     }
@@ -90,22 +90,45 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun load() = with(binding) {
-        etWatchCodes.setText(settings.watchCodes); etPositions.setText(settings.positionsText)
-        etPositionRatio.setText(settings.positionRatio.toString()); etRefreshSeconds.setText(settings.refreshSeconds.toString())
-        spPrimaryType.setSelection(types.indexOf(settings.primaryType).coerceAtLeast(0)); etPrimaryBaseUrl.setText(settings.primaryBaseUrl)
-        etPrimaryApiKey.setText(settings.primaryApiKey); etSessionToken.setText(settings.primarySessionToken); etCookie.setText(settings.primaryCookie)
-        etPrimaryModel.setText(settings.primaryModel); spBackupType.setSelection(types.indexOf(settings.backupType).coerceAtLeast(0))
-        etBackupBaseUrl.setText(settings.backupBaseUrl); etBackupApiKey.setText(settings.backupApiKey); etBackupModel.setText(settings.backupModel)
+        etWatchCodes.setText(settings.watchCodes)
+        etPositions.setText(settings.positionsText)
+        etPositionRatio.setText(settings.positionRatio.toString())
+        etRefreshSeconds.setText(settings.refreshSeconds.toString())
+        swNewsEnabled.isChecked = settings.newsEnabled
+        etNewsRefreshMinutes.setText(settings.newsRefreshMinutes.toString())
+        etNewsSources.setText(settings.newsSourcesText)
+        spPrimaryType.setSelection(types.indexOf(settings.primaryType).coerceAtLeast(0))
+        etPrimaryBaseUrl.setText(settings.primaryBaseUrl)
+        etPrimaryApiKey.setText(settings.primaryApiKey)
+        etSessionToken.setText(settings.primarySessionToken)
+        etCookie.setText(settings.primaryCookie)
+        etPrimaryModel.setText(settings.primaryModel)
+        spBackupType.setSelection(types.indexOf(settings.backupType).coerceAtLeast(0))
+        etBackupBaseUrl.setText(settings.backupBaseUrl)
+        etBackupApiKey.setText(settings.backupApiKey)
+        etBackupModel.setText(settings.backupModel)
         etExtraHeaders.setText(settings.extraHeadersJson)
     }
 
     private fun save() = with(binding) {
-        settings.watchCodes = etWatchCodes.text.toString().trim(); settings.positionsText = etPositions.text.toString().trim()
-        settings.positionRatio = etPositionRatio.text.toString().toDoubleOrNull() ?: 0.0; settings.refreshSeconds = etRefreshSeconds.text.toString().toIntOrNull() ?: 5
-        settings.primaryType = spPrimaryType.selectedItem.toString(); settings.primaryBaseUrl = etPrimaryBaseUrl.text.toString().trim().ifBlank { SettingsRepository.defaultEndpoint(settings.primaryType) }
-        settings.primaryApiKey = etPrimaryApiKey.text.toString().trim(); settings.primarySessionToken = etSessionToken.text.toString().trim(); settings.primaryCookie = etCookie.text.toString().trim()
-        settings.primaryModel = etPrimaryModel.text.toString().trim().ifBlank { "auto" }; settings.extraHeadersJson = etExtraHeaders.text.toString().trim().ifBlank { "{}" }
-        settings.backupType = spBackupType.selectedItem.toString(); settings.backupBaseUrl = etBackupBaseUrl.text.toString().trim(); settings.backupApiKey = etBackupApiKey.text.toString().trim(); settings.backupModel = etBackupModel.text.toString().trim()
+        settings.watchCodes = etWatchCodes.text.toString().trim()
+        settings.positionsText = etPositions.text.toString().trim()
+        settings.positionRatio = etPositionRatio.text.toString().toDoubleOrNull() ?: 0.0
+        settings.refreshSeconds = etRefreshSeconds.text.toString().toIntOrNull() ?: 5
+        settings.newsEnabled = swNewsEnabled.isChecked
+        settings.newsRefreshMinutes = etNewsRefreshMinutes.text.toString().toIntOrNull() ?: 15
+        settings.newsSourcesText = etNewsSources.text.toString().trim().ifBlank { SettingsRepository.DEFAULT_NEWS_SOURCES }
+        settings.primaryType = spPrimaryType.selectedItem.toString()
+        settings.primaryBaseUrl = etPrimaryBaseUrl.text.toString().trim().ifBlank { SettingsRepository.defaultEndpoint(settings.primaryType) }
+        settings.primaryApiKey = etPrimaryApiKey.text.toString().trim()
+        settings.primarySessionToken = etSessionToken.text.toString().trim()
+        settings.primaryCookie = etCookie.text.toString().trim()
+        settings.primaryModel = etPrimaryModel.text.toString().trim().ifBlank { "auto" }
+        settings.extraHeadersJson = etExtraHeaders.text.toString().trim().ifBlank { "{}" }
+        settings.backupType = spBackupType.selectedItem.toString()
+        settings.backupBaseUrl = etBackupBaseUrl.text.toString().trim()
+        settings.backupApiKey = etBackupApiKey.text.toString().trim()
+        settings.backupModel = etBackupModel.text.toString().trim()
     }
 
     private fun importFromClipboard() {
@@ -145,7 +168,7 @@ class SettingsActivity : AppCompatActivity() {
     private fun testAi() {
         save()
         if (settings.primaryType == "CHATGPT_WEB") {
-            binding.tvTestResult.text = "CHATGPT_WEB 使用 WebView 登录态：测试窗口会自动填入、自动发送，并在回复稳定后自动回传；若登录失效只需在 WebView 中手动登录。"
+            binding.tvTestResult.text = "CHATGPT_WEB 使用 WebView 登录态：正常分析隐藏运行；若登录失效只需在 WebView 中手动登录。"
             startActivity(android.content.Intent(this, ChatGptWebActivity::class.java).putExtra(ChatGptWebActivity.EXTRA_PROMPT, "只回复：OK")); return
         }
         lifecycleScope.launch {
