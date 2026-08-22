@@ -11,7 +11,6 @@ import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalTime
 import java.time.ZoneId
-import kotlin.math.abs
 
 class MarketMonitorService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -150,7 +149,10 @@ class MarketMonitorService : Service() {
         return morning || afternoon
     }
 
-    private fun tNotificationId(code: String, type: Int): Int = 4000 + (abs(code.hashCode()) % 700) * 4 + type
+    private fun tNotificationId(code: String, type: Int): Int {
+        val positiveHash = code.hashCode() and Int.MAX_VALUE
+        return 4000 + (positiveHash % 700) * 4 + type
+    }
 
     override fun onDestroy() { loopJob?.cancel(); scope.cancel(); super.onDestroy() }
     override fun onBind(intent: Intent?): IBinder? = null
