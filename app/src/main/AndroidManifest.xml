@@ -24,6 +24,10 @@
             android:windowSoftInputMode="adjustResize" />
 
         <activity
+            android:name=".integration.ths.ThsTradeSyncActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".SettingsActivity"
             android:exported="false" />
 
