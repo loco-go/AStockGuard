@@ -4,6 +4,7 @@ import android.app.Service
 import android.content.Intent
 import android.os.IBinder
 import android.util.Log
+import com.locogo.astockguard.data.news.NewsRepository
 import kotlinx.coroutines.*
 
 class MarketMonitorService : Service() {
@@ -11,7 +12,10 @@ class MarketMonitorService : Service() {
     private var loopJob: Job? = null
     private lateinit var settings: SettingsRepository
     private lateinit var marketRepository: MarketRepository
+    private lateinit var newsRepository: NewsRepository
     private var lastRisk = ""
+    private var lastNewsRisk = "E0"
+    private var lastNewsRefreshAt = 0L
     private lateinit var signalLifecycle: com.locogo.astockguard.domain.signal.SignalLifecycleManager
 
     override fun onCreate() {
@@ -19,6 +23,7 @@ class MarketMonitorService : Service() {
         NotificationHelper.ensureChannels(this)
         settings = appContainer.settings
         marketRepository = appContainer.marketRepository
+        newsRepository = appContainer.newsRepository
         signalLifecycle = appContainer.signalLifecycle
     }
 
@@ -36,6 +41,7 @@ class MarketMonitorService : Service() {
                     val s = marketRepository.refresh()
                     MonitorBus.update(s)
                     emitAlerts(s)
+                    refreshNewsIfDue()
                     val source = if (s.dataHealth.isStale) "缓存" else "实时"
                     val text = "$source ${s.assessment.eventRisk}/${s.assessment.marketPhase} 仓位${"%.1f".format(s.positionRatio)}% 上限${"%.0f".format(s.assessment.maxPositionRatio * 100)}%"
                     getSystemService(android.app.NotificationManager::class.java).notify(NOTIFICATION_ID, NotificationHelper.serviceNotification(this@MarketMonitorService, text))
@@ -47,10 +53,28 @@ class MarketMonitorService : Service() {
         }
     }
 
+    private suspend fun refreshNewsIfDue() {
+        if (!settings.newsEnabled) return
+        val now = System.currentTimeMillis()
+        if (now - lastNewsRefreshAt < settings.newsRefreshMinutes * 60_000L) return
+        lastNewsRefreshAt = now
+        val news = runCatching { newsRepository.refresh() }.getOrElse { newsRepository.cached() }
+        if (news.level != lastNewsRisk && news.level == "E2") {
+            val evidence = news.evidence.take(3).joinToString("；") { it.title }
+            NotificationHelper.alert(
+                this,
+                2101,
+                "新闻黑天鹅 E2 · score ${news.score}",
+                evidence.ifBlank { "新闻风险覆盖层升级，请人工核实证据后再调整仓位。" }
+            )
+        }
+        lastNewsRisk = news.level
+    }
+
     private suspend fun emitAlerts(s: MonitorSnapshot) {
         if (s.dataHealth.isStale) return
         val risk = s.assessment.eventRisk
-        if (risk != lastRisk && risk == "E2") NotificationHelper.alert(this, 2001, "E2 风险：先降β", s.assessment.advice)
+        if (risk != lastRisk && risk == "E2") NotificationHelper.alert(this, 2001, "本地行情 E2 风险：先降β", s.assessment.advice)
         lastRisk = risk
         signalLifecycle.evaluate(s).forEachIndexed { index, transition ->
             if (!transition.important) return@forEachIndexed
