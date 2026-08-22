@@ -6,21 +6,26 @@ import com.locogo.astockguard.data.fundflow.FundFlowRepository
 import com.locogo.astockguard.data.level2.Level2Repository
 import com.locogo.astockguard.data.local.AStockDatabase
 import com.locogo.astockguard.data.news.NewsRepository
+import com.locogo.astockguard.data.sync.DeviceIdentity
+import com.locogo.astockguard.data.sync.SyncRepository
 import com.locogo.astockguard.domain.paper.PaperTradingRepository
 import com.locogo.astockguard.domain.replay.ReplayEngine
 import com.locogo.astockguard.domain.review.ReviewRepository
 import com.locogo.astockguard.domain.signal.R2Scanner
 import com.locogo.astockguard.domain.signal.SignalLifecycleManager
+import com.locogo.astockguard.sync.SyncScheduler
 
 class AppContainer(application: Application) {
     val settings: SettingsRepository by lazy { SettingsRepository(application) }
     val database: AStockDatabase by lazy { AStockDatabase.get(application) }
+    val deviceIdentity: DeviceIdentity by lazy { DeviceIdentity(application) }
     val marketRepository: MarketRepository by lazy { MarketRepository(settings = settings, cacheDao = database.cacheDao()) }
     val fundFlowRepository: FundFlowRepository by lazy { FundFlowRepository(cacheDao = database.cacheDao()) }
     val newsRepository: NewsRepository by lazy { NewsRepository(settings, database.cacheDao()) }
     val level2Repository: Level2Repository by lazy { Level2Repository(settings, database.cacheDao()) }
     val paperTradingRepository: PaperTradingRepository by lazy { PaperTradingRepository(database) }
     val replayEngine: ReplayEngine by lazy { ReplayEngine() }
+    val syncRepository: SyncRepository by lazy { SyncRepository(settings, database, deviceIdentity) }
     val r2Scanner: R2Scanner by lazy { R2Scanner(marketRepository) }
     val signalLifecycle: SignalLifecycleManager by lazy { SignalLifecycleManager(database.cacheDao()) }
     val reviewRepository: ReviewRepository by lazy { ReviewRepository(database.cacheDao(), marketRepository) }
@@ -28,5 +33,12 @@ class AppContainer(application: Application) {
     val aiClient: AiClient by lazy { AiClient() }
 }
 
-class AStockGuardApp : Application() { val container: AppContainer by lazy { AppContainer(this) } }
+class AStockGuardApp : Application() {
+    val container: AppContainer by lazy { AppContainer(this) }
+    override fun onCreate() {
+        super.onCreate()
+        SyncScheduler.apply(this, container.settings.syncEnabled)
+    }
+}
+
 val android.content.Context.appContainer: AppContainer get() = (applicationContext as AStockGuardApp).container
