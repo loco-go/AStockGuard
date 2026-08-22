@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.locogo.astockguard.DailyBar
 import com.locogo.astockguard.Quote
+import com.locogo.astockguard.MinuteBar
 
 @Entity(tableName = "quote_cache")
 data class QuoteCacheEntity(
@@ -65,3 +66,21 @@ fun DailyBar.toCacheEntity(code: String, now: Long = System.currentTimeMillis())
     DailyBarCacheEntity(code, date, open, close, high, low, volume, now)
 
 fun DailyBarCacheEntity.toModel() = DailyBar(date, open, close, high, low, volume)
+
+@Entity(tableName = "minute_bar_cache", primaryKeys = ["code", "time"])
+data class MinuteBarCacheEntity(
+    val code: String,
+    val time: String,
+    val price: Double,
+    val avgPrice: Double,
+    val high: Double,
+    val low: Double,
+    val volume: Double,
+    val amount: Double,
+    val cachedAt: Long
+)
+
+fun MinuteBar.toCacheEntity(code: String, now: Long = System.currentTimeMillis()) =
+    MinuteBarCacheEntity(code, time, price, avgPrice, high, low, volume, amount, now)
+
+fun MinuteBarCacheEntity.toModel() = MinuteBar(time, price, avgPrice, high, low, volume, amount)

@@ -28,6 +28,16 @@ data class Quote(
     val r2Reason: String = ""
 )
 
+data class MinuteBar(
+    val time: String,
+    val price: Double,
+    val avgPrice: Double,
+    val high: Double,
+    val low: Double,
+    val volume: Double,
+    val amount: Double
+)
+
 data class DailyBar(
     val date: String,
     val open: Double,

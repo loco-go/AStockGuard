@@ -35,7 +35,22 @@ class MainViewModel(
     val effects: SharedFlow<MainEffect> = _effects.asSharedFlow()
 
     fun acceptSnapshot(snapshot: com.locogo.astockguard.MonitorSnapshot) {
-        _uiState.update { it.copy(snapshot = snapshot, loading = false, error = null) }
+        val selected = _uiState.value.selectedCode ?: snapshot.quotes.firstOrNull()?.code
+        _uiState.update { it.copy(snapshot = snapshot, loading = false, selectedCode = selected, error = null) }
+        selected?.let(::selectStock)
+        viewModelScope.launch {
+            val curve = runCatching { marketRepository.buildPortfolioCurve(settings.positions()) }.getOrDefault(emptyList())
+            _uiState.update { it.copy(equityCurve = curve) }
+        }
+    }
+
+    fun selectStock(code: String) {
+        _uiState.update { it.copy(selectedCode = code) }
+        viewModelScope.launch {
+            val daily = runCatching { marketRepository.loadDailyBars(code, 30) }.getOrDefault(emptyList())
+            val minute = runCatching { marketRepository.loadMinuteBars(code) }.getOrDefault(emptyList())
+            if (_uiState.value.selectedCode == code) _uiState.update { it.copy(dailyBars = daily, minuteBars = minute) }
+        }
     }
 
     fun refresh() {
@@ -56,8 +71,7 @@ class MainViewModel(
         val prompt = PromptBuilder.build(snapshot, settings.positions(), question)
         _uiState.update { it.copy(aiLoading = true, aiText = "AI分析中…", error = null) }
         if (settings.primaryType == "CHATGPT_WEB") {
-            _effects.tryEmit(MainEffect.RunHiddenWebAi(prompt))
-            return
+            _effects.tryEmit(MainEffect.RunHiddenWebAi(prompt)); return
         }
         viewModelScope.launch {
             runCatching { aiClient.analyze(settings.primaryProvider(), settings.backupProvider(), prompt) }
@@ -73,9 +87,7 @@ class MainViewModel(
             runCatching {
                 cacheDao.insertAiAnalysis(
                     AiAnalysisEntity(
-                        createdAt = System.currentTimeMillis(),
-                        prompt = prompt,
-                        rawAnswer = answer,
+                        createdAt = System.currentTimeMillis(), prompt = prompt, rawAnswer = answer,
                         marketAction = strategy?.marketAction ?: "UNPARSED",
                         confidence = strategy?.confidence ?: 0,
                         targetPositionPct = strategy?.targetPositionPct ?: 0,

@@ -19,6 +19,12 @@ interface CacheDao {
     @Query("SELECT * FROM daily_bar_cache WHERE code = :code ORDER BY date DESC LIMIT :limit")
     suspend fun getDailyBars(code: String, limit: Int): List<DailyBarCacheEntity>
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertMinuteBars(items: List<MinuteBarCacheEntity>)
+
+    @Query("SELECT * FROM minute_bar_cache WHERE code = :code ORDER BY time ASC")
+    suspend fun getMinuteBars(code: String): List<MinuteBarCacheEntity>
+
     @Insert
     suspend fun insertAiAnalysis(item: AiAnalysisEntity): Long
 

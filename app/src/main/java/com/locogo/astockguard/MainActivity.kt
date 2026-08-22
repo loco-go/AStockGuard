@@ -33,37 +33,21 @@ class MainActivity : AppCompatActivity() {
         val c = appContainer
         MainViewModel.Factory(c.settings, c.marketRepository, c.aiClient, c.database.cacheDao())
     }
-
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
-
     private val webAiLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
         val prompt = pendingManualPrompt
         if (result.resultCode == RESULT_OK) {
             val answer = result.data?.getStringExtra(ChatGptWebActivity.EXTRA_RESULT).orEmpty()
-            if (answer.isNotBlank()) {
-                viewModel.onAiAnswer(prompt, answer)
-                pendingManualPrompt = ""
-                return@registerForActivityResult
-            }
+            if (answer.isNotBlank()) { viewModel.onAiAnswer(prompt, answer); pendingManualPrompt = ""; return@registerForActivityResult }
         }
-        if (prompt.isNotBlank()) {
-            viewModel.onAiStatus("网页登录已关闭，重新尝试后台分析…")
-            hiddenChatGpt.analyze(prompt)
-        }
+        if (prompt.isNotBlank()) { viewModel.onAiStatus("网页登录已关闭，重新尝试后台分析…"); hiddenChatGpt.analyze(prompt) }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         settings = appContainer.settings
         askNotificationPermission()
-        hiddenChatGpt = HiddenChatGptSession(
-            activity = this,
-            settingsRepo = settings,
-            onStatus = viewModel::onAiStatus,
-            onCompleted = viewModel::onAiAnswer,
-            onRequiresManual = ::showManualAiDialog
-        )
-
+        hiddenChatGpt = HiddenChatGptSession(this, settings, viewModel::onAiStatus, viewModel::onAiAnswer, ::showManualAiDialog)
         setContent {
             val state by viewModel.uiState.collectAsStateWithLifecycle()
             AStockGuardTheme {
@@ -74,18 +58,14 @@ class MainActivity : AppCompatActivity() {
                     onAnalyze = viewModel::analyze,
                     onStartMonitor = ::startMonitor,
                     onStopMonitor = ::stopMonitor,
-                    onSettings = { startActivity(Intent(this, SettingsActivity::class.java)) }
+                    onSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
+                    onSelectStock = viewModel::selectStock
                 )
             }
         }
-
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                launch {
-                    viewModel.effects.collect { effect ->
-                        if (effect is MainEffect.RunHiddenWebAi) hiddenChatGpt.analyze(effect.prompt)
-                    }
-                }
+                launch { viewModel.effects.collect { effect -> if (effect is MainEffect.RunHiddenWebAi) hiddenChatGpt.analyze(effect.prompt) } }
                 launch { MonitorBus.snapshot.collect { it?.let(viewModel::acceptSnapshot) } }
             }
         }
@@ -96,36 +76,23 @@ class MainActivity : AppCompatActivity() {
         ContextCompat.startForegroundService(this, Intent(this, MarketMonitorService::class.java).setAction(MarketMonitorService.ACTION_START))
         toast("实时监控已启动")
     }
-
     private fun stopMonitor() {
         startService(Intent(this, MarketMonitorService::class.java).setAction(MarketMonitorService.ACTION_STOP))
         toast("实时监控已停止")
     }
-
     private fun showManualAiDialog(prompt: String, reason: String) {
-        pendingManualPrompt = prompt
-        viewModel.onAiFailed(reason)
+        pendingManualPrompt = prompt; viewModel.onAiFailed(reason)
         if (isFinishing || isDestroyed) return
         AlertDialog.Builder(this)
             .setTitle("AI网页登录需要处理")
             .setMessage("$reason\n\n正常分析不会跳转网页；仅登录、验证码或 DOM 异常时打开。")
             .setNegativeButton("稍后", null)
-            .setPositiveButton("打开登录页面") { _, _ ->
-                webAiLauncher.launch(Intent(this, ChatGptWebActivity::class.java).putExtra(ChatGptWebActivity.EXTRA_PROMPT, prompt))
-            }
+            .setPositiveButton("打开登录页面") { _, _ -> webAiLauncher.launch(Intent(this, ChatGptWebActivity::class.java).putExtra(ChatGptWebActivity.EXTRA_PROMPT, prompt)) }
             .show()
     }
-
     private fun askNotificationPermission() {
-        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
-
     private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-
-    override fun onDestroy() {
-        hiddenChatGpt.destroy()
-        super.onDestroy()
-    }
+    override fun onDestroy() { hiddenChatGpt.destroy(); super.onDestroy() }
 }

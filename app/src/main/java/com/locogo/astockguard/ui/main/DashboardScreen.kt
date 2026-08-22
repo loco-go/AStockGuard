@@ -12,6 +12,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.locogo.astockguard.Position
+import com.locogo.astockguard.ui.chart.CandlestickChart
+import com.locogo.astockguard.ui.chart.ChartSignal
+import com.locogo.astockguard.ui.chart.EquityCurve
+import com.locogo.astockguard.ui.chart.MinuteChart
 
 @Composable
 fun DashboardScreen(
@@ -21,21 +25,15 @@ fun DashboardScreen(
     onAnalyze: (String) -> Unit,
     onStartMonitor: () -> Unit,
     onStopMonitor: () -> Unit,
-    onSettings: () -> Unit
+    onSettings: () -> Unit,
+    onSelectStock: (String) -> Unit
 ) {
     var question by rememberSaveable { mutableStateOf("") }
     val snapshot = state.snapshot
-    val rows = remember(snapshot, positions, state.aiStrategy) {
-        StrategyUiMapper.map(snapshot, positions, state.aiStrategy)
-    }
+    val rows = remember(snapshot, positions, state.aiStrategy) { StrategyUiMapper.map(snapshot, positions, state.aiStrategy) }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("A股实时交易驾驶舱", fontWeight = FontWeight.Bold) },
-                actions = { TextButton(onClick = onSettings) { Text("设置") } }
-            )
-        },
+        topBar = { TopAppBar(title = { Text("A股实时交易驾驶舱", fontWeight = FontWeight.Bold) }, actions = { TextButton(onClick = onSettings) { Text("设置") } }) },
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(true, {}, { Text("首页") }, icon = {})
@@ -61,36 +59,51 @@ fun DashboardScreen(
             }
             item { SectionTitle("持仓 / 观察池策略") }
             if (rows.isEmpty()) item { Text("暂无行情，请先刷新。") }
-            else items(rows, key = { it.code }) { StrategyRow(it) }
+            else items(rows, key = { it.code }) { row -> StrategyRow(row) { onSelectStock(row.code) } }
+
+            item { SectionTitle("分时 / K线") }
+            item {
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(state.selectedCode ?: "请选择股票", fontWeight = FontWeight.Bold)
+                        Text("分时：价格 + 均价", style = MaterialTheme.typography.labelMedium)
+                        MinuteChart(state.minuteBars)
+                        Text("日K：拖动查看 OHLC", style = MaterialTheme.typography.labelMedium)
+                        val selectedDigits = state.selectedCode?.substringBefore(".").orEmpty()
+                        val action = state.aiStrategy?.stocks?.firstOrNull { it.symbol.contains(selectedDigits) }?.action
+                        val signals = if (action != null && state.dailyBars.isNotEmpty()) listOf(ChartSignal(state.dailyBars.lastIndex, action)) else emptyList()
+                        CandlestickChart(state.dailyBars, signals)
+                    }
+                }
+            }
+
+            item { SectionTitle("持仓组合净值") }
+            item {
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text("基准=100，按当前持股数量回放近30日", style = MaterialTheme.typography.bodySmall)
+                        EquityCurve(state.equityCurve)
+                    }
+                }
+            }
+
             item { SectionTitle("AI 综合判断") }
             item {
-                OutlinedTextField(
-                    value = question,
-                    onValueChange = { question = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("可选：补充你的问题") },
-                    minLines = 2,
-                    maxLines = 4
-                )
+                OutlinedTextField(value = question, onValueChange = { question = it }, modifier = Modifier.fillMaxWidth(), label = { Text("可选：补充你的问题") }, minLines = 2, maxLines = 4)
             }
             item {
                 Button(onClick = { onAnalyze(question) }, enabled = !state.aiLoading && snapshot != null, modifier = Modifier.fillMaxWidth()) {
                     Text(if (state.aiLoading) "AI 分析中…" else "后台 AI 分析")
                 }
             }
-            item {
-                Card(Modifier.fillMaxWidth()) {
-                    Text(state.aiText, Modifier.padding(14.dp), style = MaterialTheme.typography.bodyMedium)
-                }
-            }
+            item { Card(Modifier.fillMaxWidth()) { Text(state.aiText, Modifier.padding(14.dp)) } }
         }
     }
 }
 
 @Composable
 private fun MarketStatusCard(state: MainUiState) {
-    val s = state.snapshot
-    val a = s?.assessment
+    val s = state.snapshot; val a = s?.assessment
     Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -100,19 +113,19 @@ private fun MarketStatusCard(state: MainUiState) {
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text("当前仓位")
-                    Text("${s?.positionRatio?.let { "%.1f%%".format(it) } ?: "-"}", fontWeight = FontWeight.Bold)
+                    Text(s?.positionRatio?.let { "%.1f%%".format(it) } ?: "-", fontWeight = FontWeight.Bold)
                 }
             }
             Text("建议上限 ${a?.maxPositionRatio?.let { "%.0f%%".format(it * 100) } ?: "-"} · 观察池 ${a?.avgChange?.let { "%+.2f%%".format(it) } ?: "-"}")
             Text(s?.dataHealth?.let { "${it.source}${if (it.isStale) " · 缓存/禁止实时动作" else " · 实时"}" } ?: "尚未加载数据", style = MaterialTheme.typography.bodySmall)
-            if (!a?.advice.isNullOrBlank()) Text(a!!.advice, style = MaterialTheme.typography.bodyMedium)
+            if (!a?.advice.isNullOrBlank()) Text(a!!.advice)
         }
     }
 }
 
 @Composable
-private fun StrategyRow(row: StockStrategyUiModel) {
-    Card(Modifier.fillMaxWidth()) {
+private fun StrategyRow(row: StockStrategyUiModel, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(Modifier.weight(1f)) {

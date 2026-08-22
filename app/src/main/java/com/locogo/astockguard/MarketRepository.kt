@@ -8,6 +8,7 @@ class MarketRepository(
     private val settings: SettingsRepository,
     private val tencent: TencentMarketClient = TencentMarketClient(),
     private val history: TencentHistoryClient = TencentHistoryClient(),
+    private val minute: TencentMinuteClient = TencentMinuteClient(),
     private val cacheDao: CacheDao? = null
 ) {
     private data class Cache(val at: Long, val bars: List<DailyBar>)
@@ -59,10 +60,37 @@ class MarketRepository(
         )
     }
 
+    suspend fun loadDailyBars(code: String, limit: Int = 30): List<DailyBar> = getHistory(code).takeLast(limit)
+
+    suspend fun loadMinuteBars(code: String): List<MinuteBar> {
+        val remote = runCatching { minute.fetch(code) }.getOrDefault(emptyList())
+        if (remote.isNotEmpty()) {
+            cacheDao?.let { dao -> runCatching { dao.upsertMinuteBars(remote.map { it.toCacheEntity(code) }) } }
+            return remote
+        }
+        return cacheDao?.getMinuteBars(code).orEmpty().map { it.toModel() }
+    }
+
+    suspend fun buildPortfolioCurve(positions: List<Position>, limit: Int = 30): List<Pair<String, Double>> {
+        if (positions.isEmpty()) return emptyList()
+        val series = positions.associate { it.code to loadDailyBars(it.code, limit) }
+        val dates = series.values.flatMap { bars -> bars.map { it.date } }.distinct().sorted()
+        val values = dates.mapNotNull { date ->
+            var total = 0.0
+            var covered = 0
+            positions.forEach { p ->
+                val close = series[p.code]?.lastOrNull { it.date <= date }?.close
+                if (close != null) { total += close * p.shares; covered++ }
+            }
+            if (covered == 0) null else date to total
+        }
+        val base = values.firstOrNull()?.second?.takeIf { it > 0 } ?: return emptyList()
+        return values.map { it.first to it.second / base * 100.0 }
+    }
+
     private suspend fun getHistory(code: String): List<DailyBar> {
         val now = System.currentTimeMillis()
         historyCache[code]?.takeIf { now - it.at < 30 * 60 * 1000L }?.let { return it.bars }
-
         val remote = runCatching { history.fetchDaily(code, 30) }.getOrDefault(emptyList())
         val bars = if (remote.isNotEmpty()) {
             cacheDao?.let { dao -> runCatching { dao.upsertDailyBars(remote.map { it.toCacheEntity(code, now) }) } }
