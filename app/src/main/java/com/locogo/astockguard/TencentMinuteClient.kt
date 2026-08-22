@@ -37,7 +37,7 @@ class TencentMinuteClient(
         for (i in 0 until rows.length()) {
             val parts = rows.optString(i).trim().split(' ').filter { it.isNotBlank() }
             if (parts.size < 4) continue
-            val time = parts[0]
+            val time = normalizeMinuteTime(parts[0])
             val price = parts.getOrNull(1)?.toDoubleOrNull() ?: continue
             val volume = parts.getOrNull(2)?.toDoubleOrNull() ?: 0.0
             val amount = parts.getOrNull(3)?.toDoubleOrNull() ?: 0.0
@@ -45,6 +45,17 @@ class TencentMinuteClient(
             result += MinuteBar(time, price, avg, price, price, volume, amount)
         }
         return result
+    }
+
+    internal fun normalizeMinuteTime(raw: String): String {
+        val trimmed = raw.trim()
+        if (trimmed.matches(Regex("(?:[01]\\d|2[0-3]):[0-5]\\d"))) return trimmed
+        val digits = trimmed.filter(Char::isDigit)
+        if (digits.length < 4) return trimmed
+        val hhmm = digits.takeLast(4)
+        val hour = hhmm.take(2).toIntOrNull() ?: return trimmed
+        val minute = hhmm.takeLast(2).toIntOrNull() ?: return trimmed
+        return if (hour in 0..23 && minute in 0..59) "%02d:%02d".format(hour, minute) else trimmed
     }
 
     private fun toTencentCode(code: String): String {
