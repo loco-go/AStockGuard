@@ -34,12 +34,25 @@ interface CacheDao {
     @Query("SELECT * FROM ai_analysis ORDER BY createdAt DESC LIMIT :limit") suspend fun latestAiAnalysis(limit: Int = 20): List<AiAnalysisEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertNews(items: List<NewsItemEntity>)
-    @Query("SELECT * FROM news_item WHERE publishedAt = 0 OR publishedAt >= :since ORDER BY CASE WHEN publishedAt = 0 THEN fetchedAt ELSE publishedAt END DESC")
-    suspend fun getNewsSince(since: Long): List<NewsItemEntity>
+    @Query("SELECT * FROM news_item WHERE publishedAt = 0 OR publishedAt >= :since ORDER BY CASE WHEN publishedAt = 0 THEN fetchedAt ELSE publishedAt END DESC") suspend fun getNewsSince(since: Long): List<NewsItemEntity>
     @Query("DELETE FROM news_item WHERE fetchedAt < :before") suspend fun deleteOldNews(before: Long)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertLevel2(item: Level2SnapshotEntity)
     @Query("SELECT * FROM level2_snapshot WHERE code = :code LIMIT 1") suspend fun getLevel2(code: String): Level2SnapshotEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertPaperAccount(item: PaperAccountEntity)
+    @Query("SELECT * FROM paper_account WHERE id = 1 LIMIT 1") suspend fun getPaperAccount(): PaperAccountEntity?
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertPaperPosition(item: PaperPositionEntity)
+    @Query("SELECT * FROM paper_position WHERE code = :code LIMIT 1") suspend fun getPaperPosition(code: String): PaperPositionEntity?
+    @Query("SELECT * FROM paper_position ORDER BY code") suspend fun getPaperPositions(): List<PaperPositionEntity>
+    @Query("DELETE FROM paper_position WHERE code = :code") suspend fun deletePaperPosition(code: String)
+    @Insert suspend fun insertPaperOrder(item: PaperOrderEntity): Long
+    @Query("SELECT * FROM paper_order ORDER BY createdAt DESC LIMIT :limit") suspend fun getPaperOrders(limit: Int = 50): List<PaperOrderEntity>
+    @Insert suspend fun insertPaperEquity(item: PaperEquityEntity): Long
+    @Query("SELECT * FROM paper_equity ORDER BY recordedAt ASC") suspend fun getPaperEquity(): List<PaperEquityEntity>
+    @Query("DELETE FROM paper_position") suspend fun clearPaperPositions()
+    @Query("DELETE FROM paper_order") suspend fun clearPaperOrders()
+    @Query("DELETE FROM paper_equity") suspend fun clearPaperEquity()
 
     @Query("DELETE FROM signal_state") suspend fun clearSignalStates()
     @Query("DELETE FROM signal_event") suspend fun clearSignalEvents()
