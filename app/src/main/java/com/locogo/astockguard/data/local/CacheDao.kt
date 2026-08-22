@@ -50,6 +50,7 @@ interface CacheDao {
     @Query("SELECT * FROM paper_order ORDER BY createdAt DESC LIMIT :limit") suspend fun getPaperOrders(limit: Int = 50): List<PaperOrderEntity>
     @Insert suspend fun insertPaperEquity(item: PaperEquityEntity): Long
     @Query("SELECT * FROM paper_equity ORDER BY recordedAt ASC") suspend fun getPaperEquity(): List<PaperEquityEntity>
+    @Query("SELECT * FROM paper_equity ORDER BY recordedAt DESC LIMIT 1") suspend fun getLatestPaperEquity(): PaperEquityEntity?
     @Query("DELETE FROM paper_position") suspend fun clearPaperPositions()
     @Query("DELETE FROM paper_order") suspend fun clearPaperOrders()
     @Query("DELETE FROM paper_equity") suspend fun clearPaperEquity()
