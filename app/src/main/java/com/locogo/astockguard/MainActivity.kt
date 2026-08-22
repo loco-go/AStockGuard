@@ -18,10 +18,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.locogo.astockguard.designsystem.AStockGuardTheme
 import com.locogo.astockguard.ui.main.DashboardScreen
 import com.locogo.astockguard.ui.main.MainEffect
 import com.locogo.astockguard.ui.main.MainViewModel
-import com.locogo.astockguard.ui.theme.AStockGuardTheme
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {

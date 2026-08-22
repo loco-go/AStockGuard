@@ -11,8 +11,8 @@ android {
         applicationId = "com.locogo.astockguard"
         minSdk = 26
         targetSdk = 35
-        versionCode = 29
-        versionName = "2.9.0"
+        versionCode = 30
+        versionName = "3.0.0"
     }
     buildFeatures { viewBinding = true; compose = true }
     composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
@@ -21,6 +21,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:designsystem"))
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.activity:activity-ktx:1.10.1")

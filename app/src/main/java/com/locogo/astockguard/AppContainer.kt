@@ -1,6 +1,7 @@
 package com.locogo.astockguard
 
 import android.app.Application
+import com.locogo.astockguard.backup.BackupManager
 import com.locogo.astockguard.data.fundflow.FundFlowRepository
 import com.locogo.astockguard.data.local.AStockDatabase
 import com.locogo.astockguard.domain.review.ReviewRepository
@@ -15,6 +16,7 @@ class AppContainer(application: Application) {
     val r2Scanner: R2Scanner by lazy { R2Scanner(marketRepository) }
     val signalLifecycle: SignalLifecycleManager by lazy { SignalLifecycleManager(database.cacheDao()) }
     val reviewRepository: ReviewRepository by lazy { ReviewRepository(database.cacheDao(), marketRepository) }
+    val backupManager: BackupManager by lazy { BackupManager(settings, database) }
     val aiClient: AiClient by lazy { AiClient() }
 }
 
