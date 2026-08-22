@@ -1,0 +1,31 @@
+name: Android CI
+
+on:
+  pull_request:
+    branches: [ master ]
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+      - name: Unit tests
+        run: ./gradlew test
+      - name: Lint
+        run: ./gradlew lint
+      - name: Assemble debug
+        run: ./gradlew assembleDebug
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AStockGuard-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
