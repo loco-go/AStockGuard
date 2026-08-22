@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "AStockGuardDemo"
 include(":app")
+include(":core:designsystem")
