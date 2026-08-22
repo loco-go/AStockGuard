@@ -10,8 +10,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 @Database(
     entities = [QuoteCacheEntity::class, DailyBarCacheEntity::class, MinuteBarCacheEntity::class,
         FundFlowCacheEntity::class, SectorFundFlowCacheEntity::class, SignalStateEntity::class,
-        SignalEventEntity::class, TradeRecordEntity::class, AiAnalysisEntity::class, NewsItemEntity::class],
-    version = 6,
+        SignalEventEntity::class, TradeRecordEntity::class, AiAnalysisEntity::class, NewsItemEntity::class,
+        Level2SnapshotEntity::class],
+    version = 7,
     exportSchema = true
 )
 abstract class AStockDatabase : RoomDatabase() {
@@ -58,11 +59,16 @@ abstract class AStockDatabase : RoomDatabase() {
                 publishedAt INTEGER NOT NULL, fetchedAt INTEGER NOT NULL)""".trimIndent())
             db.execSQL("CREATE INDEX IF NOT EXISTS index_news_item_publishedAt ON news_item(publishedAt)")
         } }
+        val MIGRATION_6_7 = object : Migration(6, 7) { override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""CREATE TABLE IF NOT EXISTS level2_snapshot (
+                code TEXT NOT NULL PRIMARY KEY, payloadJson TEXT NOT NULL, source TEXT NOT NULL,
+                simulated INTEGER NOT NULL, cachedAt INTEGER NOT NULL)""".trimIndent())
+        } }
 
         @Volatile private var instance: AStockDatabase? = null
         fun get(context: Context): AStockDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, AStockDatabase::class.java, "astock_guard.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                 .build().also { instance = it }
         }
     }
