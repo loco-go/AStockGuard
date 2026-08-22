@@ -10,103 +10,36 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="AStockGuardDemo 设置"
-            android:textSize="24sp"
-            android:textStyle="bold" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="AStockGuard 设置" android:textSize="24sp" android:textStyle="bold" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="粘贴 AI 配置 / Session JSON（只在本机解析）"
-            android:textStyle="bold" />
-
-        <EditText
-            android:id="@+id/etImportText"
-            android:layout_width="match_parent"
-            android:layout_height="300dp"
-            android:gravity="top|start"
-            android:hint="可直接粘贴完整 JSON；若输入法/剪贴板截断，请使用下方‘从剪贴板直接解析’或‘从文件导入’"
-            android:inputType="textMultiLine|textNoSuggestions"
-            android:scrollbars="vertical"
-            android:overScrollMode="always"
-            android:minLines="12"
-            android:textIsSelectable="true" />
-
-        <TextView
-            android:id="@+id/tvImportLength"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="当前文本：0 字符"
-            android:paddingTop="4dp"
-            android:paddingBottom="4dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <Button
-                android:id="@+id/btnPasteClipboard"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="剪贴板直接解析" />
-
-            <Button
-                android:id="@+id/btnImportFile"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="从文件导入" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="粘贴 AI 配置 / Session JSON（只在本机解析）" android:textStyle="bold" />
+        <EditText android:id="@+id/etImportText" android:layout_width="match_parent" android:layout_height="300dp" android:gravity="top|start" android:hint="可直接粘贴完整 JSON；若输入法/剪贴板截断，请使用下方‘从剪贴板直接解析’或‘从文件导入’" android:inputType="textMultiLine|textNoSuggestions" android:scrollbars="vertical" android:overScrollMode="always" android:minLines="12" android:textIsSelectable="true" />
+        <TextView android:id="@+id/tvImportLength" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="当前文本：0 字符" android:paddingTop="4dp" android:paddingBottom="4dp" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+            <Button android:id="@+id/btnPasteClipboard" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="剪贴板直接解析" />
+            <Button android:id="@+id/btnImportFile" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="从文件导入" />
         </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <Button
-                android:id="@+id/btnParseImport"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="解析输入框" />
-
-            <Button
-                android:id="@+id/btnClearImport"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="清空输入框" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+            <Button android:id="@+id/btnParseImport" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="解析输入框" />
+            <Button android:id="@+id/btnClearImport" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="清空输入框" />
         </LinearLayout>
+        <TextView android:id="@+id/tvImportResult" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="8dp" android:text="尚未解析" />
 
-        <TextView
-            android:id="@+id/tvImportResult"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="8dp"
-            android:text="尚未解析" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="行情：腾讯免费接口（无需 Key）"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="行情：腾讯免费接口（无需 Key）" android:textSize="18sp" android:textStyle="bold" />
         <EditText android:id="@+id/etWatchCodes" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="000636.SZ,000938.SZ,600667.SH" />
         <EditText android:id="@+id/etPositions" android:layout_width="match_parent" android:layout_height="160dp" android:gravity="top" android:hint="代码,名称,股数,成本,角色" android:inputType="textMultiLine" />
         <EditText android:id="@+id/etPositionRatio" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="当前总仓位%" android:inputType="numberDecimal" />
         <EditText android:id="@+id/etRefreshSeconds" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="轮询秒数（3-60）" android:inputType="number" />
         <Button android:id="@+id/btnTestMarket" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="测试腾讯行情" />
 
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:text="新闻 / 黑天鹅覆盖层" android:textSize="18sp" android:textStyle="bold" />
+        <Switch android:id="@+id/swNewsEnabled" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="启用新闻风险抓取" />
+        <EditText android:id="@+id/etNewsRefreshMinutes" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="新闻刷新分钟（5-120）" android:inputType="number" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="每行：名称|HTTPS RSS/Atom URL。新闻风险只作为覆盖层，不会单独覆盖 R2/VWAP/资金流规则。" android:textSize="12sp" />
+        <EditText android:id="@+id/etNewsSources" android:layout_width="match_parent" android:layout_height="180dp" android:gravity="top|start" android:hint="GoogleNews-A股|https://..." android:inputType="textMultiLine|textNoSuggestions" android:scrollbars="vertical" />
+
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:text="AI 主接口" android:textSize="18sp" android:textStyle="bold" />
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="CHATGPT_WEB 已改为 WebView 正常登录模式，参考开源 WebView 包装器思路：不再用 OkHttp + 导入 Token/Cookie 直连私有网页会话接口。首次点击测试后在 WebView 中正常登录即可。Token/Session 输入仅保留兼容旧配置，不会用于 WebView 私有 API 请求。" android:paddingBottom="6dp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="CHATGPT_WEB 使用 WebView 正常登录模式。正常分析隐藏运行；登录、验证码或 DOM 异常时才打开网页。Token/Session 输入仅保留兼容旧配置。" android:paddingBottom="6dp" />
         <Spinner android:id="@+id/spPrimaryType" android:layout_width="match_parent" android:layout_height="wrap_content" />
         <EditText android:id="@+id/etPrimaryBaseUrl" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Endpoint / Base URL" android:inputType="textUri" />
         <EditText android:id="@+id/etPrimaryApiKey" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="API Key / accessToken" android:inputType="textPassword" />

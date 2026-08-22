@@ -1,6 +1,7 @@
 package com.locogo.astockguard
 
 import android.content.Context
+import com.locogo.astockguard.data.news.NewsSource
 
 class SettingsRepository(context: Context) {
     private val appContext = context.applicationContext
@@ -20,10 +21,19 @@ class SettingsRepository(context: Context) {
         get() = prefs.getInt("refresh_seconds", 5).coerceIn(3, 60)
         set(v) = prefs.edit().putInt("refresh_seconds", v.coerceIn(3, 60)).apply()
 
+    var newsEnabled: Boolean
+        get() = prefs.getBoolean("news_enabled", true)
+        set(v) = prefs.edit().putBoolean("news_enabled", v).apply()
+    var newsRefreshMinutes: Int
+        get() = prefs.getInt("news_refresh_minutes", 15).coerceIn(5, 120)
+        set(v) = prefs.edit().putInt("news_refresh_minutes", v.coerceIn(5, 120)).apply()
+    var newsSourcesText: String
+        get() = prefs.getString("news_sources", DEFAULT_NEWS_SOURCES) ?: DEFAULT_NEWS_SOURCES
+        set(v) = prefs.edit().putString("news_sources", v).apply()
+
     var primaryType: String
         get() = prefs.getString("primary_type", "CHATGPT_WEB") ?: "CHATGPT_WEB"
         set(v) = prefs.edit().putString("primary_type", v).apply()
-
     var chatGptConversationUrl: String
         get() = prefs.getString("chatgpt_conversation_url", "") ?: ""
         set(v) = prefs.edit().putString("chatgpt_conversation_url", v).apply()
@@ -83,6 +93,14 @@ class SettingsRepository(context: Context) {
         return set.toList()
     }
 
+    fun newsSources(): List<NewsSource> = newsSourcesText.lineSequence()
+        .map { it.trim() }
+        .filter { it.isNotBlank() && !it.startsWith("#") }
+        .mapNotNull { line ->
+            val p = line.split('|', limit = 2).map { it.trim() }
+            if (p.size != 2 || !p[1].startsWith("https://")) null else NewsSource(p[0].ifBlank { "RSS" }, p[1])
+        }.distinctBy { it.url }.take(12).toList()
+
     fun primaryProvider() = AiProviderConfig(primaryType, "primary", primaryBaseUrl, primaryApiKey,
         primarySessionToken, primaryCookie, primaryModel, extraHeadersJson)
 
@@ -99,6 +117,10 @@ class SettingsRepository(context: Context) {
 000938.SZ,紫光股份,600,48.162,CORE
 600667.SH,太极实业,800,23.492,ATTACK
 002579.SZ,中京电子,600,15.317,LONG
+        """.trimIndent()
+        val DEFAULT_NEWS_SOURCES = """
+GoogleNews-A股|https://news.google.com/rss/search?q=A%E8%82%A1+OR+%E8%82%A1%E5%B8%82+OR+%E5%8D%8A%E5%AF%BC%E4%BD%93&hl=zh-CN&gl=CN&ceid=CN:zh-Hans
+GoogleNews-宏观风险|https://news.google.com/rss/search?q=%E5%88%B6%E8%A3%81+OR+%E5%85%B3%E7%A8%8E+OR+%E6%88%98%E4%BA%89+OR+%E8%8A%AF%E7%89%87&hl=zh-CN&gl=CN&ceid=CN:zh-Hans
         """.trimIndent()
 
         fun defaultEndpoint(type: String) = when(type.uppercase()) {

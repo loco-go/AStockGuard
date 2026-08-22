@@ -28,6 +28,16 @@ data class Quote(
     val r2Reason: String = ""
 )
 
+data class MinuteBar(
+    val time: String,
+    val price: Double,
+    val avgPrice: Double,
+    val high: Double,
+    val low: Double,
+    val volume: Double,
+    val amount: Double
+)
+
 data class DailyBar(
     val date: String,
     val open: Double,
@@ -61,11 +71,18 @@ data class MarketAssessment(
     val signals: List<StockSignal>
 )
 
+data class DataHealth(
+    val source: String = "TENCENT",
+    val isStale: Boolean = false,
+    val message: String = ""
+)
+
 data class MonitorSnapshot(
     val updatedAt: Long,
     val quotes: List<Quote>,
     val assessment: MarketAssessment,
-    val positionRatio: Double
+    val positionRatio: Double,
+    val dataHealth: DataHealth = DataHealth()
 )
 
 data class AiProviderConfig(
