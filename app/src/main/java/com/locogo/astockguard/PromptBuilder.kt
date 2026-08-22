@@ -20,7 +20,10 @@ object PromptBuilder {
             }
             appendLine("本地信号：")
             snapshot.assessment.signals.forEach { appendLine("- ${it.code} ${it.action}: ${it.reason}") }
+            appendLine("数据状态：${if (snapshot.dataHealth.isStale) "缓存/非实时" else "实时"} ${snapshot.dataHealth.source} ${snapshot.dataHealth.message}")
             appendLine("请优先回答：1) 升仓/维持/降仓；2) 哪些持仓最弱；3) 允许升仓的确认条件；4) 降仓触发条件。数据不足必须明确说明。")
+            appendLine("最后必须输出一段机器可解析 JSON，并严格包在 <ASTOCK_STRATEGY> 与 </ASTOCK_STRATEGY> 标签中。")
+            appendLine("JSON格式：{\"market_action\":\"RAISE|HOLD|REDUCE\",\"confidence\":0-100,\"target_position_pct\":0-100,\"risk_level\":\"LOW|MEDIUM|HIGH\",\"stocks\":[{\"symbol\":\"股票代码\",\"action\":\"BUY|HOLD|WATCH|SELL\",\"confidence\":0-100,\"target_position_pct\":0-100,\"quantity\":整数,\"trigger\":\"触发条件\",\"invalid_if\":\"失效条件\",\"reason\":\"一句话理由\"}]}。")
         }
     }
 }

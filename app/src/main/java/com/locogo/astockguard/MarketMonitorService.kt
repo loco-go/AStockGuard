@@ -15,27 +15,42 @@ class MarketMonitorService : Service() {
     private val lastSignal = mutableMapOf<String, String>()
 
     override fun onCreate() {
-        super.onCreate(); NotificationHelper.ensureChannels(this)
-        settings = SettingsRepository(this); marketRepository = MarketRepository(settings)
+        super.onCreate()
+        NotificationHelper.ensureChannels(this)
+        settings = appContainer.settings
+        marketRepository = appContainer.marketRepository
     }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) stopSelf() else startLoop(); return START_STICKY
+        if (intent?.action == ACTION_STOP) stopSelf() else startLoop()
+        return START_STICKY
     }
+
     private fun startLoop() {
         if (loopJob?.isActive == true) return
         startForeground(NOTIFICATION_ID, NotificationHelper.serviceNotification(this, "腾讯行情初始化..."))
         loopJob = scope.launch {
             while (isActive) {
                 try {
-                    val s = marketRepository.refresh(); MonitorBus.update(s); emitAlerts(s)
-                    val text = "${s.assessment.eventRisk}/${s.assessment.marketPhase} 仓位${"%.1f".format(s.positionRatio)}% 上限${"%.0f".format(s.assessment.maxPositionRatio * 100)}%"
-                    getSystemService(android.app.NotificationManager::class.java).notify(NOTIFICATION_ID, NotificationHelper.serviceNotification(this@MarketMonitorService, text))
-                } catch (t: Throwable) { Log.e("MarketMonitor", "refresh failed: ${t.message}") }
+                    val s = marketRepository.refresh()
+                    MonitorBus.update(s)
+                    emitAlerts(s)
+                    val source = if (s.dataHealth.isStale) "缓存" else "实时"
+                    val text = "$source ${s.assessment.eventRisk}/${s.assessment.marketPhase} 仓位${"%.1f".format(s.positionRatio)}% 上限${"%.0f".format(s.assessment.maxPositionRatio * 100)}%"
+                    getSystemService(android.app.NotificationManager::class.java).notify(
+                        NOTIFICATION_ID,
+                        NotificationHelper.serviceNotification(this@MarketMonitorService, text)
+                    )
+                } catch (t: Throwable) {
+                    Log.e("MarketMonitor", "refresh failed: ${t.message}", t)
+                }
                 delay(settings.refreshSeconds * 1000L)
             }
         }
     }
+
     private fun emitAlerts(s: MonitorSnapshot) {
+        if (s.dataHealth.isStale) return
         val risk = s.assessment.eventRisk
         if (risk != lastRisk && risk == "E2") NotificationHelper.alert(this, 2001, "E2 风险：先降β", s.assessment.advice)
         lastRisk = risk
@@ -46,9 +61,16 @@ class MarketMonitorService : Service() {
             lastSignal[sig.code] = key
         }
     }
-    override fun onDestroy() { loopJob?.cancel(); scope.cancel(); super.onDestroy() }
+
+    override fun onDestroy() {
+        loopJob?.cancel()
+        scope.cancel()
+        super.onDestroy()
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onTimeout(startId: Int, fgsType: Int) { stopSelf(startId) }
+
     companion object {
         const val ACTION_START = "com.locogo.astockguard.START"
         const val ACTION_STOP = "com.locogo.astockguard.STOP"
