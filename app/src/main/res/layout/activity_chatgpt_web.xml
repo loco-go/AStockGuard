@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/tvWebStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="10dp"
+        android:text="正在打开 ChatGPT Web…"
+        android:textIsSelectable="true"
+        android:textSize="13sp" />
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fillViewport="true">
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingHorizontal="6dp">
+
+            <Button android:id="@+id/btnReload" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="刷新" />
+            <Button android:id="@+id/btnFillPrompt" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="重新自动发送" />
+            <Button android:id="@+id/btnReadAnswer" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="手动读取回复" />
+            <Button android:id="@+id/btnNewChat" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="新对话" />
+            <Button android:id="@+id/btnDiagnostics" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="DOM诊断" />
+            <Button android:id="@+id/btnOpenBrowser" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="系统浏览器" />
+            <Button android:id="@+id/btnClearWebSession" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="清登录" />
+            <Button android:id="@+id/btnBackToApp" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="返回" />
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <WebView
+        android:id="@+id/webView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+</LinearLayout>

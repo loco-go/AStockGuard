@@ -10,13 +10,37 @@ data class Position(
 
 data class Quote(
     val code: String,
-    val time: String,
-    val open: Double?,
-    val high: Double?,
-    val low: Double?,
-    val latest: Double?,
-    val previousClose: Double?,
-    val changeRatio: Double?
+    val name: String = "",
+    val time: String = "",
+    val open: Double? = null,
+    val high: Double? = null,
+    val low: Double? = null,
+    val latest: Double? = null,
+    val previousClose: Double? = null,
+    val changeRatio: Double? = null,
+    val volume: Double? = null,
+    val amount: Double? = null,
+    val vwap: Double? = null,
+    val ma5: Double? = null,
+    val ma10: Double? = null,
+    val r2Score: Int = 0,
+    val r2Grade: String = "-",
+    val r2Reason: String = ""
+)
+
+data class DailyBar(
+    val date: String,
+    val open: Double,
+    val close: Double,
+    val high: Double,
+    val low: Double,
+    val volume: Double
+)
+
+data class R2Result(
+    val score: Int,
+    val grade: String,
+    val reason: String
 )
 
 data class StockSignal(
@@ -45,9 +69,12 @@ data class MonitorSnapshot(
 )
 
 data class AiProviderConfig(
-    val name: String,
-    val baseUrl: String,
-    val apiKey: String,
-    val model: String,
-    val extraHeadersJson: String
+    val type: String = "RESPONSES",
+    val name: String = "primary",
+    val baseUrl: String = "",
+    val apiKey: String = "",
+    val sessionToken: String = "",
+    val cookie: String = "",
+    val model: String = "",
+    val extraHeadersJson: String = "{}"
 )
