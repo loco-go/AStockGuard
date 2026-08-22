@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -19,6 +20,7 @@ import com.locogo.astockguard.ui.chart.ChartSignal
 import com.locogo.astockguard.ui.chart.EquityCurve
 import com.locogo.astockguard.ui.chart.MinuteChart
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     state: MainUiState,
@@ -32,27 +34,40 @@ fun DashboardScreen(
     onSectorType: (String) -> Unit,
     onRecordTrade: (String, Int, Double) -> Unit
 ) {
-    var question by rememberSaveable { mutableStateOf("") }
+    var question: String by rememberSaveable { mutableStateOf("") }
     val snapshot = state.snapshot
-    val rows = remember(snapshot, positions, state.aiStrategy) { StrategyUiMapper.map(snapshot, positions, state.aiStrategy) }
+    val rows = remember(snapshot, positions, state.aiStrategy) {
+        StrategyUiMapper.map(snapshot, positions, state.aiStrategy)
+    }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("A股实时交易驾驶舱", fontWeight = FontWeight.Bold) }, actions = { TextButton(onClick = onSettings) { Text("设置") } }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("A股实时交易驾驶舱", fontWeight = FontWeight.Bold) },
+                actions = { TextButton(onClick = onSettings) { Text("设置") } }
+            )
+        },
         bottomBar = {
             NavigationBar {
-                NavigationBarItem(true, {}, { Text("首页") }, icon = {})
-                NavigationBarItem(false, {}, { Text("行情") }, icon = {})
-                NavigationBarItem(false, {}, { Text("持仓") }, icon = {})
-                NavigationBarItem(false, {}, { Text("信号") }, icon = {})
-                NavigationBarItem(false, onSettings, { Text("设置") }, icon = {})
+                NavigationBarItem(selected = true, onClick = {}, icon = {}, label = { Text("首页") })
+                NavigationBarItem(selected = false, onClick = {}, icon = {}, label = { Text("行情") })
+                NavigationBarItem(selected = false, onClick = {}, icon = {}, label = { Text("持仓") })
+                NavigationBarItem(selected = false, onClick = {}, icon = {}, label = { Text("信号") })
+                NavigationBarItem(selected = false, onClick = onSettings, icon = {}, label = { Text("设置") })
             }
         }
     ) { padding ->
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             item { MarketStatusCard(state) }
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = onRefresh, enabled = !state.loading, modifier = Modifier.weight(1f)) { Text(if (state.loading) "刷新中" else "刷新") }
+                    Button(onClick = onRefresh, enabled = !state.loading, modifier = Modifier.weight(1f)) {
+                        Text(if (state.loading) "刷新中" else "刷新")
+                    }
                     OutlinedButton(onClick = onStartMonitor, modifier = Modifier.weight(1f)) { Text("启动监控") }
                     OutlinedButton(onClick = onStopMonitor, modifier = Modifier.weight(1f)) { Text("停止") }
                 }
@@ -96,7 +111,16 @@ fun DashboardScreen(
             item { Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) { Text("基准=100，按当前持股数量回放近30日", style = MaterialTheme.typography.bodySmall); EquityCurve(state.equityCurve) } } }
 
             item { SectionTitle("AI 综合判断") }
-            item { OutlinedTextField(value = question, onValueChange = { question = it }, modifier = Modifier.fillMaxWidth(), label = { Text("可选：补充你的问题") }, minLines = 2, maxLines = 4) }
+            item {
+                OutlinedTextField(
+                    value = question,
+                    onValueChange = { value -> question = value },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("可选：补充你的问题") },
+                    minLines = 2,
+                    maxLines = 4
+                )
+            }
             item { Button(onClick = { onAnalyze(question) }, enabled = !state.aiLoading && snapshot != null, modifier = Modifier.fillMaxWidth()) { Text(if (state.aiLoading) "AI 分析中…" else "后台 AI 分析") } }
             item { Card(Modifier.fillMaxWidth()) { Text(state.aiText, Modifier.padding(14.dp)) } }
         }
