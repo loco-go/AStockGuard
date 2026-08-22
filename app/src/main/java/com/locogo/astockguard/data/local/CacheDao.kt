@@ -25,6 +25,18 @@ interface CacheDao {
     @Query("SELECT * FROM minute_bar_cache WHERE code = :code ORDER BY time ASC")
     suspend fun getMinuteBars(code: String): List<MinuteBarCacheEntity>
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertFundFlow(items: List<FundFlowCacheEntity>)
+
+    @Query("SELECT * FROM fund_flow_cache WHERE code = :code AND period = :period ORDER BY time ASC")
+    suspend fun getFundFlow(code: String, period: String): List<FundFlowCacheEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSectorFundFlow(items: List<SectorFundFlowCacheEntity>)
+
+    @Query("SELECT * FROM sector_fund_flow_cache WHERE type = :type ORDER BY mainNet DESC")
+    suspend fun getSectorFundFlow(type: String): List<SectorFundFlowCacheEntity>
+
     @Insert
     suspend fun insertAiAnalysis(item: AiAnalysisEntity): Long
 

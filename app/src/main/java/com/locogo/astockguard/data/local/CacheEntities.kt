@@ -3,8 +3,8 @@ package com.locogo.astockguard.data.local
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.locogo.astockguard.DailyBar
-import com.locogo.astockguard.Quote
 import com.locogo.astockguard.MinuteBar
+import com.locogo.astockguard.Quote
 
 @Entity(tableName = "quote_cache")
 data class QuoteCacheEntity(
@@ -84,3 +84,53 @@ fun MinuteBar.toCacheEntity(code: String, now: Long = System.currentTimeMillis()
     MinuteBarCacheEntity(code, time, price, avgPrice, high, low, volume, amount, now)
 
 fun MinuteBarCacheEntity.toModel() = MinuteBar(time, price, avgPrice, high, low, volume, amount)
+
+@Entity(tableName = "fund_flow_cache", primaryKeys = ["code", "period", "time"])
+data class FundFlowCacheEntity(
+    val code: String,
+    val period: String,
+    val time: String,
+    val mainNet: Double,
+    val smallNet: Double,
+    val mediumNet: Double,
+    val largeNet: Double,
+    val superLargeNet: Double,
+    val cachedAt: Long
+) {
+    fun toModel() = com.locogo.astockguard.data.fundflow.FundFlowPoint(time, mainNet, smallNet, mediumNet, largeNet, superLargeNet)
+
+    companion object {
+        fun from(code: String, period: String, model: com.locogo.astockguard.data.fundflow.FundFlowPoint) = FundFlowCacheEntity(
+            code, period, model.time, model.mainNet, model.smallNet, model.mediumNet, model.largeNet, model.superLargeNet, System.currentTimeMillis()
+        )
+    }
+}
+
+@Entity(tableName = "sector_fund_flow_cache", primaryKeys = ["type", "code"])
+data class SectorFundFlowCacheEntity(
+    val type: String,
+    val code: String,
+    val name: String,
+    val changePct: Double,
+    val mainNet: Double,
+    val mainPct: Double,
+    val superLargeNet: Double,
+    val largeNet: Double,
+    val mediumNet: Double,
+    val smallNet: Double,
+    val leadStockName: String,
+    val leadStockCode: String,
+    val cachedAt: Long
+) {
+    fun toModel() = com.locogo.astockguard.data.fundflow.SectorFundFlow(
+        code, name, type, changePct, mainNet, mainPct, superLargeNet, largeNet, mediumNet, smallNet, leadStockName, leadStockCode
+    )
+
+    companion object {
+        fun from(model: com.locogo.astockguard.data.fundflow.SectorFundFlow) = SectorFundFlowCacheEntity(
+            model.type, model.code, model.name, model.changePct, model.mainNet, model.mainPct,
+            model.superLargeNet, model.largeNet, model.mediumNet, model.smallNet,
+            model.leadStockName, model.leadStockCode, System.currentTimeMillis()
+        )
+    }
+}

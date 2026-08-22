@@ -1,6 +1,7 @@
 package com.locogo.astockguard
 
 import android.app.Application
+import com.locogo.astockguard.data.fundflow.FundFlowRepository
 import com.locogo.astockguard.data.local.AStockDatabase
 
 class AppContainer(application: Application) {
@@ -9,6 +10,7 @@ class AppContainer(application: Application) {
     val marketRepository: MarketRepository by lazy {
         MarketRepository(settings = settings, cacheDao = database.cacheDao())
     }
+    val fundFlowRepository: FundFlowRepository by lazy { FundFlowRepository(cacheDao = database.cacheDao()) }
     val aiClient: AiClient by lazy { AiClient() }
 }
 

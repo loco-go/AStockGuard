@@ -31,7 +31,7 @@ class MainActivity : AppCompatActivity() {
 
     private val viewModel: MainViewModel by viewModels {
         val c = appContainer
-        MainViewModel.Factory(c.settings, c.marketRepository, c.aiClient, c.database.cacheDao())
+        MainViewModel.Factory(c.settings, c.marketRepository, c.fundFlowRepository, c.aiClient, c.database.cacheDao())
     }
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     private val webAiLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
@@ -52,20 +52,16 @@ class MainActivity : AppCompatActivity() {
             val state by viewModel.uiState.collectAsStateWithLifecycle()
             AStockGuardTheme {
                 DashboardScreen(
-                    state = state,
-                    positions = settings.positions(),
-                    onRefresh = viewModel::refresh,
-                    onAnalyze = viewModel::analyze,
-                    onStartMonitor = ::startMonitor,
-                    onStopMonitor = ::stopMonitor,
+                    state = state, positions = settings.positions(), onRefresh = viewModel::refresh,
+                    onAnalyze = viewModel::analyze, onStartMonitor = ::startMonitor, onStopMonitor = ::stopMonitor,
                     onSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
-                    onSelectStock = viewModel::selectStock
+                    onSelectStock = viewModel::selectStock, onSectorType = viewModel::refreshSectorFlow
                 )
             }
         }
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                launch { viewModel.effects.collect { effect -> if (effect is MainEffect.RunHiddenWebAi) hiddenChatGpt.analyze(effect.prompt) } }
+                launch { viewModel.effects.collect { if (it is MainEffect.RunHiddenWebAi) hiddenChatGpt.analyze(it.prompt) } }
                 launch { MonitorBus.snapshot.collect { it?.let(viewModel::acceptSnapshot) } }
             }
         }
@@ -77,14 +73,12 @@ class MainActivity : AppCompatActivity() {
         toast("实时监控已启动")
     }
     private fun stopMonitor() {
-        startService(Intent(this, MarketMonitorService::class.java).setAction(MarketMonitorService.ACTION_STOP))
-        toast("实时监控已停止")
+        startService(Intent(this, MarketMonitorService::class.java).setAction(MarketMonitorService.ACTION_STOP)); toast("实时监控已停止")
     }
     private fun showManualAiDialog(prompt: String, reason: String) {
         pendingManualPrompt = prompt; viewModel.onAiFailed(reason)
         if (isFinishing || isDestroyed) return
-        AlertDialog.Builder(this)
-            .setTitle("AI网页登录需要处理")
+        AlertDialog.Builder(this).setTitle("AI网页登录需要处理")
             .setMessage("$reason\n\n正常分析不会跳转网页；仅登录、验证码或 DOM 异常时打开。")
             .setNegativeButton("稍后", null)
             .setPositiveButton("打开登录页面") { _, _ -> webAiLauncher.launch(Intent(this, ChatGptWebActivity::class.java).putExtra(ChatGptWebActivity.EXTRA_PROMPT, prompt)) }

@@ -12,8 +12,8 @@ android {
         applicationId = "com.locogo.astockguard"
         minSdk = 26
         targetSdk = 35
-        versionCode = 26
-        versionName = "2.6.0"
+        versionCode = 27
+        versionName = "2.7.0"
     }
 
     buildFeatures {
@@ -21,17 +21,13 @@ android {
         compose = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.14"
-    }
+    composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+    kotlinOptions { jvmTarget = "17" }
 }
 
 dependencies {
@@ -56,7 +52,5 @@ dependencies {
 }
 
 kapt {
-    arguments {
-        arg("room.schemaLocation", "$projectDir/schemas")
-    }
+    arguments { arg("room.schemaLocation", "$projectDir/schemas") }
 }

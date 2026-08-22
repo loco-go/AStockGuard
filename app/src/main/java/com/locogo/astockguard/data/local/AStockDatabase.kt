@@ -8,8 +8,15 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [QuoteCacheEntity::class, DailyBarCacheEntity::class, MinuteBarCacheEntity::class, AiAnalysisEntity::class],
-    version = 2,
+    entities = [
+        QuoteCacheEntity::class,
+        DailyBarCacheEntity::class,
+        MinuteBarCacheEntity::class,
+        FundFlowCacheEntity::class,
+        SectorFundFlowCacheEntity::class,
+        AiAnalysisEntity::class
+    ],
+    version = 3,
     exportSchema = true
 )
 abstract class AStockDatabase : RoomDatabase() {
@@ -35,10 +42,32 @@ abstract class AStockDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS fund_flow_cache (
+                        code TEXT NOT NULL, period TEXT NOT NULL, time TEXT NOT NULL,
+                        mainNet REAL NOT NULL, smallNet REAL NOT NULL, mediumNet REAL NOT NULL,
+                        largeNet REAL NOT NULL, superLargeNet REAL NOT NULL, cachedAt INTEGER NOT NULL,
+                        PRIMARY KEY(code, period, time)
+                    )
+                """.trimIndent())
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS sector_fund_flow_cache (
+                        type TEXT NOT NULL, code TEXT NOT NULL, name TEXT NOT NULL, changePct REAL NOT NULL,
+                        mainNet REAL NOT NULL, mainPct REAL NOT NULL, superLargeNet REAL NOT NULL,
+                        largeNet REAL NOT NULL, mediumNet REAL NOT NULL, smallNet REAL NOT NULL,
+                        leadStockName TEXT NOT NULL, leadStockCode TEXT NOT NULL, cachedAt INTEGER NOT NULL,
+                        PRIMARY KEY(type, code)
+                    )
+                """.trimIndent())
+            }
+        }
+
         @Volatile private var instance: AStockDatabase? = null
         fun get(context: Context): AStockDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, AStockDatabase::class.java, "astock_guard.db")
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
                 .also { instance = it }
         }

@@ -12,6 +12,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.locogo.astockguard.Position
+import com.locogo.astockguard.data.fundflow.SectorFundFlowResult
+import com.locogo.astockguard.data.fundflow.StockFundFlow
 import com.locogo.astockguard.ui.chart.CandlestickChart
 import com.locogo.astockguard.ui.chart.ChartSignal
 import com.locogo.astockguard.ui.chart.EquityCurve
@@ -26,7 +28,8 @@ fun DashboardScreen(
     onStartMonitor: () -> Unit,
     onStopMonitor: () -> Unit,
     onSettings: () -> Unit,
-    onSelectStock: (String) -> Unit
+    onSelectStock: (String) -> Unit,
+    onSectorType: (String) -> Unit
 ) {
     var question by rememberSaveable { mutableStateOf("") }
     val snapshot = state.snapshot
@@ -57,9 +60,20 @@ fun DashboardScreen(
                     OutlinedButton(onClick = onStopMonitor, modifier = Modifier.weight(1f)) { Text("停止") }
                 }
             }
+
             item { SectionTitle("持仓 / 观察池策略") }
             if (rows.isEmpty()) item { Text("暂无行情，请先刷新。") }
             else items(rows, key = { it.code }) { row -> StrategyRow(row) { onSelectStock(row.code) } }
+
+            item { SectionTitle("资金流") }
+            item { StockFundFlowCard(state.stockFundFlow, state.fundFlowLoading) }
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = state.sectorFundFlow?.type == "INDUSTRY", onClick = { onSectorType("INDUSTRY") }, label = { Text("行业") })
+                    FilterChip(selected = state.sectorFundFlow?.type == "CONCEPT", onClick = { onSectorType("CONCEPT") }, label = { Text("概念") })
+                }
+            }
+            item { SectorFundFlowCard(state.sectorFundFlow) }
 
             item { SectionTitle("分时 / K线") }
             item {
@@ -88,9 +102,7 @@ fun DashboardScreen(
             }
 
             item { SectionTitle("AI 综合判断") }
-            item {
-                OutlinedTextField(value = question, onValueChange = { question = it }, modifier = Modifier.fillMaxWidth(), label = { Text("可选：补充你的问题") }, minLines = 2, maxLines = 4)
-            }
+            item { OutlinedTextField(value = question, onValueChange = { question = it }, modifier = Modifier.fillMaxWidth(), label = { Text("可选：补充你的问题") }, minLines = 2, maxLines = 4) }
             item {
                 Button(onClick = { onAnalyze(question) }, enabled = !state.aiLoading && snapshot != null, modifier = Modifier.fillMaxWidth()) {
                     Text(if (state.aiLoading) "AI 分析中…" else "后台 AI 分析")
@@ -112,8 +124,7 @@ private fun MarketStatusCard(state: MainUiState) {
                     Text("${a?.eventRisk ?: "E?"}  ${a?.marketPhase ?: "M?"}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("当前仓位")
-                    Text(s?.positionRatio?.let { "%.1f%%".format(it) } ?: "-", fontWeight = FontWeight.Bold)
+                    Text("当前仓位"); Text(s?.positionRatio?.let { "%.1f%%".format(it) } ?: "-", fontWeight = FontWeight.Bold)
                 }
             }
             Text("建议上限 ${a?.maxPositionRatio?.let { "%.0f%%".format(it * 100) } ?: "-"} · 观察池 ${a?.avgChange?.let { "%+.2f%%".format(it) } ?: "-"}")
@@ -149,6 +160,54 @@ private fun StrategyRow(row: StockStrategyUiModel, onClick: () -> Unit) {
             if (reason.isNotBlank()) Text(reason, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
         }
     }
+}
+
+@Composable
+private fun StockFundFlowCard(flow: StockFundFlow?, loading: Boolean) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("个股资金", fontWeight = FontWeight.Bold)
+            if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            else if (flow == null) Text("暂无资金流数据", style = MaterialTheme.typography.bodySmall)
+            else {
+                Text("数据源 ${flow.source}${if (flow.stale) " · 缓存" else " · 实时/最新"}", style = MaterialTheme.typography.bodySmall)
+                flow.periods.forEach { p ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("${p.days}日"); Text("主力 ${formatMoney(p.mainNet)}"); Text("超大 ${formatMoney(p.superLargeNet)}")
+                    }
+                }
+                flow.minute.lastOrNull()?.let { last ->
+                    Text("盘中 ${last.time}：主力 ${formatMoney(last.mainNet)} · 大单 ${formatMoney(last.largeNet)} · 中单 ${formatMoney(last.mediumNet)} · 小单 ${formatMoney(last.smallNet)}", style = MaterialTheme.typography.bodySmall)
+                }
+                Text("注：主力/大单属于东方财富数据商分类口径，不等同于交易所识别的真实机构账户。", style = MaterialTheme.typography.labelSmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectorFundFlowCard(result: SectorFundFlowResult?) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Text("板块资金排行", fontWeight = FontWeight.Bold)
+            if (result == null || result.rows.isEmpty()) Text("暂无板块资金数据", style = MaterialTheme.typography.bodySmall)
+            else {
+                Text("${result.type} · ${result.source}${if (result.stale) " · 缓存" else ""}", style = MaterialTheme.typography.bodySmall)
+                result.rows.take(10).forEachIndexed { index, row ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("${index + 1}. ${row.name}", modifier = Modifier.weight(1f), maxLines = 1)
+                        Text("${"%+.2f%%".format(row.changePct)}  ${formatMoney(row.mainNet)}")
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun formatMoney(value: Double): String = when {
+    kotlin.math.abs(value) >= 100_000_000 -> "%+.2f亿".format(value / 100_000_000.0)
+    kotlin.math.abs(value) >= 10_000 -> "%+.1f万".format(value / 10_000.0)
+    else -> "%+.0f".format(value)
 }
 
 @Composable

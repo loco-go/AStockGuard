@@ -1,7 +1,13 @@
 package com.locogo.astockguard
 
 object PromptBuilder {
-    fun build(snapshot: MonitorSnapshot, positions: List<Position>, question: String = ""): String {
+    fun build(
+        snapshot: MonitorSnapshot,
+        positions: List<Position>,
+        question: String = "",
+        stockFundFlow: com.locogo.astockguard.data.fundflow.StockFundFlow? = null,
+        sectorFundFlow: com.locogo.astockguard.data.fundflow.SectorFundFlowResult? = null
+    ): String {
         val pos = positions.associateBy { it.code }
         return buildString {
             appendLine("用户问题：${question.ifBlank { "根据当前快照给出风险与仓位建议" }}")
@@ -20,6 +26,17 @@ object PromptBuilder {
             }
             appendLine("本地信号：")
             snapshot.assessment.signals.forEach { appendLine("- ${it.code} ${it.action}: ${it.reason}") }
+            stockFundFlow?.let { flow ->
+                appendLine("选中个股资金流（${flow.source}${if (flow.stale) "/缓存" else ""}）：")
+                flow.periods.forEach { p ->
+                    appendLine("- ${p.days}日 主力=${p.mainNet} 超大=${p.superLargeNet} 大单=${p.largeNet} 中单=${p.mediumNet} 小单=${p.smallNet}")
+                }
+            }
+            sectorFundFlow?.let { sectors ->
+                appendLine("${sectors.type}板块资金Top5（${sectors.source}）：")
+                sectors.rows.take(5).forEach { appendLine("- ${it.name} 涨跌=${it.changePct}% 主力净流入=${it.mainNet} 主力占比=${it.mainPct}%") }
+            }
+            appendLine("资金流是数据商订单规模分类口径，只能作为一个因子，不得等价为机构真实买卖。")
             appendLine("数据状态：${if (snapshot.dataHealth.isStale) "缓存/非实时" else "实时"} ${snapshot.dataHealth.source} ${snapshot.dataHealth.message}")
             appendLine("请优先回答：1) 升仓/维持/降仓；2) 哪些持仓最弱；3) 允许升仓的确认条件；4) 降仓触发条件。数据不足必须明确说明。")
             appendLine("最后必须输出一段机器可解析 JSON，并严格包在 <ASTOCK_STRATEGY> 与 </ASTOCK_STRATEGY> 标签中。")

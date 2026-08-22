@@ -4,6 +4,8 @@ import com.locogo.astockguard.DailyBar
 import com.locogo.astockguard.MinuteBar
 import com.locogo.astockguard.MonitorSnapshot
 import com.locogo.astockguard.data.ai.AiStrategy
+import com.locogo.astockguard.data.fundflow.SectorFundFlowResult
+import com.locogo.astockguard.data.fundflow.StockFundFlow
 
 data class MainUiState(
     val loading: Boolean = false,
@@ -15,5 +17,8 @@ data class MainUiState(
     val dailyBars: List<DailyBar> = emptyList(),
     val minuteBars: List<MinuteBar> = emptyList(),
     val equityCurve: List<Pair<String, Double>> = emptyList(),
+    val stockFundFlow: StockFundFlow? = null,
+    val sectorFundFlow: SectorFundFlowResult? = null,
+    val fundFlowLoading: Boolean = false,
     val error: String? = null
 )
