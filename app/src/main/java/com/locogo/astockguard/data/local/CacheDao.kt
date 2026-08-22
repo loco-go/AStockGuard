@@ -55,6 +55,12 @@ interface CacheDao {
     @Query("DELETE FROM paper_order") suspend fun clearPaperOrders()
     @Query("DELETE FROM paper_equity") suspend fun clearPaperEquity()
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertSyncCursor(item: SyncCursorEntity)
+    @Query("SELECT * FROM sync_cursor WHERE id = 1 LIMIT 1") suspend fun getSyncCursor(): SyncCursorEntity?
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertSyncRecordMap(item: SyncRecordMapEntity)
+    @Query("SELECT COUNT(*) FROM sync_record_map WHERE recordId = :recordId") suspend fun hasSyncRecordMap(recordId: String): Int
+    @Query("SELECT localId FROM sync_record_map WHERE entityType = :entityType") suspend fun getImportedLocalIds(entityType: String): List<Long>
+
     @Query("DELETE FROM signal_state") suspend fun clearSignalStates()
     @Query("DELETE FROM signal_event") suspend fun clearSignalEvents()
     @Query("DELETE FROM trade_record") suspend fun clearTradeRecords()
