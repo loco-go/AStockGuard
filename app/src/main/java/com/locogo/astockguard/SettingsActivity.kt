@@ -23,7 +23,8 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var settings: SettingsRepository
     private val market = TencentMarketClient()
     private val ai = AiClient()
-    private val types = listOf("CHATGPT_WEB", "RESPONSES", "CHAT_COMPLETIONS", "LOCAL")
+    private val aiTypes = listOf("CHATGPT_WEB", "RESPONSES", "CHAT_COMPLETIONS", "LOCAL")
+    private val level2Types = listOf("MOCK", "HTTP_JSON")
 
     private val openImportFile = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let { importFromUri(it) } }
     private val createBackupFile = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri -> uri?.let(::writeBackup) }
@@ -34,8 +35,9 @@ class SettingsActivity : AppCompatActivity() {
         binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
         settings = appContainer.settings
-        binding.spPrimaryType.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, types)
-        binding.spBackupType.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, types)
+        binding.spPrimaryType.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, aiTypes)
+        binding.spBackupType.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, aiTypes)
+        binding.spLevel2Type.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, level2Types)
         load()
 
         binding.etImportText.filters = emptyArray()
@@ -50,6 +52,7 @@ class SettingsActivity : AppCompatActivity() {
         binding.btnParseImport.setOnClickListener { parseImport(binding.etImportText.text.toString()) }
         binding.btnSave.setOnClickListener { save(); binding.tvTestResult.text = "已保存：敏感凭据继续使用 Android Keystore AES-GCM 加密。" }
         binding.btnTestMarket.setOnClickListener { testMarket() }
+        binding.btnTestLevel2.setOnClickListener { testLevel2() }
         binding.btnTestAi.setOnClickListener { testAi() }
     }
 
@@ -70,7 +73,7 @@ class SettingsActivity : AppCompatActivity() {
         runCatching {
             val json = appContainer.backupManager.exportJson()
             withContext(Dispatchers.IO) { contentResolver.openOutputStream(uri, "wt")?.bufferedWriter(Charsets.UTF_8)?.use { it.write(json) } ?: error("无法打开备份文件") }
-        }.onSuccess { binding.tvTestResult.text = "备份成功。敏感 API Key、Cookie、Session Token 未导出。" }
+        }.onSuccess { binding.tvTestResult.text = "备份成功。API Key、Cookie、Session Token、Level2 Token 均未导出。" }
             .onFailure { binding.tvTestResult.text = "备份失败：${it.message}" }
     }
 
@@ -85,7 +88,7 @@ class SettingsActivity : AppCompatActivity() {
                 } ?: error("无法读取备份文件")
             }
             appContainer.backupManager.importJson(text)
-        }.onSuccess { load(); binding.tvTestResult.text = "恢复成功。安全凭据保持当前设备原值，没有从备份覆盖。" }
+        }.onSuccess { load(); binding.tvTestResult.text = "恢复成功。所有安全凭据保持当前设备原值。" }
             .onFailure { binding.tvTestResult.text = "恢复失败：${it.message}" }
     }
 
@@ -97,13 +100,16 @@ class SettingsActivity : AppCompatActivity() {
         swNewsEnabled.isChecked = settings.newsEnabled
         etNewsRefreshMinutes.setText(settings.newsRefreshMinutes.toString())
         etNewsSources.setText(settings.newsSourcesText)
-        spPrimaryType.setSelection(types.indexOf(settings.primaryType).coerceAtLeast(0))
+        spLevel2Type.setSelection(level2Types.indexOf(settings.level2ProviderType).coerceAtLeast(0))
+        etLevel2BaseUrl.setText(settings.level2BaseUrl)
+        etLevel2Token.setText(settings.level2ApiToken)
+        spPrimaryType.setSelection(aiTypes.indexOf(settings.primaryType).coerceAtLeast(0))
         etPrimaryBaseUrl.setText(settings.primaryBaseUrl)
         etPrimaryApiKey.setText(settings.primaryApiKey)
         etSessionToken.setText(settings.primarySessionToken)
         etCookie.setText(settings.primaryCookie)
         etPrimaryModel.setText(settings.primaryModel)
-        spBackupType.setSelection(types.indexOf(settings.backupType).coerceAtLeast(0))
+        spBackupType.setSelection(aiTypes.indexOf(settings.backupType).coerceAtLeast(0))
         etBackupBaseUrl.setText(settings.backupBaseUrl)
         etBackupApiKey.setText(settings.backupApiKey)
         etBackupModel.setText(settings.backupModel)
@@ -118,6 +124,9 @@ class SettingsActivity : AppCompatActivity() {
         settings.newsEnabled = swNewsEnabled.isChecked
         settings.newsRefreshMinutes = etNewsRefreshMinutes.text.toString().toIntOrNull() ?: 15
         settings.newsSourcesText = etNewsSources.text.toString().trim().ifBlank { SettingsRepository.DEFAULT_NEWS_SOURCES }
+        settings.level2ProviderType = spLevel2Type.selectedItem.toString()
+        settings.level2BaseUrl = etLevel2BaseUrl.text.toString().trim()
+        settings.level2ApiToken = etLevel2Token.text.toString().trim()
         settings.primaryType = spPrimaryType.selectedItem.toString()
         settings.primaryBaseUrl = etPrimaryBaseUrl.text.toString().trim().ifBlank { SettingsRepository.defaultEndpoint(settings.primaryType) }
         settings.primaryApiKey = etPrimaryApiKey.text.toString().trim()
@@ -129,6 +138,24 @@ class SettingsActivity : AppCompatActivity() {
         settings.backupBaseUrl = etBackupBaseUrl.text.toString().trim()
         settings.backupApiKey = etBackupApiKey.text.toString().trim()
         settings.backupModel = etBackupModel.text.toString().trim()
+    }
+
+    private fun testLevel2() {
+        save()
+        lifecycleScope.launch {
+            binding.tvTestResult.text = "测试 Level2..."
+            val code = settings.allCodes().firstOrNull() ?: "000001.SZ"
+            runCatching { appContainer.level2Repository.snapshot(code) }
+                .onSuccess { s ->
+                    binding.tvTestResult.text = if (s == null) "Level2 无数据" else buildString {
+                        append("Level2 OK · ${s.source}")
+                        if (s.simulated) append(" · MOCK模拟") else append(" · 真实Provider")
+                        if (s.stale) append(" · STALE缓存")
+                        append("\n$code 买档=${s.bids.size} 卖档=${s.asks.size} 成交=${s.trades.size}")
+                    }
+                }
+                .onFailure { binding.tvTestResult.text = "Level2失败：${it.message}" }
+        }
     }
 
     private fun importFromClipboard() {
