@@ -33,6 +33,11 @@ interface CacheDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertAiAnalyses(items: List<AiAnalysisEntity>)
     @Query("SELECT * FROM ai_analysis ORDER BY createdAt DESC LIMIT :limit") suspend fun latestAiAnalysis(limit: Int = 20): List<AiAnalysisEntity>
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertNews(items: List<NewsItemEntity>)
+    @Query("SELECT * FROM news_item WHERE publishedAt = 0 OR publishedAt >= :since ORDER BY CASE WHEN publishedAt = 0 THEN fetchedAt ELSE publishedAt END DESC")
+    suspend fun getNewsSince(since: Long): List<NewsItemEntity>
+    @Query("DELETE FROM news_item WHERE fetchedAt < :before") suspend fun deleteOldNews(before: Long)
+
     @Query("DELETE FROM signal_state") suspend fun clearSignalStates()
     @Query("DELETE FROM signal_event") suspend fun clearSignalEvents()
     @Query("DELETE FROM trade_record") suspend fun clearTradeRecords()
