@@ -35,6 +35,7 @@ class MainActivity : AppCompatActivity() {
             c.marketRepository,
             c.fundFlowRepository,
             c.newsRepository,
+            c.level2Repository,
             c.r2Scanner,
             c.reviewRepository,
             c.aiClient,
@@ -65,7 +66,8 @@ class MainActivity : AppCompatActivity() {
                     onSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
                     onSelectStock = viewModel::selectStock, onSectorType = viewModel::refreshSectorFlow,
                     onRecordTrade = viewModel::recordTrade,
-                    onRefreshNews = { viewModel.refreshNews(force = true) }
+                    onRefreshNews = { viewModel.refreshNews(force = true) },
+                    onRefreshLevel2 = viewModel::refreshLevel2
                 )
             }
         }
