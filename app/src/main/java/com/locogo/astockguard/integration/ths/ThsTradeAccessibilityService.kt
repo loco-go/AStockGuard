@@ -26,10 +26,11 @@ class ThsTradeAccessibilityService : AccessibilityService() {
     private var debounceJob: Job? = null
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        val pkg = event?.packageName?.toString().orEmpty()
+        val currentEvent = event ?: return
+        val pkg = currentEvent.packageName?.toString().orEmpty()
         if (pkg !in SUPPORTED_PACKAGES) return
-        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
-            event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        if (currentEvent.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
+            currentEvent.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
 
         debounceJob?.cancel()
         debounceJob = scope.launch {
