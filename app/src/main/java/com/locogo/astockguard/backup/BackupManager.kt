@@ -4,6 +4,9 @@ import androidx.room.withTransaction
 import com.locogo.astockguard.SettingsRepository
 import com.locogo.astockguard.data.local.AStockDatabase
 import com.locogo.astockguard.data.local.AiAnalysisEntity
+import com.locogo.astockguard.data.local.PaperAccountEntity
+import com.locogo.astockguard.data.local.PaperOrderEntity
+import com.locogo.astockguard.data.local.PaperPositionEntity
 import com.locogo.astockguard.data.local.SignalEventEntity
 import com.locogo.astockguard.data.local.SignalStateEntity
 import com.locogo.astockguard.data.local.TradeRecordEntity
@@ -42,6 +45,9 @@ class BackupManager(
         root.put("signalEvents", JSONArray().apply { dao.getSignalEvents(10_000).forEach { put(it.toJson()) } })
         root.put("tradeRecords", JSONArray().apply { dao.getTradeRecords().forEach { put(it.toJson()) } })
         root.put("aiAnalysis", JSONArray().apply { dao.latestAiAnalysis(5_000).forEach { put(it.toJson()) } })
+        root.put("paperAccount", dao.getPaperAccount()?.toJson() ?: JSONObject.NULL)
+        root.put("paperPositions", JSONArray().apply { dao.getPaperPositions().forEach { put(it.toJson()) } })
+        root.put("paperOrders", JSONArray().apply { dao.getPaperOrders(10_000).forEach { put(it.toJson()) } })
         root.put("security", JSONObject().apply {
             put("containsApiKeys", false)
             put("containsCookies", false)
@@ -62,6 +68,9 @@ class BackupManager(
         val events = root.optJSONArray("signalEvents").toSignalEvents()
         val trades = root.optJSONArray("tradeRecords").toTradeRecords()
         val ai = root.optJSONArray("aiAnalysis").toAiAnalysis()
+        val paperAccount = root.optJSONObject("paperAccount")?.toPaperAccount()
+        val paperPositions = root.optJSONArray("paperPositions").toPaperPositions()
+        val paperOrders = root.optJSONArray("paperOrders").toPaperOrders()
 
         database.withTransaction {
             val dao = database.cacheDao()
@@ -70,6 +79,12 @@ class BackupManager(
             if (events.isNotEmpty()) dao.insertSignalEvents(events)
             if (trades.isNotEmpty()) dao.insertTradeRecords(trades)
             if (ai.isNotEmpty()) dao.insertAiAnalyses(ai)
+            if (root.has("paperAccount") || root.has("paperPositions") || root.has("paperOrders")) {
+                dao.clearPaperOrders(); dao.clearPaperPositions(); dao.clearPaperEquity()
+                paperAccount?.let { dao.upsertPaperAccount(it) }
+                paperPositions.forEach { dao.upsertPaperPosition(it) }
+                paperOrders.sortedBy { it.createdAt }.forEach { dao.insertPaperOrder(it.copy(id = 0)) }
+            }
         }
 
         settings.watchCodes = s.optString("watchCodes", settings.watchCodes)
@@ -106,6 +121,16 @@ class BackupManager(
         put("createdAt", createdAt); put("prompt", prompt); put("rawAnswer", rawAnswer); put("marketAction", marketAction)
         put("confidence", confidence); put("targetPositionPct", targetPositionPct); put("strategyJson", strategyJson)
     }
+    private fun PaperAccountEntity.toJson() = JSONObject().apply {
+        put("initialCash", initialCash); put("cash", cash); put("updatedAt", updatedAt)
+    }
+    private fun PaperPositionEntity.toJson() = JSONObject().apply {
+        put("code", code); put("quantity", quantity); put("avgCost", avgCost); put("updatedAt", updatedAt)
+    }
+    private fun PaperOrderEntity.toJson() = JSONObject().apply {
+        put("createdAt", createdAt); put("code", code); put("side", side); put("quantity", quantity)
+        put("price", price); put("fee", fee); put("status", status); put("source", source); put("note", note)
+    }
 
     private fun JSONArray?.toSignalStates() = objects().map { o -> SignalStateEntity(
         code = o.optString("code"), stage = o.optString("stage"), lastAction = o.optString("lastAction"),
@@ -121,6 +146,16 @@ class BackupManager(
         createdAt = o.optLong("createdAt"), prompt = o.optString("prompt"), rawAnswer = o.optString("rawAnswer"),
         marketAction = o.optString("marketAction"), confidence = o.optInt("confidence"), targetPositionPct = o.optInt("targetPositionPct"),
         strategyJson = o.optString("strategyJson")) }
+    private fun JSONObject.toPaperAccount() = PaperAccountEntity(
+        initialCash = optDouble("initialCash", 100_000.0), cash = optDouble("cash", 100_000.0), updatedAt = optLong("updatedAt"))
+    private fun JSONArray?.toPaperPositions() = objects().map { o -> PaperPositionEntity(
+        code = o.optString("code"), quantity = o.optInt("quantity"), avgCost = o.optDouble("avgCost"), updatedAt = o.optLong("updatedAt"))
+    }.filter { it.code.isNotBlank() && it.quantity > 0 }
+    private fun JSONArray?.toPaperOrders() = objects().map { o -> PaperOrderEntity(
+        createdAt = o.optLong("createdAt"), code = o.optString("code"), side = o.optString("side"), quantity = o.optInt("quantity"),
+        price = o.optDouble("price"), fee = o.optDouble("fee"), status = o.optString("status", "FILLED"),
+        source = o.optString("source", "RESTORE"), note = o.optString("note"))
+    }.filter { it.code.isNotBlank() && it.quantity > 0 }
 
     private fun JSONArray?.objects(): List<JSONObject> = if (this == null) emptyList() else buildList {
         for (i in 0 until length()) optJSONObject(i)?.let(::add)
