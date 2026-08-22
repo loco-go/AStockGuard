@@ -38,6 +38,9 @@ interface CacheDao {
     suspend fun getNewsSince(since: Long): List<NewsItemEntity>
     @Query("DELETE FROM news_item WHERE fetchedAt < :before") suspend fun deleteOldNews(before: Long)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertLevel2(item: Level2SnapshotEntity)
+    @Query("SELECT * FROM level2_snapshot WHERE code = :code LIMIT 1") suspend fun getLevel2(code: String): Level2SnapshotEntity?
+
     @Query("DELETE FROM signal_state") suspend fun clearSignalStates()
     @Query("DELETE FROM signal_event") suspend fun clearSignalEvents()
     @Query("DELETE FROM trade_record") suspend fun clearTradeRecords()
