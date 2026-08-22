@@ -20,6 +20,12 @@ class SettingsRepository(context: Context) {
     var level2BaseUrl: String get() = prefs.getString("level2_base_url", "") ?: ""; set(v) = prefs.edit().putString("level2_base_url", v).apply()
     var level2ApiToken: String get() = crypto.get("level2_api_token"); set(v) = crypto.put("level2_api_token", v)
 
+    var syncEnabled: Boolean get() = prefs.getBoolean("sync_enabled", false); set(v) = prefs.edit().putBoolean("sync_enabled", v).apply()
+    var syncBaseUrl: String get() = prefs.getString("sync_base_url", "") ?: ""; set(v) = prefs.edit().putString("sync_base_url", v).apply()
+    var syncToken: String get() = crypto.get("sync_token"); set(v) = crypto.put("sync_token", v)
+    var syncProfileUpdatedAt: Long get() = prefs.getLong("sync_profile_updated_at", 0L); set(v) = prefs.edit().putLong("sync_profile_updated_at", v).apply()
+    fun markSyncProfileChanged() { syncProfileUpdatedAt = System.currentTimeMillis() }
+
     var primaryType: String get() = prefs.getString("primary_type", "CHATGPT_WEB") ?: "CHATGPT_WEB"; set(v) = prefs.edit().putString("primary_type", v).apply()
     var chatGptConversationUrl: String get() = prefs.getString("chatgpt_conversation_url", "") ?: ""; set(v) = prefs.edit().putString("chatgpt_conversation_url", v).apply()
     var primaryBaseUrl: String get() = prefs.getString("primary_base_url", defaultEndpoint(primaryType)) ?: defaultEndpoint(primaryType); set(v) = prefs.edit().putString("primary_base_url", v).apply()
