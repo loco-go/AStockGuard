@@ -11,6 +11,7 @@ import com.locogo.astockguard.data.ai.AiStrategyParser
 import com.locogo.astockguard.data.fundflow.FundFlowRepository
 import com.locogo.astockguard.data.local.AiAnalysisEntity
 import com.locogo.astockguard.data.local.CacheDao
+import com.locogo.astockguard.data.news.NewsRepository
 import com.locogo.astockguard.domain.review.ReviewRepository
 import com.locogo.astockguard.domain.signal.R2Scanner
 import kotlinx.coroutines.flow.*
@@ -22,6 +23,7 @@ class MainViewModel(
     private val settings: SettingsRepository,
     private val marketRepository: MarketRepository,
     private val fundFlowRepository: FundFlowRepository,
+    private val newsRepository: NewsRepository,
     private val r2Scanner: R2Scanner,
     private val reviewRepository: ReviewRepository,
     private val aiClient: AiClient,
@@ -31,6 +33,7 @@ class MainViewModel(
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
     private val _effects = MutableSharedFlow<MainEffect>(extraBufferCapacity = 1)
     val effects: SharedFlow<MainEffect> = _effects.asSharedFlow()
+    private var lastNewsRefreshAt = 0L
 
     fun acceptSnapshot(snapshot: com.locogo.astockguard.MonitorSnapshot) {
         val selected = _uiState.value.selectedCode ?: snapshot.quotes.firstOrNull()?.code
@@ -47,6 +50,7 @@ class MainViewModel(
             _uiState.update { it.copy(r2ScanRows = scan, signalStates = states) }
         }
         refreshReviews()
+        refreshNews(force = false)
     }
 
     fun selectStock(code: String) {
@@ -55,7 +59,9 @@ class MainViewModel(
             val daily = runCatching { marketRepository.loadDailyBars(code, 30) }.getOrDefault(emptyList())
             val minute = runCatching { marketRepository.loadMinuteBars(code) }.getOrDefault(emptyList())
             val flow = runCatching { fundFlowRepository.stock(code) }.getOrNull()
-            if (_uiState.value.selectedCode == code) _uiState.update { it.copy(dailyBars = daily, minuteBars = minute, stockFundFlow = flow, fundFlowLoading = false) }
+            if (_uiState.value.selectedCode == code) {
+                _uiState.update { it.copy(dailyBars = daily, minuteBars = minute, stockFundFlow = flow, fundFlowLoading = false) }
+            }
         }
     }
 
@@ -63,6 +69,23 @@ class MainViewModel(
         viewModelScope.launch {
             val result = runCatching { fundFlowRepository.sectors(type) }.getOrNull()
             if (result != null) _uiState.update { it.copy(sectorFundFlow = result) }
+        }
+    }
+
+    fun refreshNews(force: Boolean = true) {
+        if (!settings.newsEnabled) {
+            _uiState.update { it.copy(newsLoading = false) }
+            return
+        }
+        val now = System.currentTimeMillis()
+        val minGap = settings.newsRefreshMinutes * 60_000L
+        if (!force && now - lastNewsRefreshAt < minGap) return
+        lastNewsRefreshAt = now
+        _uiState.update { it.copy(newsLoading = true) }
+        viewModelScope.launch {
+            val assessment = runCatching { newsRepository.refresh() }
+                .getOrElse { newsRepository.cached() }
+            _uiState.update { it.copy(newsRisk = assessment, newsLoading = false) }
         }
     }
 
@@ -94,7 +117,14 @@ class MainViewModel(
 
     fun analyze(question: String) {
         val snapshot = _uiState.value.snapshot ?: run { _uiState.update { it.copy(error = "请先刷新行情") }; return }
-        val prompt = PromptBuilder.build(snapshot, settings.positions(), question, _uiState.value.stockFundFlow, _uiState.value.sectorFundFlow)
+        val prompt = PromptBuilder.build(
+            snapshot = snapshot,
+            positions = settings.positions(),
+            question = question,
+            stockFundFlow = _uiState.value.stockFundFlow,
+            sectorFundFlow = _uiState.value.sectorFundFlow,
+            newsRisk = _uiState.value.newsRisk
+        )
         _uiState.update { it.copy(aiLoading = true, aiText = "AI分析中…", error = null) }
         if (settings.primaryType == "CHATGPT_WEB") { _effects.tryEmit(MainEffect.RunHiddenWebAi(prompt)); return }
         viewModelScope.launch {
@@ -122,12 +152,15 @@ class MainViewModel(
         private val settings: SettingsRepository,
         private val marketRepository: MarketRepository,
         private val fundFlowRepository: FundFlowRepository,
+        private val newsRepository: NewsRepository,
         private val r2Scanner: R2Scanner,
         private val reviewRepository: ReviewRepository,
         private val aiClient: AiClient,
         private val cacheDao: CacheDao
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T = MainViewModel(settings, marketRepository, fundFlowRepository, r2Scanner, reviewRepository, aiClient, cacheDao) as T
+        override fun <T : ViewModel> create(modelClass: Class<T>): T = MainViewModel(
+            settings, marketRepository, fundFlowRepository, newsRepository, r2Scanner, reviewRepository, aiClient, cacheDao
+        ) as T
     }
 }
