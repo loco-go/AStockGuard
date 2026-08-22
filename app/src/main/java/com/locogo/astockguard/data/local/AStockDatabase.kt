@@ -11,8 +11,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
     entities = [QuoteCacheEntity::class, DailyBarCacheEntity::class, MinuteBarCacheEntity::class,
         FundFlowCacheEntity::class, SectorFundFlowCacheEntity::class, SignalStateEntity::class,
         SignalEventEntity::class, TradeRecordEntity::class, AiAnalysisEntity::class, NewsItemEntity::class,
-        Level2SnapshotEntity::class],
-    version = 7,
+        Level2SnapshotEntity::class, PaperAccountEntity::class, PaperPositionEntity::class,
+        PaperOrderEntity::class, PaperEquityEntity::class],
+    version = 8,
     exportSchema = true
 )
 abstract class AStockDatabase : RoomDatabase() {
@@ -64,11 +65,24 @@ abstract class AStockDatabase : RoomDatabase() {
                 code TEXT NOT NULL PRIMARY KEY, payloadJson TEXT NOT NULL, source TEXT NOT NULL,
                 simulated INTEGER NOT NULL, cachedAt INTEGER NOT NULL)""".trimIndent())
         } }
+        val MIGRATION_7_8 = object : Migration(7, 8) { override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""CREATE TABLE IF NOT EXISTS paper_account (
+                id INTEGER NOT NULL PRIMARY KEY, initialCash REAL NOT NULL, cash REAL NOT NULL, updatedAt INTEGER NOT NULL)""".trimIndent())
+            db.execSQL("""CREATE TABLE IF NOT EXISTS paper_position (
+                code TEXT NOT NULL PRIMARY KEY, quantity INTEGER NOT NULL, avgCost REAL NOT NULL, updatedAt INTEGER NOT NULL)""".trimIndent())
+            db.execSQL("""CREATE TABLE IF NOT EXISTS paper_order (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, createdAt INTEGER NOT NULL, code TEXT NOT NULL,
+                side TEXT NOT NULL, quantity INTEGER NOT NULL, price REAL NOT NULL, fee REAL NOT NULL,
+                status TEXT NOT NULL, source TEXT NOT NULL, note TEXT NOT NULL)""".trimIndent())
+            db.execSQL("""CREATE TABLE IF NOT EXISTS paper_equity (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, recordedAt INTEGER NOT NULL, equity REAL NOT NULL,
+                cash REAL NOT NULL, marketValue REAL NOT NULL)""".trimIndent())
+        } }
 
         @Volatile private var instance: AStockDatabase? = null
         fun get(context: Context): AStockDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, AStockDatabase::class.java, "astock_guard.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                 .build().also { instance = it }
         }
     }
