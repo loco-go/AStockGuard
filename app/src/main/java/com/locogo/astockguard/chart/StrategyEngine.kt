@@ -23,27 +23,66 @@ object StrategyEngine {
         val rsi = rsi(closes, 14).last()
         val latest = candles.last()
         val vwap = candles.takeLast(20).let { bars ->
-            val volume = bars.sumOf { it.volume.toDouble() }
+            val volume = bars.sumOf { it.volume }
             if (volume == 0.0) latest.close else bars.sumOf { it.close * it.volume } / volume
         }
         var score = 50
         val reasons = mutableListOf<String>()
         if (ma5 != null && ma10 != null && ma20 != null && ma5 > ma10 && ma10 > ma20) {
-            score += 20; reasons += "MA bullish alignment"
+            score += 20
+            reasons += "MA bullish alignment"
         }
-        if (macd.dif > macd.dea) { score += 15; reasons += "MACD bullish" } else score -= 10
-        if (rsi in 35.0..65.0) { score += 10; reasons += "RSI healthy" }
-        if (latest.close > vwap) { score += 10; reasons += "Price above VWAP" }
-        val volumeRatio = TechnicalIndicators.volumeRatio(candles.map { it.volume.toDouble() })
-        if (volumeRatio > 1.2) { score += 10; reasons += "Volume expansion" }
+        if (macd.dif > macd.dea) {
+            score += 15
+            reasons += "MACD bullish"
+        } else {
+            score -= 10
+            reasons += "MACD weak"
+        }
+        when {
+            rsi < 30.0 -> {
+                score += 5
+                reasons += "RSI oversold"
+            }
+            rsi > 70.0 -> {
+                score -= 10
+                reasons += "RSI overbought"
+            }
+            rsi in 35.0..65.0 -> {
+                score += 10
+                reasons += "RSI healthy"
+            }
+        }
+        if (latest.close > vwap) {
+            score += 10
+            reasons += "Price above VWAP"
+        } else {
+            score -= 5
+            reasons += "Price below VWAP"
+        }
+        val recentVolumes = candles.takeLast(20).map { it.volume }
+        val avgVolume = recentVolumes.dropLast(1).takeIf { it.isNotEmpty() }?.average() ?: 0.0
+        val volumeRatio = TechnicalIndicators.volumeRatio(latest.volume, avgVolume)
+        if (volumeRatio > 1.2) {
+            score += 10
+            reasons += "Volume expansion"
+        }
         score = score.coerceIn(0, 100)
-        val action = when { score >= 75 -> "BUY"; score <= 35 -> "SELL"; else -> "HOLD" }
+        val action = when {
+            score >= 75 -> "BUY"
+            score <= 35 -> "SELL"
+            else -> "HOLD"
+        }
         val span = latest.close * 0.015
-        return StrategyResult(score, action, (latest.close - span)..latest.close, (latest.close + span)..(latest.close + span * 2), reasons)
+        val buyZone = if (action == "SELL") null else (latest.close - span)..latest.close
+        val sellZone = if (action == "BUY" || action == "HOLD") (latest.close + span)..(latest.close + span * 2) else null
+        return StrategyResult(score, action, buyZone, sellZone, reasons)
     }
 
     fun macd(values: List<Double>, fast: Int = 12, slow: Int = 26, signal: Int = 9): List<MacdPoint> {
-        val fastEma = ema(values, fast); val slowEma = ema(values, slow)
+        if (values.isEmpty()) return emptyList()
+        val fastEma = ema(values, fast)
+        val slowEma = ema(values, slow)
         val dif = values.indices.map { fastEma[it] - slowEma[it] }
         val dea = ema(dif, signal)
         return dif.indices.map { MacdPoint(dif[it], dea[it], (dif[it] - dea[it]) * 2) }
