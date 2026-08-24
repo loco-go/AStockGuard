@@ -7,7 +7,15 @@ import org.junit.Test
 class StrategyEngineTest {
     private fun candles(count: Int = 40): List<StockKLine> = (1..count).map { i ->
         val p = 10.0 + i * 0.1
-        StockKLine(i.toLong(), "2026-01-${(i % 28 + 1).toString().padStart(2, '0')}", p - 0.05, p + 0.1, p - 0.1, p, 1000L + i * 20)
+        StockKLine(
+            i.toLong(),
+            "2026-01-${(i % 28 + 1).toString().padStart(2, '0')}",
+            p - 0.05,
+            p + 0.1,
+            p - 0.1,
+            p,
+            1000.0 + i * 20.0
+        )
     }
 
     @Test fun macdHasOnePointPerClose() {
@@ -28,8 +36,9 @@ class StrategyEngineTest {
 
     @Test fun replayProducesMetrics() {
         val result = ReplayEngine.run(candles(80))
-        assertTrue(result.tradeCount >= 0)
-        assertTrue(result.maxDrawdown <= 0.0)
+        assertTrue(result.trades >= 0)
+        assertTrue(result.maxDrawdown in 0.0..1.0)
         assertTrue(result.winRate in 0.0..1.0)
+        assertTrue(result.returnRatio.isFinite())
     }
 }
