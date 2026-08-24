@@ -7,8 +7,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <application
+        android:name=".AStockGuardApp"
         android:allowBackup="false"
-        android:label="A股仓位闸门 Demo"
+        android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.AStockGuard"
         android:usesCleartextTraffic="false">
@@ -21,6 +22,10 @@
             android:name=".ChatGptWebActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".integration.ths.ThsTradeSyncActivity"
+            android:exported="false" />
 
         <activity
             android:name=".SettingsActivity"
@@ -39,6 +44,19 @@
             android:name=".MarketMonitorService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+
+        <service
+            android:name=".integration.ths.ThsTradeAccessibilityService"
+            android:exported="false"
+            android:label="同花顺成交只读同步"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/ths_accessibility_service" />
+        </service>
 
     </application>
 </manifest>

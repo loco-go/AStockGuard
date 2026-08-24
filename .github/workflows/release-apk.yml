@@ -1,0 +1,91 @@
+name: Build and Publish APK
+
+on:
+  push:
+    branches:
+      - master
+      - 'feature/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk-release-${{ github.ref_name == 'master' && 'master' || 'dev' }}
+  cancel-in-progress: true
+
+jobs:
+  release-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Verify
+        run: |
+          ./gradlew test
+          ./gradlew lint
+
+      - name: Build installable APK
+        run: ./gradlew assembleDebug
+
+      - name: Prepare release metadata
+        id: meta
+        shell: bash
+        run: |
+          VERSION=$(grep -m1 'versionName = ' app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')
+          SHORT_SHA=${GITHUB_SHA::7}
+          APK="AStockGuard-${VERSION}-${SHORT_SHA}-dev.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "$APK"
+          if [[ "${GITHUB_REF_NAME}" == "master" ]]; then
+            TAG="latest-master"
+            TITLE="AStockGuard ${VERSION} latest master"
+            PRERELEASE="false"
+          else
+            TAG="latest-dev"
+            TITLE="AStockGuard ${VERSION} latest development build"
+            PRERELEASE="true"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "title=$TITLE" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+          echo "apk=$APK" >> "$GITHUB_OUTPUT"
+
+      - name: Publish rolling GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          TAG="${{ steps.meta.outputs.tag }}"
+          gh release delete "$TAG" --cleanup-tag --yes 2>/dev/null || true
+
+          NOTES=$(cat <<EOF
+          Automated Android build from \`${GITHUB_REF_NAME}\`.
+
+          - version: ${{ steps.meta.outputs.version }}
+          - commit: ${GITHUB_SHA}
+          - test + lint completed before publishing
+          - APK is installable and intended for development/validation
+          - this rolling release is replaced by the next successful build on the same channel
+          - production signing will use a fixed release keystore once repository signing secrets are configured
+          EOF
+          )
+
+          EXTRA_ARGS=()
+          if [[ "${{ steps.meta.outputs.prerelease }}" == "true" ]]; then
+            EXTRA_ARGS+=(--prerelease)
+          fi
+
+          gh release create "$TAG" "${{ steps.meta.outputs.apk }}" \
+            --target "$GITHUB_SHA" \
+            --title "${{ steps.meta.outputs.title }}" \
+            --notes "$NOTES" \
+            "${EXTRA_ARGS[@]}"

@@ -1,125 +1,157 @@
-# AStockGuardDemo
+# AStockGuard
 
-纯 Android 单机版 A 股实时行情 / 仓位闸门 / AI 辅助 Demo。
+Android 单机优先的 A 股交易研究、持仓管理、盘中执行辅助与复盘驾驶舱。
 
-> 当前版本只做“读取行情 + 本地信号 + 本地通知 + AI 分析”，**不自动下单**。
+> AStockGuard 是决策辅助软件：读取行情、计算本地规则、同步成交、生成计划、提醒与复盘；**不会通过辅助功能自动提交真实账户委托，也不保证投资收益。**
 
-## 已实现
+## 下载 APK
 
-- Kotlin + XML + ViewBinding
-- iFinD HTTP API：
-  - `POST /api/v1/get_access_token`
-  - `POST /api/v1/real_time_quotation`
-  - `POST /api/v1/cmd_history_quotation`（用于上一交易日收盘价）
-- 3 秒轮询的 `ForegroundService`
-- Android 15 `dataSync` FGS `onTimeout()` 处理
-- 手工输入 iFinD `refresh_token`
-- 手工输入 OpenAI / OpenAI-compatible Responses API Key
-- 主接口 + 备用接口；仅在网络错误、408、429、5xx 时切换备用，不对 401/403 做“绕过”
-- Android Keystore + AES/GCM 本地加密保存：
-  - iFinD refresh token
-  - 主 API Key
-  - 备用 API Key
-- 本地风险模型：E0/E1/E2、M1/M2/M3、建议总仓位上限
-- 持仓角色：`CORE / ATTACK / TRADE / LONG`
-- 风险信号变化时本地 Notification
-- AI 只接收当前行情快照和本地信号，不让模型编造实时行情
+- [最新开发版 APK（latest-dev）](https://github.com/loco-go/AStockGuard/releases/tag/latest-dev) — 任意 `feature/**` 最新成功构建，Prerelease。
+- [最新 master APK（latest-master）](https://github.com/loco-go/AStockGuard/releases/tag/latest-master) — master 最新成功构建。
+- [全部 Releases](https://github.com/loco-go/AStockGuard/releases)
 
-## 为什么支持自定义 AI Base URL
+当前滚动 Release 使用开发/验证签名。需要稳定覆盖安装的 production APK 时，应为 GitHub Actions 配置固定 release keystore secrets，不能在 CI 中临时生成签名密钥。
 
-Demo 默认使用：
+## 当前能力
+
+### 交易驾驶舱
+
+首页按任务拆成四个工作区：
+
+- **决策**：市场风险、当前仓位、Local/AI 动作、T计划、R2、信号、新闻与 AI。
+- **图表**：ECharts 分时/日K、实际买卖点、计划买卖区、失效位、Level2。
+- **资金**：个股资金流、行业/概念资金排行、组合净值。
+- **复盘**：实际交易统计、模拟盘、Replay、AI复盘。
+
+### 行情与缓存
+
+- 腾讯实时行情、历史日线、分钟数据。
+- VWAP / MA / R2 等本地因子。
+- Room Offline-first 缓存。
+- 网络失败可以展示缓存；**STALE 行情禁止推进实时 BUY/SELL/T 动作。**
+
+### ECharts 交易图
+
+- Apache ECharts 6.1.0。
+- 分时：价格、均价、成交量、缩放/指针。
+- 日K：Candlestick、成交量。
+- 实际 `TradeRecord` 映射为 BUY/SELL 标记。
+- T计划显示买入区、卖出区、失效位。
+- 点击图表价格可设为“计划买点锚点”，随后重新计算卖出区；点击不会自动下单。
+
+### T 交易执行辅助
+
+`TTradePlanner` 使用近 60 分钟振幅、VWAP、可选资金流、市场阶段和现有底仓计算：
+
+- `BUY_ZONE`
+- `SELL_ZONE`
+- `WAIT / WAIT_RECLAIM`
+- `INVALIDATED`
+- `NO_T`
+- `BLOCKED_STALE`
+
+基本约束：
+
+- 无至少 100 股现有底仓时不生成盘中 T 计划。
+- 振幅不足时主动输出 `NO_T`，不为了交易而交易。
+- 建议 T 仓默认不超过底仓约 1/3，防守阶段进一步压缩。
+- 盯盘服务仅在交易时段、实时行情下按状态变化通知，不连续刷屏。
+- A 股新买股票受 T+1 约束；后续还要结合券商“可用数量”把可卖股数约束做完整。
+
+### 同花顺成交同步
+
+两条只读路径统一写入本地 `TradeRecord`：
+
+1. **Accessibility 盘中补充**
+   - 用户自己打开同花顺成交/交割页面。
+   - 仅读取可访问的代码、方向、价格、数量、时间。
+   - 不调用 `performAction()`，不自动点击、不下单、不保存整页原始文本。
+
+2. **交割单文件导入**
+   - 当前支持 CSV / TSV / TXT。
+   - 支持常见中英文成交表头。
+   - 作为更可靠的盘后对账路径。
+
+同步后的真实成交会自动成为 ECharts 买卖点和复盘数据。
+
+### 资金流
+
+- 东方财富个股分钟/日级资金流。
+- 主力、超大单、大单、中单、小单。
+- 1/3/5/10 日聚合。
+- 行业 / 概念板块资金排行。
+- 资金分类仅作为数据商订单规模口径，不等同于真实机构账户身份。
+
+### Level2
+
+- Provider-neutral 十档盘口模型。
+- `MOCK` / `HTTP_JSON` Provider。
+- REAL / MOCK / STALE 明确标记。
+- Mock 数据不会进入 AI 作为真实 Level2 证据。
+- Level2 Token 使用 Android Keystore 加密。
+
+### AI
+
+- Hidden ChatGPT WebView：正常分析隐藏运行，只有登录/验证码/DOM异常时才打开可见页面。
+- API Provider / Backup Provider。
+- 结构化 `<ASTOCK_STRATEGY>` JSON：市场动作、置信度、目标仓位、股票动作、触发条件、失效条件。
+- Local Action 与 AI Action 分开显示，冲突显式提示。
+
+### 信号生命周期与复盘
+
+- R2 Scanner。
+- `IDLE → WATCH → READY → TRIGGERED → CONFIRMED / INVALIDATED`。
+- 状态持久化、通知去重/冷却。
+- 信号发生价格与后续 directional edge 统计。
+- 实际交易 FIFO 已实现盈亏与胜率统计。
+
+### 模拟盘 / Replay
+
+- 独立模拟账户、现金、持仓、订单、净值。
+- 分钟数据逐帧 Replay。
+- VWAP 策略研究回放。
+- 收益率、最大回撤、胜率、Profit Factor。
+- 模拟盘与真实持仓完全隔离。
+
+### 新闻风险
+
+- HTTPS RSS/Atom。
+- 新闻本地缓存与刷新节流。
+- E0/E1/E2 新闻风险覆盖层与证据标题。
+- 新闻风险不会单独变成 BUY/SELL。
+
+### 本地安全与备份
+
+- Room 数据库与显式 migrations。
+- Android Keystore + AES-GCM 保存敏感凭据。
+- JSON 备份/恢复持仓配置、信号、交易、模拟盘等非敏感数据。
+- API Key、Cookie、Session Token、Level2 Token 不进入备份。
+
+## 自动构建与 Release
+
+PR / master Android CI：
 
 ```text
-https://api.openai.com/v1/responses
+unit tests → lint → assembleDebug → artifact
 ```
 
-设置页可以把 `Base URL` 改成**你自己有权使用的 OpenAI-compatible Responses provider**。App 会在 Base URL 后拼接 `/responses`。
-
-例如：
+Push 到 `feature/**` 或 `master`：
 
 ```text
-Base URL = https://api.openai.com/v1
-最终请求 = https://api.openai.com/v1/responses
+unit tests → lint → assembleDebug → GitHub rolling Release APK
 ```
 
-如果你之前 Codex 配置里使用了自定义 `model_provider.base_url`，只要该服务实现 OpenAI-compatible Responses 协议，也可以直接填进来。
-
-本项目**不使用**未公开的 ChatGPT/Codex 后台接口，也不内置任何规避服务权限/封禁的逻辑。
-
-## API Key 安全说明
-
-个人 Demo 阶段采用“用户手动输入 + Android Keystore AES/GCM 加密本地保存”，比把 Key 写死在 APK 中安全很多。
-
-但客户端永远不能达到服务器级别的密钥隔离：root、hook、内存抓取或设备失陷仍可能泄露 Key。正式多人版本建议把 AI Key 迁移到后端代理。
-
-## iFinD 配置
-
-官方 HTTP API 使用：
-
-1. `refresh_token` 获取 `access_token`
-2. `access_token` 调取实时行情
-
-在设置页手动输入 refresh token。默认自选：
-
-```text
-000636.SZ,000938.SZ,600667.SH,002579.SZ
-```
-
-可自行修改。
-
-持仓格式：
-
-```text
-代码,名称,股数,成本,角色
-000636.SZ,风华高科,500,45.679,CORE
-000938.SZ,紫光股份,600,48.162,CORE
-600667.SH,太极实业,800,23.492,ATTACK
-002579.SZ,中京电子,600,15.317,LONG
-```
-
-## 本地仓位模型（Demo 规则）
-
-这只是可运行的第一版规则，不代表最终策略：
-
-```text
-E2:
-  观察池平均跌幅 <= -4%
-  OR <-7% 标的占比 >= 40%
-  -> 仓位上限 50%
-
-E1:
-  平均跌幅 <= -2%
-  OR 下跌标的占比 >= 70%
-  -> 仓位上限 65%
-
-M3:
-  平均涨幅 >= +2%
-  AND 下跌占比 <= 35%
-  -> 仓位上限 85%
-```
-
-下一版应该加入：
-
-- 全市场上涨家数 / 跌停家数
-- SOX / KOSPI / 日经 / 美债 / 油价事件风险
-- 板块强弱
-- VWAP
-- 分时第一低点 / 第二低点
-- MA5 / MA10 / MA20
-- R2（Recovery + Second Pullback）扫描
-- Level-2 大单 / 逐笔 / 盘口不平衡
+- `feature/**` → `latest-dev`
+- `master` → `latest-master`
 
 ## 编译
 
 推荐：
 
-- Android Studio Narwhal 及以上
 - JDK 17+
 - Android SDK 35
-
-本仓库使用 AGP 8.7.3 + Gradle 8.9。
-
-为了让压缩包不依赖二进制 `gradle-wrapper.jar`，这里的 `gradlew/gradlew.bat` 是一个很小的 bootstrap 脚本：首次运行会自动下载官方 Gradle 8.9 distribution。
+- AGP 8.7.3
+- Gradle 8.9
 
 Windows：
 
@@ -130,14 +162,27 @@ gradlew.bat assembleDebug
 macOS/Linux：
 
 ```bash
+chmod +x gradlew
 ./gradlew assembleDebug
 ```
 
-也可以直接用 Android Studio 打开项目。
+## 当前重点路线
 
-## 注意
+后端/多设备同步暂时冻结。Android APP 完整之前，开发优先级为：
 
-- iFinD 指标权限取决于你的账号权限。
-- 当前实时接口只请求官方示例明确使用的 `open,high,low,latest`，涨跌幅由历史上一交易日收盘价本地计算。
-- 纯 Android Demo 没有服务器，因此 AI 调用依赖手机当前网络。
-- 本项目用于研究和个人辅助，不构成投资建议，也不保证任何收益。
+1. 交易决策中心与盘前/盘中计划。
+2. 全市场机会扫描与板块/个股相对强度。
+3. 资金流加速度与价格/资金背离。
+4. 动态仓位、组合相关性、利润保护。
+5. 做 T 执行辅助、净交易成本与实际 T 贡献统计。
+6. 回测 2.0 / Walk Forward / T+1 / 滑点 / 涨跌停成交约束。
+7. Signal Fusion、策略排行榜与动态权重。
+8. 个人交易行为模型和收益归因。
+9. UI、性能与数据源容灾。
+10. Android 完整正式版后再考虑后端。
+
+详见 `V3.4_CHANGELOG.md`。
+
+## 风险说明
+
+AStockGuard 的目标是减少冲动交易、让信号可验证、提高资金使用效率并控制回撤。历史回测、资金流、Level2、AI 或 T 交易计划都可能失效；任何策略都应以实际成交成本、样本外表现和长期期望收益验证，不能把单次提示当作收益保证。
