@@ -15,7 +15,7 @@ class ReplayEngineTest {
                 high = 10.2,
                 low = 9.8,
                 close = 10.0,
-                volume = 1_000L
+                volume = 1_000.0
             )
         }
 
@@ -35,7 +35,7 @@ class ReplayEngineTest {
                 high = close + 0.2,
                 low = close - 0.2,
                 close = close,
-                volume = 10_000L + i * 100L
+                volume = 10_000.0 + i * 100.0
             )
         }
 
