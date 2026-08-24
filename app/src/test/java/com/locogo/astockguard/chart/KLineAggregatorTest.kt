@@ -8,10 +8,10 @@ class KLineAggregatorTest {
     @Test
     fun `aggregates daily candles into ISO weeks`() {
         val source = listOf(
-            bar("2026-08-17", 10.0, 12.0, 9.0, 11.0, 100),
-            bar("2026-08-18", 11.0, 13.0, 10.0, 12.0, 200),
-            bar("2026-08-21", 12.0, 14.0, 11.0, 13.0, 300),
-            bar("2026-08-24", 13.0, 15.0, 12.0, 14.0, 400)
+            bar("2026-08-17", 10.0, 12.0, 9.0, 11.0, 100.0),
+            bar("2026-08-18", 11.0, 13.0, 10.0, 12.0, 200.0),
+            bar("2026-08-21", 12.0, 14.0, 11.0, 13.0, 300.0),
+            bar("2026-08-24", 13.0, 15.0, 12.0, 14.0, 400.0)
         )
 
         val weeks = KLineAggregator.toWeek(source)
@@ -21,16 +21,16 @@ class KLineAggregatorTest {
         assertEquals(14.0, weeks[0].high, 0.0)
         assertEquals(9.0, weeks[0].low, 0.0)
         assertEquals(13.0, weeks[0].close, 0.0)
-        assertEquals(600L, weeks[0].volume)
+        assertEquals(600.0, weeks[0].volume, 0.0)
         assertEquals("2026-08-21", weeks[0].date)
     }
 
     @Test
     fun `aggregates daily candles into months`() {
         val source = listOf(
-            bar("2026-07-31", 8.0, 9.0, 7.0, 8.5, 50),
-            bar("2026-08-03", 10.0, 12.0, 9.0, 11.0, 100),
-            bar("2026-08-31", 11.0, 13.0, 10.0, 12.0, 200)
+            bar("2026-07-31", 8.0, 9.0, 7.0, 8.5, 50.0),
+            bar("2026-08-03", 10.0, 12.0, 9.0, 11.0, 100.0),
+            bar("2026-08-31", 11.0, 13.0, 10.0, 12.0, 200.0)
         )
 
         val months = KLineAggregator.toMonth(source)
@@ -40,7 +40,7 @@ class KLineAggregatorTest {
         assertEquals(13.0, months[1].high, 0.0)
         assertEquals(9.0, months[1].low, 0.0)
         assertEquals(12.0, months[1].close, 0.0)
-        assertEquals(300L, months[1].volume)
+        assertEquals(300.0, months[1].volume, 0.0)
         assertEquals("2026-08-31", months[1].date)
     }
 
@@ -50,7 +50,7 @@ class KLineAggregatorTest {
         high: Double,
         low: Double,
         close: Double,
-        volume: Long
+        volume: Double
     ) = StockKLine(
         timestamp = 0L,
         date = date,
