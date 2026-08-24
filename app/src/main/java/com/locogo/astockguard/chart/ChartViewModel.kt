@@ -6,13 +6,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-data class ChartUiState(
-    val period: ChartPeriod = ChartPeriod.DAY,
-    val candles: List<StockKLine> = emptyList(),
-    val loading: Boolean = false,
-    val error: String? = null
-)
-
 class ChartViewModel(
     private val repository: ChartRepository
 ) : ViewModel() {
@@ -20,7 +13,7 @@ class ChartViewModel(
     private val _state = MutableStateFlow(ChartUiState())
     val state: StateFlow<ChartUiState> = _state
 
-    fun load(code: String, period: ChartPeriod) {
+    fun load(code: String, period: ChartPeriod = _state.value.period) {
         viewModelScope.launch {
             _state.value = _state.value.copy(
                 period = period,
@@ -30,17 +23,27 @@ class ChartViewModel(
 
             runCatching {
                 repository.getChart(code, period)
-            }.onSuccess {
+            }.onSuccess { candles ->
                 _state.value = _state.value.copy(
-                    candles = it,
+                    candles = candles,
+                    selectedDate = _state.value.selectedDate?.takeIf { selected -> candles.any { it.date == selected } },
                     loading = false
                 )
-            }.onFailure {
+            }.onFailure { throwable ->
                 _state.value = _state.value.copy(
                     loading = false,
-                    error = it.message
+                    error = throwable.message ?: "Chart load failed"
                 )
             }
         }
+    }
+
+    fun changePeriod(code: String, period: ChartPeriod) {
+        if (period == _state.value.period && _state.value.candles.isNotEmpty()) return
+        load(code, period)
+    }
+
+    fun selectDate(date: String?) {
+        _state.value = _state.value.copy(selectedDate = date)
     }
 }
