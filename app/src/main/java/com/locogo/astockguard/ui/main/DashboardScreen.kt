@@ -16,7 +16,7 @@ import com.locogo.astockguard.Position
 import com.locogo.astockguard.data.fundflow.SectorFundFlowResult
 import com.locogo.astockguard.data.fundflow.StockFundFlow
 import com.locogo.astockguard.domain.trading.TTradePlan
-import com.locogo.astockguard.ui.chart.EChartsTradingChart
+import com.locogo.astockguard.ui.chart.CandlestickChart
 import com.locogo.astockguard.ui.chart.EquityCurve
 import com.locogo.astockguard.ui.chart.TradingChartMode
 
@@ -133,15 +133,11 @@ fun DashboardScreen(
                                         Text(state.selectedCode ?: "请选择股票", fontWeight = FontWeight.Bold)
                                         Text("点击图上价格可设为计划买点锚点", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
-                                    Text("ECharts 6.1", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                    Text("KLineChart", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                                 }
-                                EChartsTradingChart(
-                                    dailyBars = state.dailyBars,
-                                    minuteBars = state.minuteBars,
-                                    trades = state.tradeRecords,
-                                    plan = state.tTradePlan,
-                                    mode = chartMode,
-                                    onBuyAnchor = onSetBuyAnchor
+                                CandlestickChart(
+                                    bars = state.dailyBars,
+                                    signals = emptyList()
                                 )
                             }
                         }
