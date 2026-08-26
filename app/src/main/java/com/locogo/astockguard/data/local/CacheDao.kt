@@ -17,6 +17,10 @@ interface CacheDao {
     @Query("SELECT * FROM fund_flow_cache WHERE code = :code AND period = :period ORDER BY time ASC") suspend fun getFundFlow(code: String, period: String): List<FundFlowCacheEntity>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertSectorFundFlow(items: List<SectorFundFlowCacheEntity>)
     @Query("SELECT * FROM sector_fund_flow_cache WHERE type = :type ORDER BY mainNet DESC") suspend fun getSectorFundFlow(type: String): List<SectorFundFlowCacheEntity>
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertFundFlowRecords(items: List<FundFlowEntity>)
+    @Query("SELECT * FROM fund_flow WHERE symbol = :symbol ORDER BY date DESC LIMIT :limit") suspend fun getFundFlowRecords(symbol: String, limit: Int = 20): List<FundFlowEntity>
+    @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insertStrategySignal(item: StrategySignalEntity): Long
+    @Query("SELECT * FROM strategy_signal WHERE symbol = :symbol ORDER BY time DESC LIMIT :limit") suspend fun getStrategySignals(symbol: String, limit: Int = 100): List<StrategySignalEntity>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertSignalState(item: SignalStateEntity)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertSignalStates(items: List<SignalStateEntity>)
     @Query("SELECT * FROM signal_state WHERE code = :code LIMIT 1") suspend fun getSignalState(code: String): SignalStateEntity?

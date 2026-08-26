@@ -6,6 +6,7 @@ import com.locogo.astockguard.data.fundflow.FundFlowRepository
 import com.locogo.astockguard.data.level2.Level2Repository
 import com.locogo.astockguard.data.local.AStockDatabase
 import com.locogo.astockguard.data.news.NewsRepository
+import com.locogo.astockguard.data.repository.StrategySignalRepository
 import com.locogo.astockguard.domain.paper.PaperTradingRepository
 import com.locogo.astockguard.domain.replay.ReplayEngine
 import com.locogo.astockguard.domain.review.ReviewRepository
@@ -17,6 +18,7 @@ class AppContainer(application: Application) {
     val database: AStockDatabase by lazy { AStockDatabase.get(application) }
     val marketRepository: MarketRepository by lazy { MarketRepository(settings = settings, cacheDao = database.cacheDao()) }
     val fundFlowRepository: FundFlowRepository by lazy { FundFlowRepository(cacheDao = database.cacheDao()) }
+    val strategySignalRepository: StrategySignalRepository by lazy { StrategySignalRepository(database.cacheDao()) }
     val newsRepository: NewsRepository by lazy { NewsRepository(settings, database.cacheDao()) }
     val level2Repository: Level2Repository by lazy { Level2Repository(settings, database.cacheDao()) }
     val paperTradingRepository: PaperTradingRepository by lazy { PaperTradingRepository(database) }

@@ -12,8 +12,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         FundFlowCacheEntity::class, SectorFundFlowCacheEntity::class, SignalStateEntity::class,
         SignalEventEntity::class, TradeRecordEntity::class, AiAnalysisEntity::class, NewsItemEntity::class,
         Level2SnapshotEntity::class, PaperAccountEntity::class, PaperPositionEntity::class,
-        PaperOrderEntity::class, PaperEquityEntity::class],
-    version = 8,
+        PaperOrderEntity::class, PaperEquityEntity::class, StrategySignalEntity::class,
+        FundFlowEntity::class],
+    version = 9,
     exportSchema = true
 )
 abstract class AStockDatabase : RoomDatabase() {
@@ -78,11 +79,24 @@ abstract class AStockDatabase : RoomDatabase() {
                 id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, recordedAt INTEGER NOT NULL, equity REAL NOT NULL,
                 cash REAL NOT NULL, marketValue REAL NOT NULL)""".trimIndent())
         } }
+        val MIGRATION_8_9 = object : Migration(8, 9) { override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""CREATE TABLE IF NOT EXISTS strategy_signal (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, symbol TEXT NOT NULL, time INTEGER NOT NULL,
+                price REAL NOT NULL, action TEXT NOT NULL, score INTEGER NOT NULL, reason TEXT NOT NULL)""".trimIndent())
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_strategy_signal_symbol_time_action ON strategy_signal(symbol, time, action)")
+            db.execSQL("""CREATE TABLE IF NOT EXISTS fund_flow (
+                symbol TEXT NOT NULL, date TEXT NOT NULL, main_in REAL, main_out REAL,
+                net_flow REAL NOT NULL, source TEXT NOT NULL, cached_at INTEGER NOT NULL,
+                PRIMARY KEY(symbol, date))""".trimIndent())
+        } }
 
         @Volatile private var instance: AStockDatabase? = null
         fun get(context: Context): AStockDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, AStockDatabase::class.java, "astock_guard.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                .addMigrations(
+                    MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
+                    MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9
+                )
                 .build().also { instance = it }
         }
     }

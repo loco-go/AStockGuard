@@ -11,6 +11,7 @@ import com.locogo.astockguard.chart.ChartPeriod
 import com.locogo.astockguard.chart.StockKLine
 import com.locogo.astockguard.data.fundflow.FundFlowRepository
 import com.locogo.astockguard.data.fundflow.StockFundFlow
+import com.locogo.astockguard.data.repository.StrategySignalRepository
 import com.locogo.astockguard.domain.strategy.ChartSignal
 import com.locogo.astockguard.domain.strategy.StrategyScoreResult
 import com.locogo.astockguard.domain.strategy.V4StrategyScorer
@@ -37,7 +38,8 @@ data class StockDetailUiState(
 
 class StockDetailViewModel(
     private val marketRepository: MarketRepository,
-    private val fundFlowRepository: FundFlowRepository
+    private val fundFlowRepository: FundFlowRepository,
+    private val strategySignalRepository: StrategySignalRepository
 ) : ViewModel() {
     private val _state = MutableStateFlow(StockDetailUiState())
     val state: StateFlow<StockDetailUiState> = _state.asStateFlow()
@@ -55,9 +57,11 @@ class StockDetailViewModel(
             val minuteResult = minuteRequest.await()
             fundFlow = flowRequest.await().getOrNull()
             dailySource = dailyResult.getOrDefault(emptyList())
+            var generatedSignal: ChartSignal? = null
             _state.update { current ->
                 val candles = ChartDataMapper.aggregate(dailySource, current.period)
                 val strategy = evaluate(candles)
+                generatedSignal = strategy?.signal
                 current.copy(
                     candles = candles,
                     minutes = minuteResult.getOrDefault(emptyList()),
@@ -70,6 +74,7 @@ class StockDetailViewModel(
                     ).distinct().joinToString("；").ifBlank { null }
                 )
             }
+            generatedSignal?.let { strategySignalRepository.persist(code, it) }
         }
     }
 
@@ -105,10 +110,11 @@ class StockDetailViewModel(
 
     class Factory(
         private val marketRepository: MarketRepository,
-        private val fundFlowRepository: FundFlowRepository
+        private val fundFlowRepository: FundFlowRepository,
+        private val strategySignalRepository: StrategySignalRepository
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            StockDetailViewModel(marketRepository, fundFlowRepository) as T
+            StockDetailViewModel(marketRepository, fundFlowRepository, strategySignalRepository) as T
     }
 }

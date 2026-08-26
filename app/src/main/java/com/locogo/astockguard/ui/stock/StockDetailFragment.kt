@@ -21,7 +21,11 @@ class StockDetailFragment : Fragment() {
     private val binding get() = requireNotNull(_binding)
     private val viewModel: StockDetailViewModel by viewModels {
         val container = requireContext().appContainer
-        StockDetailViewModel.Factory(container.marketRepository, container.fundFlowRepository)
+        StockDetailViewModel.Factory(
+            container.marketRepository,
+            container.fundFlowRepository,
+            container.strategySignalRepository
+        )
     }
     private val code: String get() = requireArguments().getString(ARG_CODE).orEmpty()
 

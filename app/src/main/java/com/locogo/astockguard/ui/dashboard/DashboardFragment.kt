@@ -105,8 +105,15 @@ class DashboardFragment : Fragment(), DashboardHandlers {
                 it.periods.joinToString("\n") { row -> "${row.days}日 主力净额 ${money(row.mainNet)}" }
         } ?: "暂无资金流数据"
         tvSectorFlow.text = state.sectorFundFlow?.let {
-            "${it.type}  ${it.source}${if (it.stale) "  ·  缓存" else ""}\n" +
-                it.rows.take(12).joinToString("\n") { row -> "${row.name}  ${money(row.mainNet)}  ${percentValue(row.changePct)}" }
+            val inflow = it.rows.filter { row -> row.mainNet > 0.0 }.sortedByDescending { row -> row.mainNet }.take(6)
+            val outflow = it.rows.filter { row -> row.mainNet < 0.0 }.sortedBy { row -> row.mainNet }.take(6)
+            buildString {
+                append("${it.type}  ${it.source}${if (it.stale) "  ·  缓存（仅供参考）" else ""}")
+                append("\n行业主力流入\n")
+                append(inflow.joinToString("\n") { row -> "${row.name}  ${money(row.mainNet)}  ${percentValue(row.changePct)}" }.ifBlank { "暂无净流入行业" })
+                append("\n行业主力流出\n")
+                append(outflow.joinToString("\n") { row -> "${row.name}  ${money(row.mainNet)}  ${percentValue(row.changePct)}" }.ifBlank { "暂无净流出行业" })
+            }
         } ?: "暂无板块排名"
         tvEquity.text = state.equityCurve.takeLast(8).joinToString("  ") { "${it.first} ${String.format(Locale.CHINA, "%.2f", it.second)}" }.ifBlank { "暂无组合净值" }
         tvReview.text = "信号 ${state.signalReviewStats.evaluated}/${state.signalReviewStats.total}  " +

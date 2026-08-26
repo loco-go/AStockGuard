@@ -2,6 +2,7 @@ package com.locogo.astockguard.data.fundflow
 
 import com.locogo.astockguard.data.local.CacheDao
 import com.locogo.astockguard.data.local.FundFlowCacheEntity
+import com.locogo.astockguard.data.local.FundFlowEntity
 import com.locogo.astockguard.data.local.SectorFundFlowCacheEntity
 
 class FundFlowRepository(
@@ -14,7 +15,10 @@ class FundFlowRepository(
         val minute = if (minuteRemote.isNotEmpty()) minuteRemote else cacheDao.getFundFlow(code, "MINUTE").map { it.toModel() }
 
         val dailyRemote = runCatching { client.stockDaily(code, 20) }.getOrDefault(emptyList())
-        if (dailyRemote.isNotEmpty()) cacheDao.upsertFundFlow(dailyRemote.map { FundFlowCacheEntity.from(code, "DAY", it) })
+        if (dailyRemote.isNotEmpty()) {
+            cacheDao.upsertFundFlow(dailyRemote.map { FundFlowCacheEntity.from(code, "DAY", it) })
+            cacheDao.upsertFundFlowRecords(dailyRemote.map { FundFlowEntity.from(code, it) })
+        }
         val daily = if (dailyRemote.isNotEmpty()) dailyRemote else cacheDao.getFundFlow(code, "DAY").map { it.toModel() }
         val stale = minuteRemote.isEmpty() && dailyRemote.isEmpty()
         return StockFundFlow(

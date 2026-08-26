@@ -11,8 +11,9 @@ android {
         applicationId = "com.locogo.astockguard"
         minSdk = 26
         targetSdk = 35
-        versionCode = 35
-        versionName = "3.5.0"
+        versionCode = 40
+        versionName = "4.0.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { dataBinding = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
@@ -36,6 +37,11 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.room:room-testing:2.6.1")
 }
 
 kapt { arguments { arg("room.schemaLocation", "$projectDir/schemas") } }
+
+android.sourceSets.getByName("androidTest").assets.srcDir("$projectDir/schemas")

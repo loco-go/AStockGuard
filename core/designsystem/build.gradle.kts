@@ -15,3 +15,6 @@ android {
     kotlinOptions { jvmTarget = "17" }
 }
 
+dependencies {
+    implementation("com.google.android.material:material:1.12.0")
+}
