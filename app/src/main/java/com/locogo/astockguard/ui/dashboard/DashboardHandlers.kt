@@ -1,0 +1,28 @@
+package com.locogo.astockguard.ui.dashboard
+
+interface DashboardHandlers {
+    fun onDecisionTab()
+    fun onChartTab()
+    fun onFlowTab()
+    fun onReviewTab()
+    fun onRefresh()
+    fun onStartMonitor()
+    fun onStopMonitor()
+    fun onSettings()
+    fun onAnalyze()
+    fun onRefreshNews()
+    fun onRefreshLevel2()
+    fun onRecordBuy()
+    fun onRecordSell()
+    fun onIndustryFlow()
+    fun onConceptFlow()
+    fun onClearAnchor()
+    fun onPaperBuy()
+    fun onPaperSell()
+    fun onResetPaper()
+    fun onReplayReset()
+    fun onReplayStep()
+    fun onReplayPlay()
+    fun onReplayPause()
+    fun onRunBacktest()
+}

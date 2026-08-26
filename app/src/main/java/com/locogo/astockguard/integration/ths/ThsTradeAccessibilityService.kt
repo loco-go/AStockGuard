@@ -83,7 +83,9 @@ class ThsTradeAccessibilityService : AccessibilityService() {
         }
     }
 
-    override fun onInterrupt() = Unit
+    override fun onInterrupt() {
+        android.util.Log.i("ThsTradeSync", "Accessibility sync interrupted by the system")
+    }
 
     override fun onDestroy() {
         debounceJob?.cancel()

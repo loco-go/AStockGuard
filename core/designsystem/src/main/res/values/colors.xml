@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="astock_primary">#3157D5</color>
+    <color name="astock_positive">#D74444</color>
+    <color name="astock_negative">#15966A</color>
+    <color name="astock_warning">#C77B00</color>
+    <color name="astock_surface">#F6F7FB</color>
+    <color name="astock_surface_card">#FFFFFFFF</color>
+    <color name="astock_text_primary">#172033</color>
+    <color name="astock_text_secondary">#667085</color>
+</resources>

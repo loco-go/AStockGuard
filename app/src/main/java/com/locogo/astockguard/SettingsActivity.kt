@@ -6,14 +6,13 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.ArrayAdapter
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.core.widget.doOnTextChanged
 import com.locogo.astockguard.databinding.ActivitySettingsBinding
 import com.locogo.astockguard.integration.ths.ThsTradeSyncActivity
 import kotlinx.coroutines.Dispatchers
@@ -43,11 +42,9 @@ class SettingsActivity : AppCompatActivity() {
         load()
 
         binding.etImportText.filters = emptyArray()
-        binding.etImportText.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { binding.tvImportLength.text = "当前文本：${s?.length ?: 0} 字符" }
-            override fun afterTextChanged(s: Editable?) = Unit
-        })
+        binding.etImportText.doOnTextChanged { text, _, _, _ ->
+            binding.tvImportLength.text = "当前文本：${text?.length ?: 0} 字符"
+        }
         binding.btnPasteClipboard.setOnClickListener { importFromClipboard() }
         binding.btnImportFile.setOnClickListener { openImportFile.launch(arrayOf("application/json", "text/plain", "text/*", "*/*")) }
         binding.btnClearImport.setOnClickListener { binding.etImportText.text?.clear(); binding.tvImportResult.text = "尚未解析" }
