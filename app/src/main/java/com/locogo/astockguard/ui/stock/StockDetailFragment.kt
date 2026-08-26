@@ -20,7 +20,8 @@ class StockDetailFragment : Fragment() {
     private var _binding: FragmentStockDetailBinding? = null
     private val binding get() = requireNotNull(_binding)
     private val viewModel: StockDetailViewModel by viewModels {
-        StockDetailViewModel.Factory(requireContext().appContainer.marketRepository)
+        val container = requireContext().appContainer
+        StockDetailViewModel.Factory(container.marketRepository, container.fundFlowRepository)
     }
     private val code: String get() = requireArguments().getString(ARG_CODE).orEmpty()
 
@@ -50,7 +51,15 @@ class StockDetailFragment : Fragment() {
                             state.period == ChartPeriod.MINUTE -> "分时 ${state.minutes.size} 条"
                             else -> "${state.period.name} ${state.candles.size} 根K线"
                         }
-                        binding.klineView.render(state.period, state.candles, state.minutes)
+                        val score = state.strategy?.score
+                        binding.tvTrendScore.text = score?.trendScore?.toString() ?: "--"
+                        binding.tvVolumeScore.text = score?.volumeScore?.toString() ?: "--"
+                        binding.tvCapitalScore.text = if (score?.capitalAvailable == true) score.capitalScore.toString() else "--"
+                        binding.tvPositionScore.text = score?.positionScore?.toString() ?: "--"
+                        binding.tvTotalScore.text = score?.totalScore?.toString() ?: "--"
+                        binding.tvStrategyReason.text = state.strategy?.reasons?.joinToString("\n")
+                            ?: "当前周期至少需要 60 根K线"
+                        binding.klineView.render(state.period, state.candles, state.minutes, state.signals)
                         updatePeriodButtons(state.period)
                         binding.executePendingBindings()
                     }

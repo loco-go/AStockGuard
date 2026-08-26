@@ -9,6 +9,7 @@ import com.locogo.astockguard.DailyBar
 import com.locogo.astockguard.MinuteBar
 import com.locogo.astockguard.chart.ChartPeriod
 import com.locogo.astockguard.chart.StockKLine
+import com.locogo.astockguard.domain.strategy.ChartSignal
 
 class KLineChartView @JvmOverloads constructor(
     context: Context,
@@ -27,11 +28,21 @@ class KLineChartView @JvmOverloads constructor(
         addView(webView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
 
-    fun render(period: ChartPeriod, candles: List<StockKLine>, minutes: List<MinuteBar>) {
-        val key = 31 * period.hashCode() + if (period == ChartPeriod.MINUTE) minutes.hashCode() else candles.hashCode()
+    fun render(
+        period: ChartPeriod,
+        candles: List<StockKLine>,
+        minutes: List<MinuteBar>,
+        signals: List<ChartSignal> = emptyList()
+    ) {
+        val contentKey = if (period == ChartPeriod.MINUTE) minutes.hashCode() else candles.hashCode()
+        val key = 31 * (31 * period.hashCode() + contentKey) + signals.hashCode()
         if (renderedKey == key) return
         renderedKey = key
-        val html = if (period == ChartPeriod.MINUTE) KLineHtmlBuilder.buildMinute(minutes) else KLineHtmlBuilder.buildCandles(candles)
+        val html = if (period == ChartPeriod.MINUTE) {
+            KLineHtmlBuilder.buildMinute(minutes)
+        } else {
+            KLineHtmlBuilder.buildCandles(candles, signals)
+        }
         webView.loadDataWithBaseURL("https://appassets.androidplatform.net/", html, "text/html", "UTF-8", null)
     }
 

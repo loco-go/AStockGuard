@@ -3,35 +3,40 @@ package com.locogo.astockguard.ui.chart
 import com.locogo.astockguard.DailyBar
 import com.locogo.astockguard.MinuteBar
 import com.locogo.astockguard.chart.StockKLine
+import com.locogo.astockguard.domain.strategy.ChartSignal
 import org.json.JSONArray
 import org.json.JSONObject
 
 object KLineHtmlBuilder {
     fun build(bars: List<DailyBar>): String = buildCandles(ChartDataMapper.mapDaily(bars))
 
-    fun buildCandles(candles: List<StockKLine>): String {
+    fun buildCandles(candles: List<StockKLine>, signals: List<ChartSignal> = emptyList()): String {
         val data = JSONArray()
         candles.forEach {
             data.put(JSONObject().apply {
-                put("timestamp", it.timestamp)
-                put("open", it.open)
-                put("high", it.high)
-                put("low", it.low)
-                put("close", it.close)
-                put("volume", it.volume)
+                put("timestamp", it.timestamp); put("open", it.open); put("high", it.high)
+                put("low", it.low); put("close", it.close); put("volume", it.volume)
             })
         }
         return """
-<!doctype html>
-<html><head>
+<!doctype html><html><head>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 <script src="https://cdn.jsdelivr.net/npm/klinecharts/dist/umd/klinecharts.min.js"></script>
 <style>html,body,#chart{width:100%;height:100%;margin:0;background:#fff}#empty{padding:24px;color:#667085;font-family:sans-serif}</style>
 </head><body><div id="chart"></div><script>
-const rows=$data;
+const rows=$data,signals=${ChartSignalOverlay.toJson(signals)};
 if(rows.length===0){document.getElementById('chart').innerHTML='<div id="empty">暂无K线数据</div>'}
 else if(typeof klinecharts==='undefined'){document.getElementById('chart').innerHTML='<div id="empty">图表组件加载失败，请检查网络后重试</div>'}
-else{const chart=klinecharts.init('chart');chart.applyNewData(rows);chart.createIndicator('MA');chart.createIndicator('VOL');}
+else{
+ const chart=klinecharts.init('chart');chart.applyNewData(rows);
+ chart.createIndicator({name:'MA',calcParams:[5,10,20,60]},false,{id:'candle_pane'});chart.createIndicator('VOL');
+ if(signals.length){
+  klinecharts.registerOverlay({name:'astockSignal',totalStep:2,needDefaultPointFigure:true,needDefaultXAxisFigure:true,needDefaultYAxisFigure:true,
+   createPointFigures:({coordinates,overlay})=>{const p=coordinates[0],d=overlay.extendData||{},buy=d.action==='BUY',risk=d.action==='RISK';
+    return [{type:'text',attrs:{x:p.x,y:p.y+(buy?16:-8),text:(buy?'▲ BUY':risk?'! RISK':'▼ SELL')+' '+d.score},styles:{color:buy?'#d92d20':risk?'#d99020':'#039855',size:12,weight:'bold',backgroundColor:'#ffffffcc'}}]}});
+  signals.forEach(s=>chart.createOverlay({name:'astockSignal',points:[{timestamp:s.timestamp,value:s.value}],extendData:s}));
+ }
+}
 </script></body></html>
 """.trimIndent()
     }
@@ -40,15 +45,11 @@ else{const chart=klinecharts.init('chart');chart.applyNewData(rows);chart.create
         val data = JSONArray()
         bars.forEach {
             data.put(JSONObject().apply {
-                put("time", it.time)
-                put("price", it.price)
-                put("average", it.avgPrice)
-                put("volume", it.volume)
+                put("time", it.time); put("price", it.price); put("average", it.avgPrice); put("volume", it.volume)
             })
         }
         return """
-<!doctype html>
-<html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 <style>html,body{width:100%;height:100%;margin:0;background:#fff;font-family:sans-serif}canvas{width:100%;height:100%}#empty{padding:24px;color:#667085}</style>
 </head><body><canvas id="chart"></canvas><div id="empty" hidden>暂无分时数据</div><script>
 const rows=$data,canvas=document.getElementById('chart'),empty=document.getElementById('empty');
@@ -63,7 +64,7 @@ function draw(){
  function line(key,color,width){c.strokeStyle=color;c.lineWidth=width;c.beginPath();rows.forEach((r,i)=>{const xx=x(i),yy=y(r[key]);i?c.lineTo(xx,yy):c.moveTo(xx,yy)});c.stroke();}
  line('price','#3157d5',2);line('average','#d99020',1.4);
  c.fillStyle='#667085';c.font='11px sans-serif';c.fillText(rows[0].time,pad.l,h-10);const last=rows[rows.length-1].time;c.fillText(last,w-pad.r-c.measureText(last).width,h-10);
- }
+}
 window.addEventListener('resize',draw);draw();
 </script></body></html>
 """.trimIndent()
