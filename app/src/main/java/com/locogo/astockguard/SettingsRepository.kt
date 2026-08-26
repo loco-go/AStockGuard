@@ -10,6 +10,13 @@ class SettingsRepository(context: Context) {
     var watchCodes: String get() = prefs.getString("watch_codes", DEFAULT_WATCH_CODES) ?: DEFAULT_WATCH_CODES; set(v) = prefs.edit().putString("watch_codes", v).apply()
     var positionsText: String get() = prefs.getString("positions", DEFAULT_POSITIONS) ?: DEFAULT_POSITIONS; set(v) = prefs.edit().putString("positions", v).apply()
     var positionRatio: Double get() = prefs.getFloat("position_ratio", 65.8f).toDouble(); set(v) = prefs.edit().putFloat("position_ratio", v.toFloat()).apply()
+    var cashBalance: Double?
+        get() = if (prefs.contains("cash_balance")) prefs.getString("cash_balance", null)?.toDoubleOrNull() else null
+        set(v) {
+            val editor = prefs.edit()
+            if (v == null) editor.remove("cash_balance") else editor.putString("cash_balance", v.coerceAtLeast(0.0).toString())
+            editor.apply()
+        }
     var refreshSeconds: Int get() = prefs.getInt("refresh_seconds", 5).coerceIn(3, 60); set(v) = prefs.edit().putInt("refresh_seconds", v.coerceIn(3, 60)).apply()
 
     var newsEnabled: Boolean get() = prefs.getBoolean("news_enabled", true); set(v) = prefs.edit().putBoolean("news_enabled", v).apply()

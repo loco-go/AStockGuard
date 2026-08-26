@@ -22,15 +22,17 @@ class PositionAdapter(
     inner class ViewHolder(private val binding: ItemPositionStrategyBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(item: StockStrategyUiModel) = with(binding) {
             this.item = item
-            tvTitle.text = "${item.name.ifBlank { item.code }}  ${item.code}  ·  ${item.role}"
+            tvTitle.text = "${item.name.ifBlank { item.code }}  ${item.code}"
             tvQuote.text = buildString {
                 append(item.price?.let { String.format(Locale.CHINA, "%.2f", it) } ?: "--")
                 append("  ")
                 append(item.changeRatio?.let { String.format(Locale.CHINA, "%+.2f%%", it) } ?: "--")
-                append("  R2 ${item.r2Score}/${item.r2Grade}")
+                append("  ·  ${item.role}  ·  R2 ${item.r2Score}/${item.r2Grade}")
                 if (item.stale) append("  ·  缓存")
             }
-            tvActions.text = "本地 ${item.localAction}  |  AI ${item.aiAction} ${item.aiConfidence}%" +
+            val advice = item.aiAction.takeUnless { it == "-" } ?: item.localAction
+            tvActions.text = "仓位 ${item.positionPct?.let { String.format(Locale.CHINA, "%.1f%%", it) } ?: "--"}  |  " +
+                "AI评分 ${if (item.aiAction == "-") "--" else item.aiConfidence}  |  建议 $advice" +
                 if (item.conflict) "  ·  冲突" else ""
             tvReason.text = listOf(item.localReason, item.aiReason).filter { it.isNotBlank() }.joinToString("；")
             root.setOnClickListener { onSelected(item.code) }

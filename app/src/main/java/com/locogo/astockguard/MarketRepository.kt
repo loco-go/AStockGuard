@@ -16,14 +16,17 @@ class MarketRepository(
 
     suspend fun refresh(): MonitorSnapshot {
         val codes = settings.allCodes()
-        val remote = runCatching { tencent.fetchQuotes(codes) }.getOrNull().orEmpty()
+        val requestCodes = (codes + MARKET_INDEX_CODES).distinct()
+        val remote = runCatching { tencent.fetchQuotes(requestCodes) }.getOrNull().orEmpty()
         val usingCache = remote.isEmpty()
-        val rawQuotes = if (remote.isNotEmpty()) {
+        val allQuotes = if (remote.isNotEmpty()) {
             cacheDao?.let { dao -> runCatching { dao.upsertQuotes(remote.map { it.toCacheEntity() }) } }
             remote
         } else {
-            cacheDao?.getQuotes(codes).orEmpty().map { it.toModel() }
+            cacheDao?.getQuotes(requestCodes).orEmpty().map { it.toModel() }
         }
+        val rawQuotes = allQuotes.filter { it.code in codes }
+        val marketIndices = allQuotes.filter { it.code in MARKET_INDEX_CODES }
         if (rawQuotes.isEmpty()) error("实时行情和本地缓存均不可用")
 
         val preliminary = RiskEngine.assess(rawQuotes, settings.positions(), settings.positionRatio)
@@ -50,6 +53,7 @@ class MarketRepository(
         return MonitorSnapshot(
             updatedAt = System.currentTimeMillis(),
             quotes = enriched,
+            marketIndices = marketIndices,
             assessment = assessment,
             positionRatio = settings.positionRatio,
             dataHealth = DataHealth(
@@ -100,5 +104,9 @@ class MarketRepository(
         }
         historyCache[code] = Cache(now, bars)
         return bars
+    }
+
+    companion object {
+        val MARKET_INDEX_CODES = listOf("000001.SH", "399001.SZ", "399006.SZ")
     }
 }

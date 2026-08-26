@@ -27,6 +27,7 @@ class BackupManager(
             put("watchCodes", settings.watchCodes)
             put("positionsText", settings.positionsText)
             put("positionRatio", settings.positionRatio)
+            put("cashBalance", settings.cashBalance ?: JSONObject.NULL)
             put("refreshSeconds", settings.refreshSeconds)
             put("newsEnabled", settings.newsEnabled)
             put("newsRefreshMinutes", settings.newsRefreshMinutes)
@@ -90,6 +91,11 @@ class BackupManager(
         settings.watchCodes = s.optString("watchCodes", settings.watchCodes)
         settings.positionsText = s.optString("positionsText", settings.positionsText)
         settings.positionRatio = s.optDouble("positionRatio", settings.positionRatio)
+        settings.cashBalance = when {
+            !s.has("cashBalance") -> settings.cashBalance
+            s.isNull("cashBalance") -> null
+            else -> s.optDouble("cashBalance")
+        }
         settings.refreshSeconds = s.optInt("refreshSeconds", settings.refreshSeconds)
         settings.newsEnabled = s.optBoolean("newsEnabled", settings.newsEnabled)
         settings.newsRefreshMinutes = s.optInt("newsRefreshMinutes", settings.newsRefreshMinutes)

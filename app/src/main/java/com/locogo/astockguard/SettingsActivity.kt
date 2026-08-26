@@ -97,6 +97,7 @@ class SettingsActivity : AppCompatActivity() {
         etWatchCodes.setText(settings.watchCodes)
         etPositions.setText(settings.positionsText)
         etPositionRatio.setText(settings.positionRatio.toString())
+        etCashBalance.setText(settings.cashBalance?.toString().orEmpty())
         etRefreshSeconds.setText(settings.refreshSeconds.toString())
         swNewsEnabled.isChecked = settings.newsEnabled
         etNewsRefreshMinutes.setText(settings.newsRefreshMinutes.toString())
@@ -121,6 +122,7 @@ class SettingsActivity : AppCompatActivity() {
         settings.watchCodes = etWatchCodes.text.toString().trim()
         settings.positionsText = etPositions.text.toString().trim()
         settings.positionRatio = etPositionRatio.text.toString().toDoubleOrNull() ?: 0.0
+        settings.cashBalance = etCashBalance.text.toString().trim().takeIf { it.isNotBlank() }?.toDoubleOrNull()
         settings.refreshSeconds = etRefreshSeconds.text.toString().toIntOrNull() ?: 5
         settings.newsEnabled = swNewsEnabled.isChecked
         settings.newsRefreshMinutes = etNewsRefreshMinutes.text.toString().toIntOrNull() ?: 15

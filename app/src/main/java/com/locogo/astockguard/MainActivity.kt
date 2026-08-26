@@ -17,6 +17,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.locogo.astockguard.databinding.ActivityMainBinding
 import com.locogo.astockguard.ui.main.MainEffect
+import com.locogo.astockguard.ui.dashboard.DashboardViewModel
 import com.locogo.astockguard.ui.main.MainViewModel
 import kotlinx.coroutines.launch
 
@@ -26,7 +27,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var hiddenChatGpt: HiddenChatGptSession
     private var pendingManualPrompt: String = ""
 
-    val dashboardViewModel: MainViewModel by viewModels {
+    val dashboardViewModel: DashboardViewModel by viewModels {
         val c = appContainer
         MainViewModel.Factory(
             c.settings, c.marketRepository, c.fundFlowRepository, c.newsRepository,

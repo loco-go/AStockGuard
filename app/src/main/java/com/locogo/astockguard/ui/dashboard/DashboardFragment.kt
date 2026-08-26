@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.LinearLayout
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -51,6 +52,23 @@ class DashboardFragment : Fragment(), DashboardHandlers {
     private fun render(state: MainUiState) = with(binding) {
         this.state = state
         val snapshot = state.snapshot
+        val configuredPositions = requireContext().appContainer.settings.positions()
+        val market = DashboardSummaryMapper.market(snapshot)
+        val account = DashboardSummaryMapper.account(snapshot, configuredPositions, requireContext().appContainer.settings.cashBalance)
+        tvShanghaiIndex.text = indexText(market.indices[0])
+        tvShenzhenIndex.text = indexText(market.indices[1])
+        tvChinextIndex.text = indexText(market.indices[2])
+        applyTone(tvShanghaiIndex, market.indices[0].changePct)
+        applyTone(tvShenzhenIndex, market.indices[1].changePct)
+        applyTone(tvChinextIndex, market.indices[2].changePct)
+        tvTurnover.text = "两市成交额\n${market.turnover?.let(::money) ?: "--"}"
+        tvMarketBreadth.text = "涨/跌/平（${market.breadthScope}）\n${market.risingCount}/${market.fallingCount}/${market.flatCount}"
+        tvTotalAssets.text = "总资产\n${account.totalAssets?.let(::money) ?: "未配置现金"}"
+        tvTodayPnl.text = "今日收益\n${account.todayPnl?.let(::signedMoney) ?: "--"}"
+        tvCumulativePnl.text = "累计收益\n${account.cumulativePnl?.let(::signedMoney) ?: "--"}"
+        tvPositionRatio.text = "当前仓位\n${percentValue(account.positionPct)}"
+        applyTone(tvTodayPnl, account.todayPnl)
+        applyTone(tvCumulativePnl, account.cumulativePnl)
         tvMarketSummary.text = if (snapshot == null) {
             "暂无行情"
         } else {
@@ -59,7 +77,7 @@ class DashboardFragment : Fragment(), DashboardHandlers {
                 "平均涨跌 ${percentValue(snapshot.assessment.avgChange)}  ·  下跌占比 ${pct(snapshot.assessment.redRatio)}\n" +
                 "$health  ·  ${snapshot.assessment.advice}"
         }
-        positionAdapter.submitList(StrategyUiMapper.map(snapshot, requireContext().appContainer.settings.positions(), state.aiStrategy))
+        positionAdapter.submitList(StrategyUiMapper.map(snapshot, configuredPositions, state.aiStrategy))
         tvTradePlan.text = state.tTradePlan?.let {
             "${it.code}  ${it.status}\n买入 ${price(it.buyZoneLow)}-${price(it.buyZoneHigh)}  " +
                 "卖出 ${price(it.sellZoneLow)}-${price(it.sellZoneHigh)}\n" +
@@ -191,6 +209,18 @@ class DashboardFragment : Fragment(), DashboardHandlers {
     private fun price(value: Double) = String.format(Locale.CHINA, "%.2f", value)
     private fun pct(value: Double) = String.format(Locale.CHINA, "%+.2f%%", value * 100.0)
     private fun percentValue(value: Double) = String.format(Locale.CHINA, "%+.2f%%", value)
+    private fun indexText(index: MarketIndexUi) = "${index.name}\n" +
+        (index.value?.let { String.format(Locale.CHINA, "%.2f", it) } ?: "--") + "  " +
+        (index.changePct?.let(::percentValue) ?: "")
+    private fun signedMoney(value: Double) = String.format(Locale.CHINA, "%+.2f", value)
+    private fun applyTone(view: android.widget.TextView, value: Double?) {
+        val color = when {
+            value == null || value == 0.0 -> com.locogo.astockguard.designsystem.R.color.astock_text_primary
+            value > 0.0 -> com.locogo.astockguard.designsystem.R.color.astock_positive
+            else -> com.locogo.astockguard.designsystem.R.color.astock_negative
+        }
+        view.setTextColor(ContextCompat.getColor(requireContext(), color))
+    }
     private fun money(value: Double) = when {
         kotlin.math.abs(value) >= 100_000_000 -> String.format(Locale.CHINA, "%.2f亿", value / 100_000_000)
         kotlin.math.abs(value) >= 10_000 -> String.format(Locale.CHINA, "%.2f万", value / 10_000)

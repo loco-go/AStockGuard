@@ -8,6 +8,7 @@ data class StockStrategyUiModel(
     val code: String,
     val name: String,
     val role: String,
+    val positionPct: Double?,
     val price: Double?,
     val changeRatio: Double?,
     val r2Score: Int,
@@ -26,6 +27,10 @@ object StrategyUiMapper {
     fun map(snapshot: MonitorSnapshot?, positions: List<Position>, ai: AiStrategy?): List<StockStrategyUiModel> {
         if (snapshot == null) return emptyList()
         val posByCode = positions.associateBy { it.code }
+        val marketValue = positions.sumOf { position ->
+            val latest = snapshot.quotes.firstOrNull { it.code == position.code }?.latest ?: 0.0
+            latest * position.shares
+        }
         return snapshot.quotes.map { quote ->
             val position = posByCode[quote.code]
             val local = snapshot.assessment.signals.firstOrNull { it.code == quote.code }
@@ -36,6 +41,9 @@ object StrategyUiMapper {
                 code = quote.code,
                 name = quote.name.ifBlank { position?.name.orEmpty() },
                 role = position?.role ?: "WATCH",
+                positionPct = position?.let { p ->
+                    quote.latest?.takeIf { marketValue > 0.0 }?.let { it * p.shares / marketValue * 100.0 }
+                },
                 price = quote.latest,
                 changeRatio = quote.changeRatio,
                 r2Score = quote.r2Score,

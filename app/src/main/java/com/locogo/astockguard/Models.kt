@@ -80,6 +80,7 @@ data class DataHealth(
 data class MonitorSnapshot(
     val updatedAt: Long,
     val quotes: List<Quote>,
+    val marketIndices: List<Quote> = emptyList(),
     val assessment: MarketAssessment,
     val positionRatio: Double,
     val dataHealth: DataHealth = DataHealth()
