@@ -6,8 +6,10 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import com.locogo.astockguard.DailyBar
+import com.locogo.astockguard.MinuteBar
+import com.locogo.astockguard.chart.ChartPeriod
+import com.locogo.astockguard.chart.StockKLine
 
-/** XML-compatible shell for the existing KLineCharts HTML implementation. */
 class KLineChartView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -18,16 +20,23 @@ class KLineChartView @JvmOverloads constructor(
 
     init {
         webView.settings.javaScriptEnabled = true
-        webView.settings.domStorageEnabled = true
+        webView.settings.domStorageEnabled = false
+        webView.settings.allowFileAccess = false
+        webView.settings.allowContentAccess = false
         webView.webViewClient = WebViewClient()
         addView(webView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
 
-    fun setBars(bars: List<DailyBar>) {
-        val key = bars.hashCode()
+    fun render(period: ChartPeriod, candles: List<StockKLine>, minutes: List<MinuteBar>) {
+        val key = 31 * period.hashCode() + if (period == ChartPeriod.MINUTE) minutes.hashCode() else candles.hashCode()
         if (renderedKey == key) return
         renderedKey = key
-        webView.loadDataWithBaseURL(null, KLineHtmlBuilder.build(bars), "text/html", "UTF-8", null)
+        val html = if (period == ChartPeriod.MINUTE) KLineHtmlBuilder.buildMinute(minutes) else KLineHtmlBuilder.buildCandles(candles)
+        webView.loadDataWithBaseURL("https://appassets.androidplatform.net/", html, "text/html", "UTF-8", null)
+    }
+
+    fun setBars(bars: List<DailyBar>) {
+        render(ChartPeriod.DAY, ChartDataMapper.mapDaily(bars), emptyList())
     }
 
     fun release() {

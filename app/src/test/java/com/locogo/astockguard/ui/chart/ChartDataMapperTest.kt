@@ -1,0 +1,41 @@
+package com.locogo.astockguard.ui.chart
+
+import com.locogo.astockguard.DailyBar
+import com.locogo.astockguard.chart.ChartPeriod
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class ChartDataMapperTest {
+    private val daily = listOf(
+        DailyBar("2026-08-03", 10.0, 11.0, 11.5, 9.8, 100.0),
+        DailyBar("2026-08-04", 11.0, 12.0, 12.5, 10.8, 120.0),
+        DailyBar("2026-08-10", 12.0, 11.5, 12.2, 11.0, 130.0)
+    )
+
+    @Test
+    fun mapsDailyOhlcvWithoutChangingValues() {
+        val mapped = ChartDataMapper.aggregate(daily, ChartPeriod.DAY)
+        assertEquals(3, mapped.size)
+        assertEquals(10.0, mapped.first().open, 0.0)
+        assertEquals(11.5, mapped.first().high, 0.0)
+        assertEquals(9.8, mapped.first().low, 0.0)
+        assertEquals(11.0, mapped.first().close, 0.0)
+    }
+
+    @Test
+    fun aggregatesWeekWithCorrectOhlcvSemantics() {
+        val mapped = ChartDataMapper.aggregate(daily, ChartPeriod.WEEK)
+        assertEquals(2, mapped.size)
+        assertEquals(10.0, mapped.first().open, 0.0)
+        assertEquals(12.5, mapped.first().high, 0.0)
+        assertEquals(9.8, mapped.first().low, 0.0)
+        assertEquals(12.0, mapped.first().close, 0.0)
+        assertEquals(220.0, mapped.first().volume, 0.0)
+    }
+
+    @Test
+    fun minuteUsesDedicatedSeriesInsteadOfCandles() {
+        assertTrue(ChartDataMapper.aggregate(daily, ChartPeriod.MINUTE).isEmpty())
+    }
+}

@@ -13,11 +13,13 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.locogo.astockguard.MainActivity
+import com.locogo.astockguard.R
 import com.locogo.astockguard.appContainer
 import com.locogo.astockguard.databinding.FragmentDashboardBinding
 import com.locogo.astockguard.ui.adapter.PositionAdapter
 import com.locogo.astockguard.ui.main.MainUiState
 import com.locogo.astockguard.ui.main.StrategyUiMapper
+import com.locogo.astockguard.ui.stock.StockDetailFragment
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -26,7 +28,7 @@ class DashboardFragment : Fragment(), DashboardHandlers {
     private val binding get() = requireNotNull(_binding)
     private val host get() = requireActivity() as MainActivity
     private val viewModel get() = host.dashboardViewModel
-    private val positionAdapter = PositionAdapter { viewModel.selectStock(it) }
+    private val positionAdapter = PositionAdapter(::openStockDetail)
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentDashboardBinding.inflate(inflater, container, false)
@@ -169,6 +171,14 @@ class DashboardFragment : Fragment(), DashboardHandlers {
                 viewModel.recordTrade(side, quantity, price)
             }
             .show()
+    }
+
+    private fun openStockDetail(code: String) {
+        viewModel.selectStock(code)
+        parentFragmentManager.beginTransaction()
+            .replace(R.id.mainContainer, StockDetailFragment.newInstance(code))
+            .addToBackStack("stock:$code")
+            .commit()
     }
 
     override fun onDestroyView() {
