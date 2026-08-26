@@ -7,107 +7,116 @@
         <variable name="state" type="com.locogo.astockguard.ui.stock.StockDetailUiState" />
     </data>
 
-    <androidx.core.widget.NestedScrollView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@color/astock_surface">
+        android:background="@color/astock_surface"
+        android:orientation="vertical">
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_height="82dp"
+            android:background="@color/astock_primary_dark"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="10dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnBack"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="‹ 返回"
+                android:textColor="@color/astock_on_primary" />
+
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="2dp" android:layout_weight="1" android:orientation="vertical">
+                <TextView android:id="@+id/tvName" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="股票详情" android:textColor="@color/astock_on_primary" android:textSize="19sp" android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="@{state.code}" android:textColor="#BFCFDC" android:textSize="12sp" />
+            </LinearLayout>
+
+            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:gravity="end" android:orientation="vertical">
+                <TextView android:id="@+id/tvPrice" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textColor="@color/astock_on_primary" android:textSize="24sp" android:textStyle="bold" />
+                <TextView android:id="@+id/tvChange" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="--" android:textColor="@color/astock_on_primary" android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <androidx.core.widget.NestedScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@color/astock_surface_card"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:padding="12dp">
+                android:orientation="vertical"
+                android:padding="@dimen/astock_page_padding"
+                android:paddingBottom="24dp">
 
-                <Button
-                    android:id="@+id/btnBack"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="返回" />
+                <com.google.android.material.card.MaterialCardView style="@style/Widget.AStockGuard.Card" android:layout_width="match_parent" android:layout_height="wrap_content" app:cardCornerRadius="14dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="6dp">
+                        <com.google.android.material.button.MaterialButtonToggleGroup android:layout_width="match_parent" android:layout_height="wrap_content" app:selectionRequired="true" app:singleSelection="true">
+                            <com.google.android.material.button.MaterialButton android:id="@+id/btnMinute" style="@style/Widget.AStockGuard.NavButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="分时" />
+                            <com.google.android.material.button.MaterialButton android:id="@+id/btnDay" style="@style/Widget.AStockGuard.NavButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="日K" />
+                            <com.google.android.material.button.MaterialButton android:id="@+id/btnWeek" style="@style/Widget.AStockGuard.NavButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="周K" />
+                            <com.google.android.material.button.MaterialButton android:id="@+id/btnMonth" style="@style/Widget.AStockGuard.NavButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="月K" />
+                        </com.google.android.material.button.MaterialButtonToggleGroup>
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal" android:paddingHorizontal="10dp" android:paddingVertical="6dp">
+                            <TextView android:id="@+id/tvDataStatus" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="等待行情" android:textColor="@color/astock_text_secondary" android:textSize="12sp" />
+                            <ProgressBar android:layout_width="20dp" android:layout_height="20dp" android:visibility="@{state.loading ? View.VISIBLE : View.GONE}" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
 
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
+                <com.google.android.material.card.MaterialCardView style="@style/Widget.AStockGuard.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingTop="14dp">
+                        <TextView style="@style/TextAppearance.AStockGuard.SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginHorizontal="16dp" android:text="价格走势" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginHorizontal="16dp" android:layout_marginTop="3dp" android:text="MA5 / MA10 / MA20 / MA60 · VOL · 信号标记" android:textColor="@color/astock_text_secondary" android:textSize="11sp" />
+                        <com.locogo.astockguard.ui.chart.KLineChartView android:id="@+id/klineView" android:layout_width="match_parent" android:layout_height="420dp" android:layout_marginTop="8dp" android:background="@color/astock_surface_card" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
 
-                    <TextView android:id="@+id/tvName" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="股票详情" android:textSize="19sp" android:textStyle="bold" />
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@{state.code}" android:textColor="@color/astock_text_secondary" />
-                </LinearLayout>
+                <com.google.android.material.card.MaterialCardView style="@style/Widget.AStockGuard.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/astock_card_padding">
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
+                            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                                <TextView style="@style/TextAppearance.AStockGuard.SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="策略评分" />
+                                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="技术、量能、资金与位置综合" android:textColor="@color/astock_text_secondary" android:textSize="11sp" />
+                            </LinearLayout>
+                            <LinearLayout android:layout_width="68dp" android:layout_height="68dp" android:background="@drawable/bg_metric_cell" android:gravity="center" android:orientation="vertical">
+                                <TextView android:id="@+id/tvTotalScore" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textColor="@color/astock_gold" android:textSize="24sp" android:textStyle="bold" />
+                                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="综合" android:textColor="@color/astock_text_secondary" android:textSize="11sp" />
+                            </LinearLayout>
+                        </LinearLayout>
 
-                <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:gravity="end" android:orientation="vertical">
-                    <TextView android:id="@+id/tvPrice" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textSize="22sp" android:textStyle="bold" />
-                    <TextView android:id="@+id/tvChange" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" />
-                </LinearLayout>
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:orientation="horizontal">
+                            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:background="@drawable/bg_metric_cell" android:gravity="center" android:orientation="vertical" android:padding="10dp">
+                                <TextView android:id="@+id/tvTrendScore" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textColor="@color/astock_primary" android:textStyle="bold" />
+                                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="趋势" android:textColor="@color/astock_text_secondary" android:textSize="11sp" />
+                            </LinearLayout>
+                            <Space android:layout_width="6dp" android:layout_height="1dp" />
+                            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:background="@drawable/bg_metric_cell" android:gravity="center" android:orientation="vertical" android:padding="10dp">
+                                <TextView android:id="@+id/tvVolumeScore" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textColor="@color/astock_primary" android:textStyle="bold" />
+                                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="量能" android:textColor="@color/astock_text_secondary" android:textSize="11sp" />
+                            </LinearLayout>
+                            <Space android:layout_width="6dp" android:layout_height="1dp" />
+                            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:background="@drawable/bg_metric_cell" android:gravity="center" android:orientation="vertical" android:padding="10dp">
+                                <TextView android:id="@+id/tvCapitalScore" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textColor="@color/astock_primary" android:textStyle="bold" />
+                                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="资金" android:textColor="@color/astock_text_secondary" android:textSize="11sp" />
+                            </LinearLayout>
+                            <Space android:layout_width="6dp" android:layout_height="1dp" />
+                            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:background="@drawable/bg_metric_cell" android:gravity="center" android:orientation="vertical" android:padding="10dp">
+                                <TextView android:id="@+id/tvPositionScore" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textColor="@color/astock_primary" android:textStyle="bold" />
+                                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="位置" android:textColor="@color/astock_text_secondary" android:textSize="11sp" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <TextView android:id="@+id/tvStrategyReason" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:lineSpacingExtra="3dp" android:text="等待策略计算" android:textColor="@color/astock_text_secondary" android:textSize="12sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginHorizontal="4dp" android:layout_marginTop="12dp" android:text="K线、技术指标及策略评分仅用于研究与决策辅助，不代表未来收益。" android:textColor="@color/astock_text_secondary" android:textSize="11sp" />
             </LinearLayout>
-
-            <com.google.android.material.button.MaterialButtonToggleGroup
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="12dp"
-                android:layout_marginTop="12dp"
-                app:selectionRequired="true"
-                app:singleSelection="true">
-
-                <com.google.android.material.button.MaterialButton android:id="@+id/btnMinute" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="分时" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/btnDay" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="日K" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/btnWeek" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="周K" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/btnMonth" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="月K" />
-            </com.google.android.material.button.MaterialButtonToggleGroup>
-
-            <TextView android:id="@+id/tvDataStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginHorizontal="16dp" android:layout_marginTop="8dp" android:text="等待行情" android:textColor="@color/astock_text_secondary" />
-            <ProgressBar android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center_horizontal" android:visibility="@{state.loading ? View.VISIBLE : View.GONE}" />
-
-            <com.locogo.astockguard.ui.chart.KLineChartView
-                android:id="@+id/klineView"
-                android:layout_width="match_parent"
-                android:layout_height="420dp"
-                android:layout_margin="12dp"
-                android:background="@color/astock_surface_card" />
-
-            <com.google.android.material.card.MaterialCardView
-                style="@style/Widget.AStockGuard.Card"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="12dp"
-                android:layout_marginBottom="12dp">
-
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="策略评分" android:textSize="17sp" android:textStyle="bold" />
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:gravity="center" android:orientation="horizontal">
-                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="趋势" />
-                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="量能" />
-                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="资金" />
-                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="位置" />
-                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="综合" android:textStyle="bold" />
-                    </LinearLayout>
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:gravity="center" android:orientation="horizontal">
-                        <TextView android:id="@+id/tvTrendScore" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="--" />
-                        <TextView android:id="@+id/tvVolumeScore" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="--" />
-                        <TextView android:id="@+id/tvCapitalScore" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="--" />
-                        <TextView android:id="@+id/tvPositionScore" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="--" />
-                        <TextView android:id="@+id/tvTotalScore" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="--" android:textColor="@color/astock_primary" android:textStyle="bold" />
-                    </LinearLayout>
-                    <TextView android:id="@+id/tvStrategyReason" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="等待策略计算" android:textColor="@color/astock_text_secondary" android:textSize="12sp" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="16dp"
-                android:layout_marginBottom="16dp"
-                android:text="K线、技术指标及策略评分仅用于研究与决策辅助，不代表未来收益。"
-                android:textColor="@color/astock_text_secondary"
-                android:textSize="12sp" />
-        </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
+        </androidx.core.widget.NestedScrollView>
+    </LinearLayout>
 </layout>

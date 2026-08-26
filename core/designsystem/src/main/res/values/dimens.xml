@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <dimen name="astock_page_padding">16dp</dimen>
-    <dimen name="astock_card_radius">16dp</dimen>
-    <dimen name="astock_card_padding">14dp</dimen>
-    <dimen name="astock_section_spacing">12dp</dimen>
+    <dimen name="astock_page_padding">14dp</dimen>
+    <dimen name="astock_card_radius">18dp</dimen>
+    <dimen name="astock_card_padding">16dp</dimen>
+    <dimen name="astock_section_spacing">14dp</dimen>
 </resources>

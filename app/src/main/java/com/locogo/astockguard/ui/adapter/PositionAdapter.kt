@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import androidx.core.content.ContextCompat
 import com.locogo.astockguard.databinding.ItemPositionStrategyBinding
 import com.locogo.astockguard.ui.main.StockStrategyUiModel
 import java.util.Locale
@@ -30,6 +31,12 @@ class PositionAdapter(
                 append("  ·  ${item.role}  ·  R2 ${item.r2Score}/${item.r2Grade}")
                 if (item.stale) append("  ·  缓存")
             }
+            val quoteColor = when {
+                item.changeRatio == null || item.changeRatio == 0.0 -> com.locogo.astockguard.designsystem.R.color.astock_text_secondary
+                item.changeRatio > 0.0 -> com.locogo.astockguard.designsystem.R.color.astock_positive
+                else -> com.locogo.astockguard.designsystem.R.color.astock_negative
+            }
+            tvQuote.setTextColor(ContextCompat.getColor(root.context, quoteColor))
             val advice = item.aiAction.takeUnless { it == "-" } ?: item.localAction
             tvActions.text = "仓位 ${item.positionPct?.let { String.format(Locale.CHINA, "%.1f%%", it) } ?: "--"}  |  " +
                 "AI评分 ${if (item.aiAction == "-") "--" else item.aiConfidence}  |  建议 $advice" +

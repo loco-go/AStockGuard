@@ -4,12 +4,8 @@
 
     <data>
         <import type="android.view.View" />
-        <variable
-            name="state"
-            type="com.locogo.astockguard.ui.main.MainUiState" />
-        <variable
-            name="handlers"
-            type="com.locogo.astockguard.ui.dashboard.DashboardHandlers" />
+        <variable name="state" type="com.locogo.astockguard.ui.main.MainUiState" />
+        <variable name="handlers" type="com.locogo.astockguard.ui.dashboard.DashboardHandlers" />
     </data>
 
     <LinearLayout
@@ -20,188 +16,221 @@
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@color/astock_surface_card"
+            android:layout_height="68dp"
+            android:background="@color/astock_primary_dark"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="10dp">
+            android:paddingHorizontal="18dp">
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="AStockGuard"
-                    android:textColor="@color/astock_text_primary"
-                    android:textSize="21sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text='@{state.selectedCode ?? "交易驾驶舱"}'
-                    android:textColor="@color/astock_text_secondary"
-                    android:textSize="12sp" />
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="AStockGuard" android:textColor="@color/astock_on_primary" android:textSize="21sp" android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text='@{state.selectedCode ?? "交易驾驶舱"}' android:textColor="#BFCFDC" android:textSize="12sp" />
             </LinearLayout>
 
-            <ProgressBar
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:visibility="@{state.loading ? View.VISIBLE : View.GONE}" />
-
-            <com.google.android.material.button.MaterialButton
-                style="@style/Widget.MaterialComponents.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:onClick="@{() -> handlers.onSettings()}"
-                android:text="设置" />
+            <ProgressBar android:layout_width="22dp" android:layout_height="22dp" android:layout_marginEnd="8dp" android:indeterminateTint="@color/astock_gold" android:visibility="@{state.loading ? View.VISIBLE : View.GONE}" />
+            <com.google.android.material.button.MaterialButton style="@style/Widget.MaterialComponents.Button.TextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:onClick="@{() -> handlers.onSettings()}" android:text="设置" android:textColor="@color/astock_on_primary" />
         </LinearLayout>
 
-        <LinearLayout
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.AStockGuard.Card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@color/astock_surface_card"
-            android:orientation="horizontal"
-            android:paddingHorizontal="8dp">
+            android:layout_marginHorizontal="12dp"
+            android:layout_marginTop="10dp"
+            app:cardCornerRadius="14dp">
 
-            <Button android:id="@+id/btnDecision" style="@style/Widget.MaterialComponents.Button.TextButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:onClick="@{() -> handlers.onDecisionTab()}" android:text="决策" />
-            <Button android:id="@+id/btnChart" style="@style/Widget.MaterialComponents.Button.TextButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:onClick="@{() -> handlers.onChartTab()}" android:text="图表" />
-            <Button android:id="@+id/btnFlow" style="@style/Widget.MaterialComponents.Button.TextButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:onClick="@{() -> handlers.onFlowTab()}" android:text="资金" />
-            <Button android:id="@+id/btnReview" style="@style/Widget.MaterialComponents.Button.TextButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:onClick="@{() -> handlers.onReviewTab()}" android:text="复盘" />
-        </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:padding="4dp">
+                <com.google.android.material.button.MaterialButton android:id="@+id/btnDecision" style="@style/Widget.AStockGuard.NavButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:onClick="@{() -> handlers.onDecisionTab()}" android:text="总览" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/btnChart" style="@style/Widget.AStockGuard.NavButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:onClick="@{() -> handlers.onChartTab()}" android:text="图表" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/btnFlow" style="@style/Widget.AStockGuard.NavButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:onClick="@{() -> handlers.onFlowTab()}" android:text="资金" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/btnReview" style="@style/Widget.AStockGuard.NavButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:onClick="@{() -> handlers.onReviewTab()}" android:text="复盘" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-        <ScrollView
+        <androidx.core.widget.NestedScrollView
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
+            android:clipToPadding="false"
             android:fillViewport="true">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="@dimen/astock_page_padding">
-
-                <com.google.android.material.card.MaterialCardView
-                    style="@style/Widget.AStockGuard.Card"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content">
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/astock_card_padding">
-                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="市场状态" android:textSize="18sp" android:textStyle="bold" />
-                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal">
-                            <TextView android:id="@+id/tvShanghaiIndex" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="上证指数\n--" />
-                            <TextView android:id="@+id/tvShenzhenIndex" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="深证成指\n--" />
-                            <TextView android:id="@+id/tvChinextIndex" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="创业板指\n--" />
-                        </LinearLayout>
-                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal">
-                            <TextView android:id="@+id/tvTurnover" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="两市成交额\n--" />
-                            <TextView android:id="@+id/tvMarketBreadth" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="涨跌家数\n--" />
-                        </LinearLayout>
-                        <TextView android:id="@+id/tvMarketSummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="暂无行情" android:textColor="@color/astock_text_secondary" />
-                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
-                            <Button android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:onClick="@{() -> handlers.onRefresh()}" android:text="刷新" />
-                            <Button android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:layout_weight="1" android:onClick="@{() -> handlers.onStartMonitor()}" android:text="启动监控" />
-                            <Button android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:layout_weight="1" android:onClick="@{() -> handlers.onStopMonitor()}" android:text="停止" />
-                        </LinearLayout>
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
+                android:padding="@dimen/astock_page_padding"
+                android:paddingBottom="28dp">
 
                 <LinearLayout
-                    android:id="@+id/panelDecision"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:orientation="vertical">
+                    android:background="@drawable/bg_market_hero"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="市场温度" android:textColor="@color/astock_on_primary" android:textSize="18sp" android:textStyle="bold" />
+                    <TextView android:id="@+id/tvMarketSummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="暂无行情" android:textColor="#D5E1EA" android:textSize="13sp" />
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:orientation="horizontal">
+                        <TextView android:id="@+id/tvShanghaiIndex" style="@style/TextAppearance.AStockGuard.Metric" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:background="@drawable/bg_metric_cell" android:gravity="center" android:padding="10dp" android:text="上证指数\n--" />
+                        <Space android:layout_width="8dp" android:layout_height="1dp" />
+                        <TextView android:id="@+id/tvShenzhenIndex" style="@style/TextAppearance.AStockGuard.Metric" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:background="@drawable/bg_metric_cell" android:gravity="center" android:padding="10dp" android:text="深证成指\n--" />
+                        <Space android:layout_width="8dp" android:layout_height="1dp" />
+                        <TextView android:id="@+id/tvChinextIndex" style="@style/TextAppearance.AStockGuard.Metric" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:background="@drawable/bg_metric_cell" android:gravity="center" android:padding="10dp" android:text="创业板指\n--" />
+                    </LinearLayout>
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
+                        <TextView android:id="@+id/tvTurnover" style="@style/TextAppearance.AStockGuard.Metric" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:background="@drawable/bg_metric_cell" android:gravity="center" android:padding="10dp" android:text="两市成交额\n--" />
+                        <Space android:layout_width="8dp" android:layout_height="1dp" />
+                        <TextView android:id="@+id/tvMarketBreadth" style="@style/TextAppearance.AStockGuard.Metric" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:background="@drawable/bg_metric_cell" android:gravity="center" android:padding="10dp" android:text="涨跌家数\n--" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal">
+                    <com.google.android.material.button.MaterialButton style="@style/Widget.AStockGuard.SecondaryButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:onClick="@{() -> handlers.onRefresh()}" android:text="刷新行情" />
+                    <com.google.android.material.button.MaterialButton style="@style/Widget.AStockGuard.PrimaryButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:layout_weight="1" android:onClick="@{() -> handlers.onStartMonitor()}" android:text="启动监控" />
+                    <com.google.android.material.button.MaterialButton style="@style/Widget.AStockGuard.SecondaryButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:onClick="@{() -> handlers.onStopMonitor()}" android:text="停止" />
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/panelDecision" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:orientation="vertical">
+
                     <com.google.android.material.card.MaterialCardView style="@style/Widget.AStockGuard.Card" android:layout_width="match_parent" android:layout_height="wrap_content">
                         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/astock_card_padding">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="账户概览" android:textSize="18sp" android:textStyle="bold" />
-                            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal">
-                                <TextView android:id="@+id/tvTotalAssets" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="总资产\n--" />
-                                <TextView android:id="@+id/tvTodayPnl" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="今日收益\n--" />
+                            <TextView style="@style/TextAppearance.AStockGuard.SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="账户概览" />
+                            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:orientation="horizontal">
+                                <TextView android:id="@+id/tvTotalAssets" style="@style/TextAppearance.AStockGuard.Metric" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:background="@drawable/bg_metric_cell" android:gravity="center" android:padding="12dp" android:text="总资产\n--" />
+                                <Space android:layout_width="8dp" android:layout_height="1dp" />
+                                <TextView android:id="@+id/tvTodayPnl" style="@style/TextAppearance.AStockGuard.Metric" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:background="@drawable/bg_metric_cell" android:gravity="center" android:padding="12dp" android:text="今日收益\n--" />
                             </LinearLayout>
-                            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal">
-                                <TextView android:id="@+id/tvCumulativePnl" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="累计收益\n--" />
-                                <TextView android:id="@+id/tvPositionRatio" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="当前仓位\n--" />
+                            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
+                                <TextView android:id="@+id/tvCumulativePnl" style="@style/TextAppearance.AStockGuard.Metric" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:background="@drawable/bg_metric_cell" android:gravity="center" android:padding="12dp" android:text="累计收益\n--" />
+                                <Space android:layout_width="8dp" android:layout_height="1dp" />
+                                <TextView android:id="@+id/tvPositionRatio" style="@style/TextAppearance.AStockGuard.Metric" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:background="@drawable/bg_metric_cell" android:gravity="center" android:padding="12dp" android:text="当前仓位\n--" />
                             </LinearLayout>
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="T 交易计划" android:textSize="18sp" android:textStyle="bold" />
-                    <TextView android:id="@+id/tvTradePlan" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:background="@color/astock_surface_card" android:padding="12dp" android:text="暂无计划" />
-                    <Button android:layout_width="wrap_content" android:layout_height="wrap_content" android:onClick="@{() -> handlers.onClearAnchor()}" android:text="清除手选锚点" />
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="持仓 / 观察池" android:textSize="18sp" android:textStyle="bold" />
-                    <androidx.recyclerview.widget.RecyclerView android:id="@+id/listStrategies" android:layout_width="match_parent" android:layout_height="wrap_content" android:nestedScrollingEnabled="false" />
-                    <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:onClick="@{() -> handlers.onFlowTab()}" android:text="查看行业资金排名 / 主力流入流出" />
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="R2 扫描" android:textStyle="bold" />
-                    <TextView android:id="@+id/tvR2" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="暂无扫描结果" />
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="信号生命周期" android:textStyle="bold" />
-                    <TextView android:id="@+id/tvSignals" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="暂无信号" />
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="新闻风险" android:textStyle="bold" />
-                    <TextView android:id="@+id/tvNews" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="暂无新闻风险数据" />
-                    <Button android:layout_width="wrap_content" android:layout_height="wrap_content" android:onClick="@{() -> handlers.onRefreshNews()}" android:text="刷新新闻" />
-                    <EditText android:id="@+id/etQuestion" android:layout_width="match_parent" android:layout_height="88dp" android:gravity="top" android:hint="追加给 AI 的问题（可选）" android:inputType="textMultiLine" />
-                    <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:onClick="@{() -> handlers.onAnalyze()}" android:text="AI 分析" />
-                    <ProgressBar android:layout_width="wrap_content" android:layout_height="wrap_content" android:visibility="@{state.aiLoading ? View.VISIBLE : View.GONE}" />
-                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@color/astock_surface_card" android:minHeight="100dp" android:padding="12dp" android:text="@{state.aiText}" android:textIsSelectable="true" />
+
+                    <com.google.android.material.card.MaterialCardView style="@style/Widget.AStockGuard.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp">
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/astock_card_padding">
+                            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
+                                <TextView style="@style/TextAppearance.AStockGuard.SectionTitle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="今日交易计划" />
+                                <com.google.android.material.button.MaterialButton style="@style/Widget.MaterialComponents.Button.TextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:onClick="@{() -> handlers.onClearAnchor()}" android:text="清除锚点" android:textColor="@color/astock_accent" />
+                            </LinearLayout>
+                            <TextView android:id="@+id/tvTradePlan" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:background="@drawable/bg_metric_cell" android:lineSpacingExtra="4dp" android:padding="12dp" android:text="暂无计划" android:textColor="@color/astock_text_primary" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <TextView style="@style/TextAppearance.AStockGuard.SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_marginTop="18dp" android:text="持仓与观察池" />
+                    <androidx.recyclerview.widget.RecyclerView android:id="@+id/listStrategies" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:nestedScrollingEnabled="false" />
+                    <com.google.android.material.button.MaterialButton style="@style/Widget.AStockGuard.SecondaryButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:onClick="@{() -> handlers.onFlowTab()}" android:text="查看行业资金流排名" />
+
+                    <com.google.android.material.card.MaterialCardView style="@style/Widget.AStockGuard.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp">
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/astock_card_padding">
+                            <TextView style="@style/TextAppearance.AStockGuard.SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="策略雷达" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="R2 扫描" android:textColor="@color/astock_accent" android:textStyle="bold" />
+                            <TextView android:id="@+id/tvR2" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="暂无扫描结果" android:textColor="@color/astock_text_secondary" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="信号生命周期" android:textColor="@color/astock_accent" android:textStyle="bold" />
+                            <TextView android:id="@+id/tvSignals" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="暂无信号" android:textColor="@color/astock_text_secondary" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="新闻风险" android:textColor="@color/astock_accent" android:textStyle="bold" />
+                            <TextView android:id="@+id/tvNews" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="暂无新闻风险数据" android:textColor="@color/astock_text_secondary" />
+                            <com.google.android.material.button.MaterialButton style="@style/Widget.AStockGuard.SecondaryButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:onClick="@{() -> handlers.onRefreshNews()}" android:text="刷新新闻" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <com.google.android.material.card.MaterialCardView style="@style/Widget.AStockGuard.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp">
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/astock_card_padding">
+                            <TextView style="@style/TextAppearance.AStockGuard.SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="AI 策略助手" />
+                            <com.google.android.material.textfield.TextInputLayout style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:hint="补充问题（可选）">
+                                <com.google.android.material.textfield.TextInputEditText android:id="@+id/etQuestion" android:layout_width="match_parent" android:layout_height="88dp" android:gravity="top" android:inputType="textMultiLine" />
+                            </com.google.android.material.textfield.TextInputLayout>
+                            <com.google.android.material.button.MaterialButton style="@style/Widget.AStockGuard.PrimaryButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:onClick="@{() -> handlers.onAnalyze()}" android:text="生成 AI 分析" />
+                            <ProgressBar android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center_horizontal" android:layout_marginTop="8dp" android:visibility="@{state.aiLoading ? View.VISIBLE : View.GONE}" />
+                            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:background="@drawable/bg_metric_cell" android:minHeight="88dp" android:padding="12dp" android:text="@{state.aiText}" android:textColor="@color/astock_text_primary" android:textIsSelectable="true" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
                 </LinearLayout>
 
-                <LinearLayout android:id="@+id/panelChart" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:orientation="vertical" android:visibility="gone">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="KLineChart" android:textSize="18sp" android:textStyle="bold" />
-                    <com.locogo.astockguard.ui.chart.KLineChartView android:id="@+id/klineView" android:layout_width="match_parent" android:layout_height="360dp" android:layout_marginTop="8dp" android:background="@color/astock_surface_card" />
-                    <TextView android:id="@+id/tvTrades" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="暂无成交记录" />
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-                        <Button android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:onClick="@{() -> handlers.onRecordBuy()}" android:text="记录买入" />
-                        <Button android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:layout_weight="1" android:onClick="@{() -> handlers.onRecordSell()}" android:text="记录卖出" />
-                    </LinearLayout>
-                    <TextView android:id="@+id/tvLevel2" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="暂无 Level2 数据" />
-                    <Button android:layout_width="wrap_content" android:layout_height="wrap_content" android:onClick="@{() -> handlers.onRefreshLevel2()}" android:text="刷新 Level2" />
+                <LinearLayout android:id="@+id/panelChart" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:orientation="vertical" android:visibility="gone">
+                    <com.google.android.material.card.MaterialCardView style="@style/Widget.AStockGuard.Card" android:layout_width="match_parent" android:layout_height="wrap_content">
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/astock_card_padding">
+                            <TextView style="@style/TextAppearance.AStockGuard.SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="K 线分析" />
+                            <com.locogo.astockguard.ui.chart.KLineChartView android:id="@+id/klineView" android:layout_width="match_parent" android:layout_height="400dp" android:layout_marginTop="10dp" android:background="@color/astock_surface_card" />
+                            <TextView android:id="@+id/tvTrades" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:background="@drawable/bg_metric_cell" android:padding="12dp" android:text="暂无成交记录" />
+                            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
+                                <com.google.android.material.button.MaterialButton style="@style/Widget.AStockGuard.PrimaryButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:onClick="@{() -> handlers.onRecordBuy()}" android:text="记录买入" />
+                                <com.google.android.material.button.MaterialButton style="@style/Widget.AStockGuard.SecondaryButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:layout_weight="1" android:onClick="@{() -> handlers.onRecordSell()}" android:text="记录卖出" />
+                            </LinearLayout>
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+                    <com.google.android.material.card.MaterialCardView style="@style/Widget.AStockGuard.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp">
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/astock_card_padding">
+                            <TextView style="@style/TextAppearance.AStockGuard.SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Level 2 盘口" />
+                            <TextView android:id="@+id/tvLevel2" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="暂无 Level2 数据" android:textColor="@color/astock_text_secondary" />
+                            <com.google.android.material.button.MaterialButton style="@style/Widget.AStockGuard.SecondaryButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:onClick="@{() -> handlers.onRefreshLevel2()}" android:text="刷新盘口" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
                 </LinearLayout>
 
-                <LinearLayout android:id="@+id/panelFlow" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:orientation="vertical" android:visibility="gone">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="个股资金流" android:textSize="18sp" android:textStyle="bold" />
-                    <TextView android:id="@+id/tvStockFlow" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="暂无资金流数据" />
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-                        <Button android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:onClick="@{() -> handlers.onIndustryFlow()}" android:text="行业" />
-                        <Button android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:layout_weight="1" android:onClick="@{() -> handlers.onConceptFlow()}" android:text="概念" />
-                    </LinearLayout>
-                    <TextView android:id="@+id/tvSectorFlow" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="暂无板块排名" />
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="组合净值" android:textStyle="bold" />
-                    <TextView android:id="@+id/tvEquity" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="暂无组合净值" />
+                <LinearLayout android:id="@+id/panelFlow" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:orientation="vertical" android:visibility="gone">
+                    <com.google.android.material.card.MaterialCardView style="@style/Widget.AStockGuard.Card" android:layout_width="match_parent" android:layout_height="wrap_content">
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/astock_card_padding">
+                            <TextView style="@style/TextAppearance.AStockGuard.SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="个股资金轨迹" />
+                            <TextView android:id="@+id/tvStockFlow" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:background="@drawable/bg_metric_cell" android:padding="12dp" android:text="暂无资金流数据" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+                    <com.google.android.material.card.MaterialCardView style="@style/Widget.AStockGuard.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp">
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/astock_card_padding">
+                            <TextView style="@style/TextAppearance.AStockGuard.SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="板块资金排名" />
+                            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
+                                <com.google.android.material.button.MaterialButton style="@style/Widget.AStockGuard.PrimaryButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:onClick="@{() -> handlers.onIndustryFlow()}" android:text="行业" />
+                                <com.google.android.material.button.MaterialButton style="@style/Widget.AStockGuard.SecondaryButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:layout_weight="1" android:onClick="@{() -> handlers.onConceptFlow()}" android:text="概念" />
+                            </LinearLayout>
+                            <TextView android:id="@+id/tvSectorFlow" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:lineSpacingExtra="4dp" android:text="暂无板块排名" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+                    <com.google.android.material.card.MaterialCardView style="@style/Widget.AStockGuard.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp">
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/astock_card_padding">
+                            <TextView style="@style/TextAppearance.AStockGuard.SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="组合净值" />
+                            <TextView android:id="@+id/tvEquity" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="暂无组合净值" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
                 </LinearLayout>
 
-                <LinearLayout android:id="@+id/panelReview" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:orientation="vertical" android:visibility="gone">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="交易复盘" android:textSize="18sp" android:textStyle="bold" />
-                    <TextView android:id="@+id/tvReview" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="暂无复盘数据" />
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="模拟盘" android:textStyle="bold" />
-                    <TextView android:id="@+id/tvPaper" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="暂无模拟盘数据" />
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-                        <Button android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:onClick="@{() -> handlers.onPaperBuy()}" android:text="模拟买入" />
-                        <Button android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:layout_weight="1" android:onClick="@{() -> handlers.onPaperSell()}" android:text="模拟卖出" />
-                        <Button android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:layout_weight="1" android:onClick="@{() -> handlers.onResetPaper()}" android:text="重置" />
-                    </LinearLayout>
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="Replay" android:textStyle="bold" />
-                    <TextView android:id="@+id/tvReplay" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="尚未运行回放" />
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-                        <Button android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:onClick="@{() -> handlers.onReplayReset()}" android:text="重置" />
-                        <Button android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_weight="1" android:onClick="@{() -> handlers.onReplayStep()}" android:text="单步" />
-                        <Button android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_weight="1" android:onClick="@{() -> handlers.onReplayPlay()}" android:text="播放" />
-                        <Button android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_weight="1" android:onClick="@{() -> handlers.onReplayPause()}" android:text="暂停" />
-                    </LinearLayout>
-                    <Button android:layout_width="match_parent" android:layout_height="wrap_content" android:onClick="@{() -> handlers.onRunBacktest()}" android:text="运行回测" />
+                <LinearLayout android:id="@+id/panelReview" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:orientation="vertical" android:visibility="gone">
+                    <com.google.android.material.card.MaterialCardView style="@style/Widget.AStockGuard.Card" android:layout_width="match_parent" android:layout_height="wrap_content">
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/astock_card_padding">
+                            <TextView style="@style/TextAppearance.AStockGuard.SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="交易复盘" />
+                            <TextView android:id="@+id/tvReview" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:background="@drawable/bg_metric_cell" android:padding="12dp" android:text="暂无复盘数据" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+                    <com.google.android.material.card.MaterialCardView style="@style/Widget.AStockGuard.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp">
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/astock_card_padding">
+                            <TextView style="@style/TextAppearance.AStockGuard.SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="模拟盘" />
+                            <TextView android:id="@+id/tvPaper" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="暂无模拟盘数据" />
+                            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
+                                <com.google.android.material.button.MaterialButton style="@style/Widget.AStockGuard.PrimaryButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:onClick="@{() -> handlers.onPaperBuy()}" android:text="模拟买入" />
+                                <com.google.android.material.button.MaterialButton style="@style/Widget.AStockGuard.SecondaryButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:layout_weight="1" android:onClick="@{() -> handlers.onPaperSell()}" android:text="模拟卖出" />
+                                <com.google.android.material.button.MaterialButton style="@style/Widget.AStockGuard.SecondaryButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:onClick="@{() -> handlers.onResetPaper()}" android:text="重置" />
+                            </LinearLayout>
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+                    <com.google.android.material.card.MaterialCardView style="@style/Widget.AStockGuard.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp">
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/astock_card_padding">
+                            <TextView style="@style/TextAppearance.AStockGuard.SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="策略回放" />
+                            <TextView android:id="@+id/tvReplay" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:background="@drawable/bg_metric_cell" android:padding="12dp" android:text="尚未运行回放" />
+                            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
+                                <com.google.android.material.button.MaterialButton style="@style/Widget.AStockGuard.SecondaryButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:onClick="@{() -> handlers.onReplayReset()}" android:text="重置" />
+                                <com.google.android.material.button.MaterialButton style="@style/Widget.AStockGuard.SecondaryButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_weight="1" android:onClick="@{() -> handlers.onReplayStep()}" android:text="单步" />
+                                <com.google.android.material.button.MaterialButton style="@style/Widget.AStockGuard.PrimaryButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_weight="1" android:onClick="@{() -> handlers.onReplayPlay()}" android:text="播放" />
+                                <com.google.android.material.button.MaterialButton style="@style/Widget.AStockGuard.SecondaryButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_weight="1" android:onClick="@{() -> handlers.onReplayPause()}" android:text="暂停" />
+                            </LinearLayout>
+                            <com.google.android.material.button.MaterialButton style="@style/Widget.AStockGuard.PrimaryButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:onClick="@{() -> handlers.onRunBacktest()}" android:text="运行完整回测" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
                 </LinearLayout>
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:text="@{state.error}"
-                    android:textColor="@color/astock_warning"
-                    android:visibility="@{state.error != null ? View.VISIBLE : View.GONE}" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="@{state.error}" android:textColor="@color/astock_warning" android:visibility="@{state.error != null ? View.VISIBLE : View.GONE}" />
             </LinearLayout>
-        </ScrollView>
+        </androidx.core.widget.NestedScrollView>
     </LinearLayout>
 </layout>

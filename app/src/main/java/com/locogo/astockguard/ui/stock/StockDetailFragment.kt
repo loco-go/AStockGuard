@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -49,6 +50,14 @@ class StockDetailFragment : Fragment() {
                         binding.tvName.text = state.quote?.name?.ifBlank { state.code } ?: state.code
                         binding.tvPrice.text = state.quote?.latest?.let { String.format(Locale.CHINA, "%.2f", it) } ?: "--"
                         binding.tvChange.text = state.quote?.changeRatio?.let { String.format(Locale.CHINA, "%+.2f%%", it) } ?: "--"
+                        val changeRatio = state.quote?.changeRatio
+                        val quoteTone = when {
+                            changeRatio == null || changeRatio == 0.0 -> com.locogo.astockguard.designsystem.R.color.astock_on_primary
+                            changeRatio > 0.0 -> com.locogo.astockguard.designsystem.R.color.astock_positive
+                            else -> com.locogo.astockguard.designsystem.R.color.astock_negative
+                        }
+                        binding.tvPrice.setTextColor(ContextCompat.getColor(requireContext(), quoteTone))
+                        binding.tvChange.setTextColor(ContextCompat.getColor(requireContext(), quoteTone))
                         binding.tvDataStatus.text = when {
                             state.loading -> "正在加载行情…"
                             state.error != null -> state.error

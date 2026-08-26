@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="astock_primary">#3157D5</color>
-    <color name="astock_positive">#D74444</color>
-    <color name="astock_negative">#15966A</color>
-    <color name="astock_warning">#C77B00</color>
-    <color name="astock_surface">#F6F7FB</color>
+    <color name="astock_primary">#12355B</color>
+    <color name="astock_primary_dark">#0A2239</color>
+    <color name="astock_accent">#1F7A8C</color>
+    <color name="astock_gold">#D29B38</color>
+    <color name="astock_on_primary">#FFFFFFFF</color>
+    <color name="astock_positive">#D94A52</color>
+    <color name="astock_negative">#0D8F67</color>
+    <color name="astock_warning">#B7791F</color>
+    <color name="astock_surface">#F1F4F6</color>
     <color name="astock_surface_card">#FFFFFFFF</color>
-    <color name="astock_text_primary">#172033</color>
-    <color name="astock_text_secondary">#667085</color>
+    <color name="astock_surface_alt">#E8EEF2</color>
+    <color name="astock_border">#D8E0E6</color>
+    <color name="astock_text_primary">#142332</color>
+    <color name="astock_text_secondary">#627382</color>
 </resources>
