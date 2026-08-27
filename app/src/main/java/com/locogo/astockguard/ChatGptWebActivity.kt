@@ -63,6 +63,7 @@ class ChatGptWebActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityChatgptWebBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        applySystemBarInsets(binding.root)
 
         settingsRepo = SettingsRepository(this)
         pendingPrompt = intent.getStringExtra(EXTRA_PROMPT).orEmpty()

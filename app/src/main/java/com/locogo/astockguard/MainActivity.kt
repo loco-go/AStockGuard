@@ -59,6 +59,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        applySystemBarInsets(binding.mainContainer)
         settings = appContainer.settings
         askNotificationPermission()
         hiddenChatGpt = HiddenChatGptSession(
@@ -73,6 +74,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 launch { MonitorBus.snapshot.collect { it?.let(dashboardViewModel::acceptSnapshot) } }
+                launch { MonitorBus.running.collect(dashboardViewModel::updateMonitorRunning) }
             }
         }
         if (savedInstanceState == null) dashboardViewModel.refresh()
@@ -83,11 +85,13 @@ class MainActivity : AppCompatActivity() {
             this,
             Intent(this, MarketMonitorService::class.java).setAction(MarketMonitorService.ACTION_START)
         )
+        MonitorBus.updateRunning(true)
         toast("实时监控已启动")
     }
 
     fun stopMonitor() {
         startService(Intent(this, MarketMonitorService::class.java).setAction(MarketMonitorService.ACTION_STOP))
+        MonitorBus.updateRunning(false)
         toast("实时监控已停止")
     }
 

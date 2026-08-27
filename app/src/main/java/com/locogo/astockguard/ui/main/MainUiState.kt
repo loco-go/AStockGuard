@@ -19,6 +19,7 @@ import com.locogo.astockguard.domain.trading.TTradePlan
 
 data class MainUiState(
     val loading: Boolean = false,
+    val monitorRunning: Boolean = false,
     val snapshot: MonitorSnapshot? = null,
     val aiLoading: Boolean = false,
     val aiText: String = "设置页可粘贴配置；AI不可用时本地 E/M/R2 仍独立运行。",

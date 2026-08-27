@@ -35,6 +35,7 @@ class SettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        applySystemBarInsets(binding.root)
         settings = appContainer.settings
         binding.spPrimaryType.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, aiTypes)
         binding.spBackupType.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, aiTypes)

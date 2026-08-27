@@ -79,16 +79,17 @@ class MarketRepository(
 
     suspend fun loadMinuteSeries(code: String, date: LocalDate = marketDate()): MinuteSeries {
         val cached = cacheDao?.getMinuteBars(code, date.toString()).orEmpty()
-        if (cached.isNotEmpty()) {
+        val isHistorical = date != marketDate()
+        // 历史数据不会再变化，优先读取 Room；今日数据必须先请求接口，避免缓存伪装成实时行情。
+        if (isHistorical && cached.isNotEmpty()) {
             return MinuteSeries(
                 date = date,
                 bars = cached.map { it.toModel() },
                 intervalMinutes = cached.first().intervalMinutes,
                 fromCache = true,
-                isHistorical = date != marketDate()
+                isHistorical = true
             )
         }
-        val isHistorical = date != marketDate()
         val intervalMinutes = if (isHistorical) 5 else 1
         val remote = if (isHistorical) historicalMinute.fetch5Minute(code, date) else minute.fetch(code)
         if (remote.isNotEmpty()) {
@@ -98,7 +99,17 @@ class MarketRepository(
                 }
             }
         }
-        return MinuteSeries(date, remote, intervalMinutes, fromCache = false, isHistorical = isHistorical)
+        if (remote.isNotEmpty()) {
+            return MinuteSeries(date, remote, intervalMinutes, fromCache = false, isHistorical = isHistorical)
+        }
+        // 接口失败时允许展示缓存，但调用方可通过 fromCache 禁止发出实时买卖提醒。
+        return MinuteSeries(
+            date = date,
+            bars = cached.map { it.toModel() },
+            intervalMinutes = cached.firstOrNull()?.intervalMinutes ?: intervalMinutes,
+            fromCache = true,
+            isHistorical = isHistorical
+        )
     }
 
     suspend fun loadMinuteBars(code: String): List<MinuteBar> {

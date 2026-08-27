@@ -4,7 +4,11 @@ import android.app.Service
 import android.content.Intent
 import android.os.IBinder
 import android.util.Log
+import com.locogo.astockguard.chart.MinuteCandleAggregator
+import com.locogo.astockguard.data.fundflow.FundFlowRepository
 import com.locogo.astockguard.data.news.NewsRepository
+import com.locogo.astockguard.domain.strategy.ChartSignalAction
+import com.locogo.astockguard.domain.strategy.IntradaySignalEngine
 import com.locogo.astockguard.domain.trading.TTradePlanner
 import kotlinx.coroutines.*
 import java.time.DayOfWeek
@@ -18,11 +22,14 @@ class MarketMonitorService : Service() {
     private lateinit var settings: SettingsRepository
     private lateinit var marketRepository: MarketRepository
     private lateinit var newsRepository: NewsRepository
+    private lateinit var fundFlowRepository: FundFlowRepository
     private var lastRisk = ""
     private var lastNewsRisk = "E0"
     private var lastNewsRefreshAt = 0L
     private var lastTScanAt = 0L
+    private var lastIntradayScanAt = 0L
     private val lastTStatus = mutableMapOf<String, String>()
+    private val lastIntradayAlert = mutableMapOf<String, String>()
     private lateinit var signalLifecycle: com.locogo.astockguard.domain.signal.SignalLifecycleManager
 
     override fun onCreate() {
@@ -31,17 +38,22 @@ class MarketMonitorService : Service() {
         settings = appContainer.settings
         marketRepository = appContainer.marketRepository
         newsRepository = appContainer.newsRepository
+        fundFlowRepository = appContainer.fundFlowRepository
         signalLifecycle = appContainer.signalLifecycle
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) stopSelf() else startLoop()
+        if (intent?.action == ACTION_STOP) {
+            MonitorBus.updateRunning(false)
+            stopSelf()
+        } else startLoop()
         return START_STICKY
     }
 
     private fun startLoop() {
         if (loopJob?.isActive == true) return
         startForeground(NOTIFICATION_ID, NotificationHelper.serviceNotification(this, "腾讯行情初始化..."))
+        MonitorBus.updateRunning(true)
         loopJob = scope.launch {
             while (isActive) {
                 try {
@@ -50,6 +62,7 @@ class MarketMonitorService : Service() {
                     emitAlerts(s)
                     refreshNewsIfDue()
                     scanTPlansIfDue(s)
+                    scanIntradaySignalsIfDue(s)
                     val source = if (s.dataHealth.isStale) "缓存" else "实时"
                     val text = "$source ${s.assessment.eventRisk}/${s.assessment.marketPhase} 仓位${"%.1f".format(s.positionRatio)}% 上限${"%.0f".format(s.assessment.maxPositionRatio * 100)}%"
                     getSystemService(android.app.NotificationManager::class.java).notify(NOTIFICATION_ID, NotificationHelper.serviceNotification(this@MarketMonitorService, text))
@@ -127,6 +140,69 @@ class MarketMonitorService : Service() {
             }
     }
 
+    /**
+     * 扫描监控池中的实时五分钟买卖点。
+     * 只有行情接口本次成功且处于交易时段才允许通知；缓存数据仅用于展示和回看。
+     */
+    private suspend fun scanIntradaySignalsIfDue(snapshot: MonitorSnapshot) {
+        if (snapshot.dataHealth.isStale) return
+        val now = System.currentTimeMillis()
+        if (now - lastIntradayScanAt < INTRADAY_SCAN_INTERVAL_MS || !isAshareTradingTime(now)) return
+        lastIntradayScanAt = now
+
+        val quoteMap = snapshot.quotes.associateBy { it.code }
+        val codes = (settings.positions().map { it.code } + settings.allCodes())
+            .distinct()
+            .take(MAX_INTRADAY_SCAN_CODES)
+        codes.forEach { code ->
+            runCatching {
+                val series = marketRepository.loadMinuteSeries(code)
+                if (series.fromCache || series.isHistorical || series.bars.isEmpty()) return@runCatching
+                val candles = MinuteCandleAggregator.aggregate(series.bars)
+                if (candles.size < MIN_INTRADAY_CANDLES) return@runCatching
+
+                val flow = fundFlowRepository.stock(code)
+                val freshFlow = flow.minute.takeIf { isMinuteFlowCurrent(it.lastOrNull()?.time, now) }.orEmpty()
+                val signal = IntradaySignalEngine.evaluate(candles, dataIsFresh = true, fundFlow = freshFlow)
+                    .asSequence()
+                    .filterNot { it.recommended }
+                    .lastOrNull() ?: return@runCatching
+                // 服务刚启动时不补发早盘旧信号，只提醒最近完成的确认K线。
+                if (!isSignalRecent(signal.time, now)) return@runCatching
+                val alertKey = "${signal.time}:${signal.action}"
+                if (lastIntradayAlert.put(code, alertKey) == alertKey) return@runCatching
+
+                val quote = quoteMap[code]
+                val actionText = if (signal.action == ChartSignalAction.BUY) "买入观察" else "卖出观察"
+                val flowText = if (freshFlow.isEmpty()) "量能确认" else "主力资金与量能确认"
+                NotificationHelper.alert(
+                    this,
+                    intradayNotificationId(code, signal.action),
+                    "${quote?.name?.ifBlank { code } ?: code} · 分时$actionText",
+                    "${signal.time} 参考价${"%.2f".format(signal.price)}，评分${signal.score}；$flowText。${signal.reason}。仅作提醒，不自动下单。"
+                )
+            }.onFailure { error ->
+                Log.w("MarketMonitor", "分时信号扫描失败 $code: ${error.message}")
+            }
+        }
+    }
+
+    /** 判断分钟资金流是否足够接近当前时间，防止旧缓存参与实时提醒。 */
+    private fun isMinuteFlowCurrent(value: String?, now: Long): Boolean =
+        value != null && minutesFromNow(value, now)?.let { it in 0..MAX_FLOW_AGE_MINUTES } == true
+
+    /** 信号时间允许少量接口和轮询延迟，但不能跨越午休后补发。 */
+    private fun isSignalRecent(value: String, now: Long): Boolean =
+        minutesFromNow(value, now)?.let { it in 0..MAX_SIGNAL_AGE_MINUTES } == true
+
+    private fun minutesFromNow(value: String, now: Long): Int? {
+        val match = TIME_REGEX.find(value) ?: return null
+        val signalMinutes = (match.groupValues[1].toIntOrNull() ?: return null) * 60 +
+            (match.groupValues[2].toIntOrNull() ?: return null)
+        val current = Instant.ofEpochMilli(now).atZone(CHINA_ZONE).toLocalTime()
+        return current.hour * 60 + current.minute - signalMinutes
+    }
+
     private suspend fun emitAlerts(s: MonitorSnapshot) {
         if (s.dataHealth.isStale) return
         val risk = s.assessment.eventRisk
@@ -154,7 +230,17 @@ class MarketMonitorService : Service() {
         return 4000 + (positiveHash % 700) * 4 + type
     }
 
-    override fun onDestroy() { loopJob?.cancel(); scope.cancel(); super.onDestroy() }
+    private fun intradayNotificationId(code: String, action: ChartSignalAction): Int {
+        val positiveHash = code.hashCode() and Int.MAX_VALUE
+        return 7000 + (positiveHash % 900) * 2 + if (action == ChartSignalAction.BUY) 0 else 1
+    }
+
+    override fun onDestroy() {
+        MonitorBus.updateRunning(false)
+        loopJob?.cancel()
+        scope.cancel()
+        super.onDestroy()
+    }
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onTimeout(startId: Int, fgsType: Int) { stopSelf(startId) }
 
@@ -163,7 +249,13 @@ class MarketMonitorService : Service() {
         const val ACTION_STOP = "com.locogo.astockguard.STOP"
         const val NOTIFICATION_ID = 1001
         private const val T_SCAN_INTERVAL_MS = 30_000L
+        private const val INTRADAY_SCAN_INTERVAL_MS = 60_000L
         private const val MAX_T_SCAN_POSITIONS = 6
+        private const val MAX_INTRADAY_SCAN_CODES = 6
+        private const val MIN_INTRADAY_CANDLES = 8
+        private const val MAX_FLOW_AGE_MINUTES = 10
+        private const val MAX_SIGNAL_AGE_MINUTES = 12
+        private val TIME_REGEX = Regex("(\\d{2}):(\\d{2})")
         private val CHINA_ZONE: ZoneId = ZoneId.of("Asia/Shanghai")
     }
 }

@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.locogo.astockguard.appContainer
+import com.locogo.astockguard.applySystemBarInsets
 import com.locogo.astockguard.data.local.TradeRecordEntity
 import com.locogo.astockguard.databinding.ActivityThsTradeSyncBinding
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +28,7 @@ class ThsTradeSyncActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityThsTradeSyncBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        applySystemBarInsets(binding.root)
         binding.btnOpenAccessibility.setOnClickListener { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
         binding.btnImport.setOnClickListener {
             openTradeFile.launch(arrayOf("text/csv", "text/tab-separated-values", "text/plain", "application/csv", "*/*"))

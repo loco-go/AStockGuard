@@ -45,6 +45,11 @@ class MainViewModel(
     private var lastNewsRefreshAt = 0L
     private var replayJob: Job? = null
 
+    /** 接收前台服务运行状态，仅更新界面，不在 ViewModel 中直接启停 Service。 */
+    fun updateMonitorRunning(running: Boolean) {
+        _uiState.update { it.copy(monitorRunning = running) }
+    }
+
     fun acceptSnapshot(snapshot: com.locogo.astockguard.MonitorSnapshot) {
         val selected = _uiState.value.selectedCode ?: snapshot.quotes.firstOrNull()?.code
         _uiState.update { it.copy(snapshot = snapshot, loading = false, selectedCode = selected, error = null) }

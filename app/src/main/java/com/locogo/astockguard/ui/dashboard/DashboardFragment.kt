@@ -132,8 +132,29 @@ class DashboardFragment : Fragment(), DashboardHandlers {
             "${it.strategy}  收益 ${pct(it.returnPct / 100.0)}  最大回撤 ${pct(it.maxDrawdownPct / 100.0)}\n" +
                 "闭合 ${it.closedTrades}  胜率 ${pct(it.winRatePct / 100.0)}  PF ${String.format(Locale.CHINA, "%.2f", it.profitFactor)}"
         } ?: "进度 ${state.replayIndex + 1}/${state.minuteBars.size}${if (state.replayRunning) "  ·  播放中" else ""}"
+        updateStateButtons(state)
         renderReplayChart(state)
         executePendingBindings()
+    }
+
+    /**
+     * 统一维护互斥操作按钮的颜色和可用状态。
+     * 激活项使用主色，另一项自动退为浅色，让服务、回放和资金分类状态一眼可见。
+     */
+    private fun updateStateButtons(state: MainUiState) = with(binding) {
+        btnStartMonitor.isActivated = !state.monitorRunning
+        btnStartMonitor.isEnabled = !state.monitorRunning
+        btnStopMonitor.isActivated = state.monitorRunning
+        btnStopMonitor.isEnabled = state.monitorRunning
+
+        btnReplayPlay.isActivated = !state.replayRunning
+        btnReplayPlay.isEnabled = !state.replayRunning && state.minuteBars.isNotEmpty()
+        btnReplayPause.isActivated = state.replayRunning
+        btnReplayPause.isEnabled = state.replayRunning
+
+        val flowType = state.sectorFundFlow?.type ?: "INDUSTRY"
+        btnIndustryFlow.isActivated = flowType == "INDUSTRY"
+        btnConceptFlow.isActivated = flowType == "CONCEPT"
     }
 
     private fun renderReplayChart(state: MainUiState) {

@@ -1,7 +1,11 @@
 package com.locogo.astockguard.ui.chart
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.util.AttributeSet
+import android.view.MotionEvent
+import android.view.View
+import android.view.ViewConfiguration
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
@@ -25,8 +29,39 @@ class KLineChartView @JvmOverloads constructor(
         webView.settings.domStorageEnabled = false
         webView.settings.allowFileAccess = false
         webView.settings.allowContentAccess = false
+        webView.overScrollMode = View.OVER_SCROLL_NEVER
+        webView.isHorizontalScrollBarEnabled = false
         webView.webViewClient = WebViewClient()
+        configureTouchInterop()
         addView(webView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    }
+
+    /**
+     * 横向手势交给K线图，纵向手势继续交给页面滚动容器。
+     * 只有横向位移超过系统阈值后才禁止父容器拦截，可消除斜向拖动时的抖动。
+     */
+    @SuppressLint("ClickableViewAccessibility")
+    private fun configureTouchInterop() {
+        val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+        var downX = 0f
+        var downY = 0f
+        webView.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    downX = event.x
+                    downY = event.y
+                    requestDisallowInterceptTouchEvent(false)
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = kotlin.math.abs(event.x - downX)
+                    val dy = kotlin.math.abs(event.y - downY)
+                    if (dx > touchSlop) requestDisallowInterceptTouchEvent(dx > dy)
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                    requestDisallowInterceptTouchEvent(false)
+            }
+            false
+        }
     }
 
     fun render(

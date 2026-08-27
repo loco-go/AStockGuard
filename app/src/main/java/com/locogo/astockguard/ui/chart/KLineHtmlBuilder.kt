@@ -35,6 +35,7 @@ if(rows.length===0){document.getElementById('chart').innerHTML='<div id="empty">
 else if(typeof klinecharts==='undefined'){document.getElementById('chart').innerHTML='<div id="empty">图表组件加载失败，请检查网络后重试</div>'}
 else{
  const chart=klinecharts.init('chart',{locale:'zh-CN',timezone:'Asia/Shanghai',layout:{barSpaceLimit:{min:2,max:30},pane:{minHeight:80},yAxis:{position:'right',inside:false}}});
+ const savedPosition=window.name||'realtime';let initialPositioned=false;
  chart.setStyles({
   candle:{
    bar:{upColor:'#d92d20',downColor:'#039855',noChangeColor:'#8a8f98',upBorderColor:'#d92d20',downBorderColor:'#039855',noChangeBorderColor:'#8a8f98',upWickColor:'#d92d20',downWickColor:'#039855',noChangeWickColor:'#8a8f98'},
@@ -47,11 +48,23 @@ else{
  });
  chart.setSymbol({ticker:'ASTOCK',pricePrecision:2,volumePrecision:0});
  chart.setPeriod({span:1,type:'${period.toKLineChartType()}'});
+ const restorePosition=()=>{
+  if(initialPositioned)return;initialPositioned=true;
+  const timestamp=Number(savedPosition);
+  if(savedPosition!=='realtime'&&Number.isFinite(timestamp)&&rows.some(r=>r.timestamp===timestamp))chart.scrollToTimestamp(timestamp,0);
+  else chart.scrollToRealTime(0);
+ };
+ chart.subscribeAction('onDataReady',restorePosition);
+ chart.subscribeAction('onVisibleRangeChange',range=>{
+  if(!range||!rows.length)return;
+  const to=Math.min(rows.length-1,Math.max(0,Math.floor(range.to)));
+  window.name=to>=rows.length-2?'realtime':String(rows[to].timestamp);
+ });
  chart.setDataLoader({getBars:({callback})=>callback(rows)});
  chart.createIndicator({name:'MA',calcParams:[5,10,20,60],paneId:'candle_pane'},true);
  chart.createIndicator('VOL');
  chart.setBarSpace(rows.length<35?Math.max(4,Math.min(14,(document.body.clientWidth-70)/rows.length)):7);
- chart.scrollToRealTime();
+ setTimeout(restorePosition,80);
  const names={day:'日K',week:'周K',month:'月K'},period='${period.toKLineChartType()}';
  document.getElementById('period').textContent=(names[period]||'K线')+' · '+rows.length+' 根'+(signals.length?' · '+signals[0].action+' '+signals[0].score:'');
 }
