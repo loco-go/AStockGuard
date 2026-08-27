@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 盾牌表达风控与守护，轮廓保持在自适应图标安全区内。 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M54,17 L82,27 L79,58 C77,74 67,85 54,92 C41,85 31,74 29,58 L26,27 Z" />
+
+    <!-- 深色平衡轴将三根K线连接起来，表达纪律和风险收益平衡。 -->
+    <path
+        android:fillColor="#FF12355B"
+        android:pathData="M35,55 L73,55 L73,59 L35,59 Z" />
+    <path
+        android:fillColor="#FF12355B"
+        android:pathData="M52,48 L56,48 L56,72 L52,72 Z" />
+    <path
+        android:fillColor="#FF12355B"
+        android:pathData="M45,72 L63,72 L67,77 L41,77 Z" />
+
+    <!-- 红涨绿跌沿用A股视觉习惯，两侧等权体现“衡”。 -->
+    <path
+        android:fillColor="#FFD94A52"
+        android:pathData="M38,37 L42,37 L42,68 L38,68 Z M34,45 L46,45 L46,58 L34,58 Z" />
+    <path
+        android:fillColor="#FF0D8F67"
+        android:pathData="M66,40 L70,40 L70,70 L66,70 Z M62,49 L74,49 L74,62 L62,62 Z" />
+</vector>

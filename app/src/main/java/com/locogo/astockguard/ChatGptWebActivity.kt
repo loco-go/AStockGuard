@@ -507,7 +507,7 @@ class ChatGptWebActivity : AppCompatActivity() {
     private fun openInSystemBrowser() {
         if (pendingPrompt.isNotBlank()) {
             val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            cm.setPrimaryClip(ClipData.newPlainText("AStockGuard Prompt", pendingPrompt))
+            cm.setPrimaryClip(ClipData.newPlainText("股衡分析提示", pendingPrompt))
             toast("提示词已复制；系统浏览器打开后可作为应急方式使用")
         }
         val url = settingsRepo.chatGptConversationUrl.takeIf(::isChatGptConversationUrl) ?: CHATGPT_HOME

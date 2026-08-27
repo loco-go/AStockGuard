@@ -51,9 +51,9 @@ class ThsTradeSyncActivity : AppCompatActivity() {
             binding.tvEnabled.text = if (enabled) "● 辅助功能已启用" else "● 辅助功能未启用"
             binding.tvCount.text = "已同步成交：$count 条"
             binding.tvStatus.text = if (enabled) {
-                "只读同步已启用。请手动打开同花顺的当日成交、历史成交或交割单页面，AStockGuard 会解析可访问的成交字段。"
+                "只读同步已启用。请手动打开同花顺的当日成交、历史成交或交割单页面，股衡会解析可访问的成交字段。"
             } else {
-                "只读同步未启用。请在系统辅助功能中开启 AStockGuard 同花顺成交只读同步。"
+                "只读同步未启用。请在系统辅助功能中开启股衡同花顺成交只读同步。"
             }
         }
     }

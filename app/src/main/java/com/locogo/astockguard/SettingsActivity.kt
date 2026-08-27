@@ -65,7 +65,7 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
         MENU_THS_SYNC -> { startActivity(Intent(this, ThsTradeSyncActivity::class.java)); true }
-        MENU_BACKUP -> { createBackupFile.launch("AStockGuard-backup-${System.currentTimeMillis()}.json"); true }
+        MENU_BACKUP -> { createBackupFile.launch("股衡备份-${System.currentTimeMillis()}.json"); true }
         MENU_RESTORE -> { openBackupFile.launch(arrayOf("application/json", "text/plain")); true }
         else -> super.onOptionsItemSelected(item)
     }

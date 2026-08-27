@@ -17,7 +17,7 @@ object NotificationHelper {
 
     fun serviceNotification(context: Context, text: String) = NotificationCompat.Builder(context, SERVICE_CHANNEL)
         .setSmallIcon(android.R.drawable.ic_popup_sync)
-        .setContentTitle("A股仓位闸门运行中")
+        .setContentTitle("股衡实时监控运行中")
         .setContentText(text)
         .setOngoing(true)
         .build()

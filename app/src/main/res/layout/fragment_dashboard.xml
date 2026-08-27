@@ -22,9 +22,16 @@
             android:orientation="horizontal"
             android:paddingHorizontal="18dp">
 
+            <ImageView
+                android:layout_width="42dp"
+                android:layout_height="42dp"
+                android:layout_marginEnd="10dp"
+                android:contentDescription="@string/brand_logo_description"
+                android:src="@drawable/ic_brand_mark" />
+
             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="AStockGuard" android:textColor="@color/astock_on_primary" android:textSize="21sp" android:textStyle="bold" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text='@{state.selectedCode ?? "交易驾驶舱"}' android:textColor="#BFCFDC" android:textSize="12sp" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/app_name" android:textColor="@color/astock_on_primary" android:textSize="21sp" android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text='@{state.selectedCode ?? @string/brand_tagline}' android:textColor="#BFCFDC" android:textSize="12sp" />
             </LinearLayout>
 
             <ProgressBar android:layout_width="22dp" android:layout_height="22dp" android:layout_marginEnd="8dp" android:indeterminateTint="@color/astock_gold" android:visibility="@{state.loading ? View.VISIBLE : View.GONE}" />

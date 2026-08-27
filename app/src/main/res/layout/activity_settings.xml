@@ -11,7 +11,7 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="AStockGuard 设置" android:textSize="24sp" android:textStyle="bold" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="股衡设置" android:textSize="24sp" android:textStyle="bold" />
 
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="粘贴 AI 配置 / Session JSON（只在本机解析）" android:textStyle="bold" />
         <EditText android:id="@+id/etImportText" android:layout_width="match_parent" android:layout_height="300dp" android:gravity="top|start" android:hint="可直接粘贴完整 JSON；若输入法/剪贴板截断，请使用下方‘从剪贴板直接解析’或‘从文件导入’" android:inputType="textMultiLine|textNoSuggestions" android:scrollbars="vertical" android:overScrollMode="always" android:minLines="12" android:textIsSelectable="true" />
