@@ -5,7 +5,7 @@ import com.locogo.astockguard.Position
 import com.locogo.astockguard.Quote
 import com.locogo.astockguard.ui.main.MainViewModel
 
-/** V4 name for the retained V3.5 business ViewModel during the staged migration. */
+/** 分阶段迁移期间沿用 V3.5 业务实现，并以 V4 名称对外暴露。 */
 typealias DashboardViewModel = MainViewModel
 
 data class MarketIndexUi(
@@ -43,7 +43,7 @@ object DashboardSummaryMapper {
                 index("创业板指", indexByCode["399006.SZ"])
             ),
             turnover = listOfNotNull(indexByCode["000001.SH"]?.amount, indexByCode["399001.SZ"]?.amount)
-                .takeIf { it.isNotEmpty() }?.sum()?.times(10_000.0),
+                .takeIf { it.isNotEmpty() }?.sumOf(::normalizeIndexTurnover),
             risingCount = tracked.count { (it.changeRatio ?: 0.0) > 0.0 },
             fallingCount = tracked.count { (it.changeRatio ?: 0.0) < 0.0 },
             flatCount = tracked.count { it.changeRatio == 0.0 },
@@ -69,4 +69,8 @@ object DashboardSummaryMapper {
     }
 
     private fun index(name: String, quote: Quote?) = MarketIndexUi(name, quote?.latest, quote?.changeRatio)
+
+    /** 当前行情统一使用“元”；旧版 Room 缓存仍可能保存腾讯接口的“万元”字段。 */
+    private fun normalizeIndexTurnover(value: Double): Double =
+        if (value > 0.0 && value < 10_000_000_000.0) value * 10_000.0 else value
 }

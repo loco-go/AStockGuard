@@ -31,6 +31,21 @@ class TechnicalIndicatorSetTest {
         assertTrue(TechnicalIndicatorSet.rsi(closes).last()!! >= 99.0)
     }
 
+    @Test
+    fun `atr uses gaps and keeps warmup explicit`() {
+        val candles = listOf(
+            StockKLine(1, "1", 10.0, 10.5, 9.5, 10.0, 100.0),
+            StockKLine(2, "2", 11.0, 11.5, 10.8, 11.2, 100.0),
+            StockKLine(3, "3", 11.1, 11.4, 10.9, 11.0, 100.0)
+        )
+
+        val atr = TechnicalIndicatorSet.atr(candles, 2)
+
+        assertNull(atr.first())
+        assertEquals(1.25, atr[1]!!, 0.0001)
+        assertEquals(1.0, atr[2]!!, 0.0001)
+    }
+
     private fun candle(index: Int, close: Double, volume: Double) = StockKLine(
         timestamp = index.toLong(), date = index.toString(), open = close - 0.1,
         high = close + 0.2, low = close - 0.2, close = close, volume = volume

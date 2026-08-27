@@ -6,6 +6,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
+import java.time.LocalDate
 import java.util.concurrent.TimeUnit
 
 class TencentHistoryClient(
@@ -16,12 +17,28 @@ class TencentHistoryClient(
 ) {
     suspend fun fetchDaily(code: String, count: Int = 30): List<DailyBar> = withContext(Dispatchers.IO) {
         val tc = TencentMarketClient.toTencentCode(code)
-        val url = "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=$tc,day,,,$count,qfq"
+        val collected = mutableListOf<DailyBar>()
+        var endDate: LocalDate? = null
+        while (collected.size < count) {
+            val requested = minOf(PAGE_SIZE, count - collected.size)
+            val page = fetchPage(tc, requested, endDate)
+            if (page.isEmpty()) break
+            collected += page
+            val oldest = page.minOf { LocalDate.parse(it.date) }
+            endDate = oldest.minusDays(1)
+            if (page.size < requested) break
+        }
+        collected.distinctBy { it.date }.sortedBy { it.date }.takeLast(count)
+    }
+
+    private fun fetchPage(tencentCode: String, count: Int, endDate: LocalDate?): List<DailyBar> {
+        val end = endDate?.toString().orEmpty()
+        val url = "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=$tencentCode,day,,$end,$count,qfq"
         val request = Request.Builder().url(url).build()
-        client.newCall(request).execute().use { response ->
+        return client.newCall(request).execute().use { response ->
             val text = response.body?.string().orEmpty()
             if (!response.isSuccessful) error("腾讯K线 HTTP ${response.code}")
-            parse(tc, text)
+            parse(tencentCode, text)
         }
     }
 
@@ -47,4 +64,8 @@ class TencentHistoryClient(
     }
 
     private fun JSONArray.num(index: Int): Double? = opt(index)?.toString()?.toDoubleOrNull()
+
+    private companion object {
+        const val PAGE_SIZE = 640
+    }
 }

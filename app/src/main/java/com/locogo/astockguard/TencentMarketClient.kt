@@ -30,10 +30,18 @@ class TencentMarketClient(
         if (body.isBlank()) return@mapNotNull null
         val a = body.split('~')
         if (a.size < 35) return@mapNotNull null
-        val code = SettingsRepository.normalizeCode(a.getOrNull(2).orEmpty())
+        val wireSymbol = line.substringBefore('=').substringAfter("v_").lowercase()
+        val digits = a.getOrNull(2).orEmpty().filter(Char::isDigit).takeLast(6)
+        val code = when {
+            wireSymbol.startsWith("sh") -> "$digits.SH"
+            wireSymbol.startsWith("sz") -> "$digits.SZ"
+            else -> SettingsRepository.normalizeCode(digits)
+        }
         val latest = a.getOrNull(3)?.toDoubleOrNull()
         val volume = a.getOrNull(6)?.toDoubleOrNull()
         val amountWan = a.getOrNull(37)?.toDoubleOrNull()
+        val amountYuan = a.getOrNull(35)?.split('/')?.getOrNull(2)?.toDoubleOrNull()
+            ?: amountWan?.times(10_000.0)
         Quote(
             code = code,
             name = a.getOrNull(1).orEmpty(),
@@ -45,8 +53,8 @@ class TencentMarketClient(
             previousClose = a.getOrNull(4)?.toDoubleOrNull(),
             changeRatio = a.getOrNull(32)?.toDoubleOrNull(),
             volume = volume,
-            amount = amountWan,
-            vwap = inferVwap(latest, volume, amountWan)
+            amount = amountYuan,
+            vwap = inferVwap(latest, volume, amountYuan)
         )
     }
 

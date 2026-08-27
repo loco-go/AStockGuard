@@ -1,6 +1,7 @@
 package com.locogo.astockguard.ui.chart
 
 import com.locogo.astockguard.DailyBar
+import com.locogo.astockguard.MinuteBar
 import com.locogo.astockguard.chart.ChartPeriod
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -38,4 +39,29 @@ class ChartDataMapperTest {
     fun minuteUsesDedicatedSeriesInsteadOfCandles() {
         assertTrue(ChartDataMapper.aggregate(daily, ChartPeriod.MINUTE).isEmpty())
     }
+
+    @Test
+    fun aggregatesMinuteQuotesIntoFiveMinuteOhlcvCandles() {
+        val source = listOf(
+            minute("09:30", 10.0, 100.0),
+            minute("09:31", 10.2, 130.0),
+            minute("09:32", 9.9, 180.0),
+            minute("09:33", 10.1, 210.0),
+            minute("09:34", 10.3, 250.0),
+            minute("09:35", 10.4, 280.0)
+        )
+
+        val candles = ChartDataMapper.aggregateMinutes(source)
+
+        assertEquals(2, candles.size)
+        assertEquals(10.0, candles.first().open, 0.0)
+        assertEquals(10.3, candles.first().close, 0.0)
+        assertEquals(10.3, candles.first().high, 0.0)
+        assertEquals(9.9, candles.first().low, 0.0)
+        assertEquals(250.0, candles.first().volume, 0.0)
+        assertEquals(30.0, candles.last().volume, 0.0)
+    }
+
+    private fun minute(time: String, price: Double, volume: Double) =
+        MinuteBar(time, price, 10.0, price, price, volume, price * volume)
 }

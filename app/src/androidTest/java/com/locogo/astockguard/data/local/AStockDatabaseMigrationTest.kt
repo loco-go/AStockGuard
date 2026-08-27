@@ -27,7 +27,24 @@ class AStockDatabaseMigrationTest {
         database.close()
     }
 
+    @Test
+    fun migrate9To10ScopesMinuteBarsByDate() {
+        helper.createDatabase(TEST_DB_9_10, 9).apply {
+            execSQL("""INSERT INTO minute_bar_cache
+                (code, time, price, avgPrice, high, low, volume, amount, cachedAt)
+                VALUES ('000001.SZ', '09:30', 10, 10, 10, 10, 100, 100000, 1756252800000)""")
+            close()
+        }
+        val database = helper.runMigrationsAndValidate(TEST_DB_9_10, 10, true, AStockDatabase.MIGRATION_9_10)
+        database.query("SELECT code, date, time, intervalMinutes FROM minute_bar_cache").use { cursor ->
+            org.junit.Assert.assertTrue(cursor.moveToFirst())
+            org.junit.Assert.assertEquals(1, cursor.getInt(3))
+        }
+        database.close()
+    }
+
     private companion object {
         const val TEST_DB = "migration-8-9"
+        const val TEST_DB_9_10 = "migration-9-10"
     }
 }

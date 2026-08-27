@@ -12,7 +12,10 @@ interface CacheDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertDailyBars(items: List<DailyBarCacheEntity>)
     @Query("SELECT * FROM daily_bar_cache WHERE code = :code ORDER BY date DESC LIMIT :limit") suspend fun getDailyBars(code: String, limit: Int): List<DailyBarCacheEntity>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertMinuteBars(items: List<MinuteBarCacheEntity>)
-    @Query("SELECT * FROM minute_bar_cache WHERE code = :code ORDER BY time ASC") suspend fun getMinuteBars(code: String): List<MinuteBarCacheEntity>
+    @Query("SELECT * FROM minute_bar_cache WHERE code = :code AND date = :date ORDER BY time ASC")
+    suspend fun getMinuteBars(code: String, date: String): List<MinuteBarCacheEntity>
+    @Query("SELECT DISTINCT date FROM minute_bar_cache WHERE code = :code ORDER BY date DESC")
+    suspend fun getMinuteBarDates(code: String): List<String>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertFundFlow(items: List<FundFlowCacheEntity>)
     @Query("SELECT * FROM fund_flow_cache WHERE code = :code AND period = :period ORDER BY time ASC") suspend fun getFundFlow(code: String, period: String): List<FundFlowCacheEntity>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertSectorFundFlow(items: List<SectorFundFlowCacheEntity>)

@@ -14,7 +14,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         Level2SnapshotEntity::class, PaperAccountEntity::class, PaperPositionEntity::class,
         PaperOrderEntity::class, PaperEquityEntity::class, StrategySignalEntity::class,
         FundFlowEntity::class],
-    version = 9,
+    version = 10,
     exportSchema = true
 )
 abstract class AStockDatabase : RoomDatabase() {
@@ -89,13 +89,27 @@ abstract class AStockDatabase : RoomDatabase() {
                 net_flow REAL NOT NULL, source TEXT NOT NULL, cached_at INTEGER NOT NULL,
                 PRIMARY KEY(symbol, date))""".trimIndent())
         } }
+        val MIGRATION_9_10 = object : Migration(9, 10) { override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""CREATE TABLE IF NOT EXISTS minute_bar_cache_new (
+                code TEXT NOT NULL, date TEXT NOT NULL, time TEXT NOT NULL, intervalMinutes INTEGER NOT NULL,
+                price REAL NOT NULL, avgPrice REAL NOT NULL, high REAL NOT NULL, low REAL NOT NULL,
+                volume REAL NOT NULL, amount REAL NOT NULL, cachedAt INTEGER NOT NULL,
+                PRIMARY KEY(code, date, time))""".trimIndent())
+            db.execSQL("""INSERT INTO minute_bar_cache_new
+                (code, date, time, intervalMinutes, price, avgPrice, high, low, volume, amount, cachedAt)
+                SELECT code, strftime('%Y-%m-%d', cachedAt / 1000, 'unixepoch', 'localtime'), time, 1,
+                       price, avgPrice, high, low, volume, amount, cachedAt
+                FROM minute_bar_cache""".trimIndent())
+            db.execSQL("DROP TABLE minute_bar_cache")
+            db.execSQL("ALTER TABLE minute_bar_cache_new RENAME TO minute_bar_cache")
+        } }
 
         @Volatile private var instance: AStockDatabase? = null
         fun get(context: Context): AStockDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, AStockDatabase::class.java, "astock_guard.db")
                 .addMigrations(
                     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
-                    MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9
+                    MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10
                 )
                 .build().also { instance = it }
         }

@@ -20,6 +20,8 @@ class V4StrategyScorerTest {
         assertNotNull(result)
         assertFalse(result!!.score.capitalAvailable)
         assertTrue(result.score.totalScore in 0..100)
+        assertTrue(result.reasons.first().contains("v4.1"))
+        assertTrue(result.reasons.any { it.contains("ATR") })
         val signal = result.signal
         assertTrue(signal == null || signal.action == ChartSignalAction.RISK)
     }

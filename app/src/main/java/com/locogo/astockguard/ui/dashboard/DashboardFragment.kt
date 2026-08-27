@@ -16,7 +16,11 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.locogo.astockguard.MainActivity
 import com.locogo.astockguard.R
 import com.locogo.astockguard.appContainer
+import com.locogo.astockguard.chart.ChartPeriod
 import com.locogo.astockguard.databinding.FragmentDashboardBinding
+import com.locogo.astockguard.domain.strategy.ChartSignalAction
+import com.locogo.astockguard.domain.strategy.IntradayChartSignal
+import com.locogo.astockguard.ui.chart.ChartDataMapper
 import com.locogo.astockguard.ui.adapter.PositionAdapter
 import com.locogo.astockguard.ui.main.MainUiState
 import com.locogo.astockguard.ui.main.StrategyUiMapper
@@ -128,7 +132,31 @@ class DashboardFragment : Fragment(), DashboardHandlers {
             "${it.strategy}  收益 ${pct(it.returnPct / 100.0)}  最大回撤 ${pct(it.maxDrawdownPct / 100.0)}\n" +
                 "闭合 ${it.closedTrades}  胜率 ${pct(it.winRatePct / 100.0)}  PF ${String.format(Locale.CHINA, "%.2f", it.profitFactor)}"
         } ?: "进度 ${state.replayIndex + 1}/${state.minuteBars.size}${if (state.replayRunning) "  ·  播放中" else ""}"
+        renderReplayChart(state)
         executePendingBindings()
+    }
+
+    private fun renderReplayChart(state: MainUiState) {
+        val visibleCount = (state.replayIndex + 1).coerceIn(0, state.minuteBars.size)
+        val candles = ChartDataMapper.aggregateMinutes(state.minuteBars.take(visibleCount))
+        val markers = state.replayReport?.trades.orEmpty()
+            .filter { it.index < visibleCount }
+            .mapNotNull { trade ->
+                val candle = candles.lastOrNull { it.time <= trade.time } ?: return@mapNotNull null
+                IntradayChartSignal(
+                    time = candle.time,
+                    price = trade.price,
+                    action = if (trade.side == "BUY") ChartSignalAction.BUY else ChartSignalAction.SELL,
+                    score = 0,
+                    reason = trade.reason
+                )
+            }
+        binding.replayKlineView.render(
+            period = ChartPeriod.MINUTE,
+            candles = emptyList(),
+            minutes = candles,
+            minuteSignals = markers
+        )
     }
 
     private enum class Panel { DECISION, CHART, FLOW, REVIEW }
@@ -209,6 +237,7 @@ class DashboardFragment : Fragment(), DashboardHandlers {
     override fun onDestroyView() {
         binding.listStrategies.adapter = null
         binding.klineView.release()
+        binding.replayKlineView.release()
         _binding = null
         super.onDestroyView()
     }

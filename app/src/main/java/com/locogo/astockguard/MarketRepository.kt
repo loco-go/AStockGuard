@@ -3,15 +3,26 @@ package com.locogo.astockguard
 import com.locogo.astockguard.data.local.CacheDao
 import com.locogo.astockguard.data.local.toCacheEntity
 import com.locogo.astockguard.data.local.toModel
+import java.time.LocalDate
+import java.time.ZoneId
 
 class MarketRepository(
     private val settings: SettingsRepository,
     private val tencent: TencentMarketClient = TencentMarketClient(),
     private val history: TencentHistoryClient = TencentHistoryClient(),
     private val minute: TencentMinuteClient = TencentMinuteClient(),
+    private val historicalMinute: EastMoneyMinuteHistoryClient = EastMoneyMinuteHistoryClient(),
     private val cacheDao: CacheDao? = null
 ) {
-    private data class Cache(val at: Long, val bars: List<DailyBar>)
+    data class MinuteSeries(
+        val date: LocalDate,
+        val bars: List<MinuteBar>,
+        val intervalMinutes: Int,
+        val fromCache: Boolean,
+        val isHistorical: Boolean
+    )
+
+    private data class Cache(val at: Long, val bars: List<DailyBar>, val requestedLimit: Int)
     private val historyCache = mutableMapOf<String, Cache>()
 
     suspend fun refresh(): MonitorSnapshot {
@@ -64,15 +75,42 @@ class MarketRepository(
         )
     }
 
-    suspend fun loadDailyBars(code: String, limit: Int = 30): List<DailyBar> = getHistory(code).takeLast(limit)
+    suspend fun loadDailyBars(code: String, limit: Int = 30): List<DailyBar> = getHistory(code, limit).takeLast(limit)
+
+    suspend fun loadMinuteSeries(code: String, date: LocalDate = marketDate()): MinuteSeries {
+        val cached = cacheDao?.getMinuteBars(code, date.toString()).orEmpty()
+        if (cached.isNotEmpty()) {
+            return MinuteSeries(
+                date = date,
+                bars = cached.map { it.toModel() },
+                intervalMinutes = cached.first().intervalMinutes,
+                fromCache = true,
+                isHistorical = date != marketDate()
+            )
+        }
+        val isHistorical = date != marketDate()
+        val intervalMinutes = if (isHistorical) 5 else 1
+        val remote = if (isHistorical) historicalMinute.fetch5Minute(code, date) else minute.fetch(code)
+        if (remote.isNotEmpty()) {
+            cacheDao?.let { dao ->
+                runCatching {
+                    dao.upsertMinuteBars(remote.map { it.toCacheEntity(code, date.toString(), intervalMinutes) })
+                }
+            }
+        }
+        return MinuteSeries(date, remote, intervalMinutes, fromCache = false, isHistorical = isHistorical)
+    }
 
     suspend fun loadMinuteBars(code: String): List<MinuteBar> {
+        val date = marketDate()
         val remote = runCatching { minute.fetch(code) }.getOrDefault(emptyList())
         if (remote.isNotEmpty()) {
-            cacheDao?.let { dao -> runCatching { dao.upsertMinuteBars(remote.map { it.toCacheEntity(code) }) } }
+            cacheDao?.let { dao ->
+                runCatching { dao.upsertMinuteBars(remote.map { it.toCacheEntity(code, date.toString(), 1) }) }
+            }
             return remote
         }
-        return cacheDao?.getMinuteBars(code).orEmpty().map { it.toModel() }
+        return cacheDao?.getMinuteBars(code, date.toString()).orEmpty().map { it.toModel() }
     }
 
     suspend fun buildPortfolioCurve(positions: List<Position>, limit: Int = 30): List<Pair<String, Double>> {
@@ -92,21 +130,25 @@ class MarketRepository(
         return values.map { it.first to it.second / base * 100.0 }
     }
 
-    private suspend fun getHistory(code: String): List<DailyBar> {
+    private suspend fun getHistory(code: String, limit: Int = 30): List<DailyBar> {
         val now = System.currentTimeMillis()
-        historyCache[code]?.takeIf { now - it.at < 30 * 60 * 1000L }?.let { return it.bars }
-        val remote = runCatching { history.fetchDaily(code, 30) }.getOrDefault(emptyList())
+        historyCache[code]
+            ?.takeIf { now - it.at < 30 * 60 * 1000L && it.requestedLimit >= limit }
+            ?.let { return it.bars }
+        val remote = runCatching { history.fetchDaily(code, limit) }.getOrDefault(emptyList())
         val bars = if (remote.isNotEmpty()) {
             cacheDao?.let { dao -> runCatching { dao.upsertDailyBars(remote.map { it.toCacheEntity(code, now) }) } }
             remote
         } else {
-            cacheDao?.getDailyBars(code, 30).orEmpty().map { it.toModel() }.reversed()
+            cacheDao?.getDailyBars(code, limit).orEmpty().map { it.toModel() }.reversed()
         }
-        historyCache[code] = Cache(now, bars)
+        historyCache[code] = Cache(now, bars, limit)
         return bars
     }
 
     companion object {
         val MARKET_INDEX_CODES = listOf("000001.SH", "399001.SZ", "399006.SZ")
+        private val MARKET_ZONE: ZoneId = ZoneId.of("Asia/Shanghai")
+        fun marketDate(): LocalDate = LocalDate.now(MARKET_ZONE)
     }
 }

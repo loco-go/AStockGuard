@@ -67,10 +67,12 @@ fun DailyBar.toCacheEntity(code: String, now: Long = System.currentTimeMillis())
 
 fun DailyBarCacheEntity.toModel() = DailyBar(date, open, close, high, low, volume)
 
-@Entity(tableName = "minute_bar_cache", primaryKeys = ["code", "time"])
+@Entity(tableName = "minute_bar_cache", primaryKeys = ["code", "date", "time"])
 data class MinuteBarCacheEntity(
     val code: String,
+    val date: String,
     val time: String,
+    val intervalMinutes: Int,
     val price: Double,
     val avgPrice: Double,
     val high: Double,
@@ -80,8 +82,12 @@ data class MinuteBarCacheEntity(
     val cachedAt: Long
 )
 
-fun MinuteBar.toCacheEntity(code: String, now: Long = System.currentTimeMillis()) =
-    MinuteBarCacheEntity(code, time, price, avgPrice, high, low, volume, amount, now)
+fun MinuteBar.toCacheEntity(
+    code: String,
+    date: String,
+    intervalMinutes: Int = 1,
+    now: Long = System.currentTimeMillis()
+) = MinuteBarCacheEntity(code, date, time, intervalMinutes, price, avgPrice, high, low, volume, amount, now)
 
 fun MinuteBarCacheEntity.toModel() = MinuteBar(time, price, avgPrice, high, low, volume, amount)
 

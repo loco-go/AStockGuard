@@ -6,10 +6,11 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import com.locogo.astockguard.DailyBar
-import com.locogo.astockguard.MinuteBar
 import com.locogo.astockguard.chart.ChartPeriod
+import com.locogo.astockguard.chart.MinuteCandle
 import com.locogo.astockguard.chart.StockKLine
 import com.locogo.astockguard.domain.strategy.ChartSignal
+import com.locogo.astockguard.domain.strategy.IntradayChartSignal
 
 class KLineChartView @JvmOverloads constructor(
     context: Context,
@@ -31,17 +32,18 @@ class KLineChartView @JvmOverloads constructor(
     fun render(
         period: ChartPeriod,
         candles: List<StockKLine>,
-        minutes: List<MinuteBar>,
-        signals: List<ChartSignal> = emptyList()
+        minutes: List<MinuteCandle>,
+        signals: List<ChartSignal> = emptyList(),
+        minuteSignals: List<IntradayChartSignal> = emptyList()
     ) {
         val contentKey = if (period == ChartPeriod.MINUTE) minutes.hashCode() else candles.hashCode()
-        val key = 31 * (31 * period.hashCode() + contentKey) + signals.hashCode()
+        val key = 31 * (31 * (31 * period.hashCode() + contentKey) + signals.hashCode()) + minuteSignals.hashCode()
         if (renderedKey == key) return
         renderedKey = key
         val html = if (period == ChartPeriod.MINUTE) {
-            KLineHtmlBuilder.buildMinute(minutes)
+            KLineHtmlBuilder.buildMinute(minutes, minuteSignals)
         } else {
-            KLineHtmlBuilder.buildCandles(candles, signals)
+            KLineHtmlBuilder.buildCandles(candles, signals, period)
         }
         webView.loadDataWithBaseURL("https://appassets.androidplatform.net/", html, "text/html", "UTF-8", null)
     }

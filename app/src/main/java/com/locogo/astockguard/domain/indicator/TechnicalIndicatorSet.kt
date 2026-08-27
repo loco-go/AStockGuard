@@ -49,6 +49,21 @@ object TechnicalIndicatorSet {
         }
     }
 
+    fun atr(candles: List<StockKLine>, period: Int = 14): List<Double?> {
+        require(period > 0) { "period must be positive" }
+        if (candles.isEmpty()) return emptyList()
+        val trueRanges = candles.mapIndexed { index, candle ->
+            if (index == 0) candle.high - candle.low else maxOf(
+                candle.high - candle.low,
+                abs(candle.high - candles[index - 1].close),
+                abs(candle.low - candles[index - 1].close)
+            )
+        }
+        return trueRanges.indices.map { index ->
+            if (index + 1 < period) null else trueRanges.subList(index + 1 - period, index + 1).average()
+        }
+    }
+
     fun kdj(candles: List<StockKLine>, period: Int = 9): List<KdjValue?> {
         require(period > 0) { "period must be positive" }
         var previousK = 50.0
