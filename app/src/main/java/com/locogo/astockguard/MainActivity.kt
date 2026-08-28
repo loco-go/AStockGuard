@@ -16,6 +16,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.locogo.astockguard.databinding.ActivityMainBinding
+import com.locogo.astockguard.integration.ths.ThsSyncBus
 import com.locogo.astockguard.ui.main.MainEffect
 import com.locogo.astockguard.ui.dashboard.DashboardViewModel
 import com.locogo.astockguard.ui.main.MainViewModel
@@ -75,6 +76,8 @@ class MainActivity : AppCompatActivity() {
                 }
                 launch { MonitorBus.snapshot.collect { it?.let(dashboardViewModel::acceptSnapshot) } }
                 launch { MonitorBus.running.collect(dashboardViewModel::updateMonitorRunning) }
+                // 同花顺辅助服务写入持仓后，立即刷新首页，避免仍显示旧配置。
+                launch { ThsSyncBus.events.collect { dashboardViewModel.refresh() } }
             }
         }
         if (savedInstanceState == null) dashboardViewModel.refresh()

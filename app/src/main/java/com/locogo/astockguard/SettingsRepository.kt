@@ -2,6 +2,7 @@ package com.locogo.astockguard
 
 import android.content.Context
 import com.locogo.astockguard.data.news.NewsSource
+import java.util.Locale
 
 class SettingsRepository(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
@@ -18,6 +19,10 @@ class SettingsRepository(context: Context) {
             editor.apply()
         }
     var refreshSeconds: Int get() = prefs.getInt("refresh_seconds", 5).coerceIn(3, 60); set(v) = prefs.edit().putInt("refresh_seconds", v.coerceIn(3, 60)).apply()
+
+    /** 同花顺辅助同步的最后诊断结果，用于区分“未收到事件”和“页面字段未识别”。 */
+    var thsLastSyncAt: Long get() = prefs.getLong("ths_last_sync_at", 0L); set(v) = prefs.edit().putLong("ths_last_sync_at", v).apply()
+    var thsLastSyncMessage: String get() = prefs.getString("ths_last_sync_message", "") ?: ""; set(v) = prefs.edit().putString("ths_last_sync_message", v).apply()
 
     var newsEnabled: Boolean get() = prefs.getBoolean("news_enabled", true); set(v) = prefs.edit().putBoolean("news_enabled", v).apply()
     var newsRefreshMinutes: Int get() = prefs.getInt("news_refresh_minutes", 15).coerceIn(5, 120); set(v) = prefs.edit().putInt("news_refresh_minutes", v.coerceIn(5, 120)).apply()
@@ -47,6 +52,27 @@ class SettingsRepository(context: Context) {
         val p = line.split(',').map { it.trim() }; if (p.size < 5) return@mapNotNull null
         Position(normalizeCode(p[0]), p[1], p[2].toIntOrNull() ?: return@mapNotNull null, p[3].toDoubleOrNull() ?: return@mapNotNull null, p[4].uppercase())
     }.toList()
+
+    /** 原子写入结构化持仓，统一使用应用原有的五列配置格式。 */
+    fun savePositions(positions: List<Position>) {
+        positionsText = positions.joinToString("\n") { position ->
+            listOf(
+                position.code,
+                position.name.replace(',', ' '),
+                position.shares.toString(),
+                String.format(Locale.US, "%.4f", position.cost).trimEnd('0').trimEnd('.'),
+                position.role
+            ).joinToString(",")
+        }
+    }
+
+    /** 记录一次辅助同步扫描；不保存同花顺页面的原始文本。 */
+    fun recordThsSync(message: String, timestamp: Long = System.currentTimeMillis()) {
+        prefs.edit()
+            .putLong("ths_last_sync_at", timestamp)
+            .putString("ths_last_sync_message", message)
+            .apply()
+    }
 
     fun allCodes(): List<String> = linkedSetOf<String>().apply {
         watchCodes.split(',', '\n', ';').map(::normalizeCode).filter(String::isNotBlank).forEach(::add)

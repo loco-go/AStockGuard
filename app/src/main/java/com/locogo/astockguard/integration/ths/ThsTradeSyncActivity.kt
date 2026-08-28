@@ -15,6 +15,9 @@ import com.locogo.astockguard.databinding.ActivityThsTradeSyncBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.math.abs
 
 class ThsTradeSyncActivity : AppCompatActivity() {
@@ -34,6 +37,7 @@ class ThsTradeSyncActivity : AppCompatActivity() {
             openTradeFile.launch(arrayOf("text/csv", "text/tab-separated-values", "text/plain", "application/csv", "*/*"))
         }
         binding.btnRefresh.setOnClickListener { refreshStatus() }
+        lifecycleScope.launch { ThsSyncBus.events.collect { refreshStatus() } }
         refreshStatus()
     }
 
@@ -45,15 +49,24 @@ class ThsTradeSyncActivity : AppCompatActivity() {
     private fun refreshStatus() {
         val enabled = isTradeAccessibilityEnabled()
         lifecycleScope.launch {
-            val count = withContext(Dispatchers.IO) {
+            val tradeCount = withContext(Dispatchers.IO) {
                 appContainer.database.cacheDao().getTradeRecords().count { it.source.startsWith("THS_") }
             }
+            val settings = appContainer.settings
+            val positionCount = settings.positions().size
+            val lastSync = settings.thsLastSyncAt
+            val diagnostic = settings.thsLastSyncMessage
             binding.tvEnabled.text = if (enabled) "● 辅助功能已启用" else "● 辅助功能未启用"
-            binding.tvCount.text = "已同步成交：$count 条"
+            binding.tvCount.text = "当前持仓：$positionCount 只　已同步成交：$tradeCount 条"
             binding.tvStatus.text = if (enabled) {
-                "只读同步已启用。请手动打开同花顺的当日成交、历史成交或交割单页面，股衡会解析可访问的成交字段。"
+                if (lastSync > 0L && diagnostic.isNotBlank()) {
+                    val time = SimpleDateFormat("MM-dd HH:mm:ss", Locale.CHINA).format(Date(lastSync))
+                    "最近检测 $time：$diagnostic\n\n请停留在同花顺持仓页约 1 秒；列表较长时可缓慢滚动，股衡会合并当前可见持仓。"
+                } else {
+                    "只读同步已启用。请手动打开同花顺持仓、当日成交或交割单页面，并停留约 1 秒等待识别。"
+                }
             } else {
-                "只读同步未启用。请在系统辅助功能中开启股衡同花顺成交只读同步。"
+                "只读同步未启用。请在系统辅助功能中开启“股衡同花顺只读同步”，返回后再打开同花顺持仓页。"
             }
         }
     }

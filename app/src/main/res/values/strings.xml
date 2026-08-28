@@ -3,5 +3,5 @@
     <string name="app_name">股衡</string>
     <string name="brand_tagline">智能盯盘 · 风险平衡</string>
     <string name="brand_logo_description">股衡应用标志</string>
-    <string name="ths_accessibility_description">仅在你手动打开同花顺成交/交割页面时读取可访问的成交字段，用于同步买卖点和交易复盘；不会自动点击、下单或保存整页文本。</string>
+    <string name="ths_accessibility_description">仅在你手动打开同花顺持仓、成交或交割页面时读取可访问字段，用于同步持仓和交易复盘；不会自动点击、下单或保存整页文本。</string>
 </resources>
