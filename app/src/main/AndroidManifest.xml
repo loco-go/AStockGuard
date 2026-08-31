@@ -33,6 +33,10 @@
             android:name=".SettingsActivity"
             android:exported="false" />
 
+        <receiver
+            android:name=".integration.ths.ThsScanActionReceiver"
+            android:exported="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true">

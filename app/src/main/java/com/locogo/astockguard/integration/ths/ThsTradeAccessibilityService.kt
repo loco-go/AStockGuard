@@ -11,6 +11,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -26,17 +27,27 @@ class ThsTradeAccessibilityService : AccessibilityService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var scheduledScan: Job? = null
     private var pollingJob: Job? = null
+    private var manualScanJob: Job? = null
     private var lastScanAt = 0L
     private var lastNameResolveAt = 0L
     private val packageMatchCache = mutableMapOf<String, Boolean>()
     private val resolvedNameCodes = mutableMapOf<String, String>()
+    private var lastNotificationStatus = ""
+    private var lastSuccessfulStatus = ""
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         // 授权开关不等于系统已成功绑定；记录此状态方便在同步页直接判断服务是否真正运行。
-        appContainer.settings.recordThsSync("辅助服务已连接，等待打开同花顺持仓页")
+        lastSuccessfulStatus = appContainer.settings.thsLastSuccessMessage
+        val connectedStatus = if (lastSuccessfulStatus.isBlank()) {
+            "辅助服务已连接，等待打开同花顺持仓或成交页"
+        } else {
+            "辅助服务已连接；上次结果：$lastSuccessfulStatus"
+        }
+        publishStatus(connectedStatus)
         android.util.Log.i("ThsTradeSync", "Accessibility service connected")
         startForegroundWindowPolling()
+        observeManualScanRequests()
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -69,11 +80,12 @@ class ThsTradeAccessibilityService : AccessibilityService() {
     private suspend fun syncVisibleData(
         packageName: String,
         eventSource: AccessibilityNodeInfo?,
-        rootOverride: AccessibilityNodeInfo? = null
+        rootOverride: AccessibilityNodeInfo? = null,
+        userInitiated: Boolean = false
     ) {
         val root = rootOverride ?: findReadableRoot()
         if (root == null && eventSource == null) {
-            appContainer.settings.recordThsSync("检测到同花顺，但暂时无法读取当前窗口，请停留在持仓页后重试")
+            publishStatus("检测到同花顺，但暂时无法读取当前窗口，请停留在持仓页后重试")
             return
         }
         // 延迟期间用户可能已经切换应用，避免把其他窗口误当作同花顺页面解析。
@@ -149,14 +161,25 @@ class ThsTradeAccessibilityService : AccessibilityService() {
             }
         }
 
+        val buyCount = trades.count { it.side == "BUY" }
+        val sellCount = trades.count { it.side == "SELL" }
+        val tradeSummary = "成交 ${trades.size} 条（买入 $buyCount / 卖出 $sellCount）"
         val message = when {
-            positions.isNotEmpty() && trades.isNotEmpty() -> "已识别持仓 ${positions.size} 只、成交 ${trades.size} 条"
+            positions.isNotEmpty() && trades.isNotEmpty() -> "已识别持仓 ${positions.size} 只、$tradeSummary"
             positions.isNotEmpty() -> "已识别可见持仓 ${positions.size} 只${if (positionChanged) "，配置已更新" else "，数据无变化"}"
-            trades.isNotEmpty() -> "已识别成交 ${trades.size} 条，本次新增 $insertedTrades 条"
+            trades.isNotEmpty() -> "已识别$tradeSummary，本次新增 $insertedTrades 条"
             visibleTexts.isEmpty() -> "已读取同花顺窗口（$packageName），但页面没有可访问文本"
             else -> "已读取同花顺窗口（$packageName），但未识别到持仓或成交字段（文本 ${visibleTexts.size} 项）"
         }
-        appContainer.settings.recordThsSync(message)
+        val recognized = positions.isNotEmpty() || trades.isNotEmpty()
+        if (recognized) {
+            lastSuccessfulStatus = message
+            appContainer.settings.thsLastSuccessMessage = message
+            publishStatus(message)
+        } else if (userInitiated || lastSuccessfulStatus.isBlank()) {
+            // 自动轮询经过同花顺首页、自选页时不覆盖最近一次成功结果；手动点击则明确反馈失败原因。
+            publishStatus(message, forceNotification = userInitiated)
+        }
         if (positionChanged || insertedTrades > 0) ThsSyncBus.notifyDataChanged()
         android.util.Log.d("ThsTradeSync", "同步扫描完成：$packageName，$message")
     }
@@ -175,12 +198,15 @@ class ThsTradeAccessibilityService : AccessibilityService() {
     }
 
     override fun onInterrupt() {
+        publishStatus("辅助服务被系统中断，等待系统重新连接")
         android.util.Log.i("ThsTradeSync", "Accessibility sync interrupted by the system")
     }
 
     override fun onDestroy() {
         scheduledScan?.cancel()
         pollingJob?.cancel()
+        manualScanJob?.cancel()
+        ThsRecognitionNotification.cancel(this)
         scope.cancel()
         super.onDestroy()
     }
@@ -201,11 +227,66 @@ class ThsTradeAccessibilityService : AccessibilityService() {
                     lastScanAt = now
                     syncVisibleData(activePackage, null, activeRoot)
                 } else if (activeRoot == null) {
-                    appContainer.settings.recordThsSync("辅助服务已连接，但系统暂未提供可读取窗口")
+                    publishStatus("辅助服务已连接，但系统暂未提供可读取窗口")
                 }
                 delay(if (isTonghuashun) FOREGROUND_POLL_INTERVAL_MS else BACKGROUND_POLL_INTERVAL_MS)
             }
         }
+    }
+
+    /** 消费通知栏“立即识别”按钮；等待通知面板收起后再读取底层同花顺窗口。 */
+    private fun observeManualScanRequests() {
+        manualScanJob?.cancel()
+        manualScanJob = scope.launch {
+            ThsScanCommandBus.requests.collect {
+                showNotification("正在识别，请保持同花顺页面打开…", force = true)
+                val root = waitForTonghuashunRoot()
+                if (root == null) {
+                    publishStatus("手动识别失败：请先打开同花顺持仓或成交页面，再点击立即识别", forceNotification = true)
+                } else {
+                    val packageName = root.packageName?.toString().orEmpty()
+                    lastScanAt = System.currentTimeMillis()
+                    lastNotificationStatus = ""
+                    syncVisibleData(packageName, null, root, userInitiated = true)
+                }
+            }
+        }
+    }
+
+    /** 通知面板关闭在不同系统上有延迟，最多等待约 1.8 秒寻找同花顺活动窗口。 */
+    private suspend fun waitForTonghuashunRoot(): AccessibilityNodeInfo? {
+        repeat(8) {
+            delay(500)
+            val root = findReadableRoot()
+            if (root != null && isTonghuashunPackage(root.packageName?.toString().orEmpty())) {
+                val preview = ArrayList<String>(32)
+                collectTexts(root, preview, 0)
+                val hasTargetMarker = preview.any { text ->
+                    text.contains("持仓") || text.contains("成本") || text.contains("成交") ||
+                        text.contains("买入") || text.contains("卖出") || text.contains("交割")
+                }
+                // 通知面板刚关闭时可能只有少量根节点，必须等业务页面树恢复后才扫描。
+                if (preview.size >= MIN_MANUAL_TEXT_NODES && hasTargetMarker) return root
+            }
+        }
+        return null
+    }
+
+    /** 同步持久化状态并刷新通知；相同自动结果不重复刷新状态栏。 */
+    private fun publishStatus(message: String, forceNotification: Boolean = false) {
+        appContainer.settings.recordThsSync(message)
+        showNotification(message, forceNotification)
+    }
+
+    private fun showNotification(message: String, force: Boolean = false) {
+        val settings = appContainer.settings
+        if (!settings.thsStatusNotificationEnabled) {
+            ThsRecognitionNotification.cancel(this)
+            return
+        }
+        if (!force && message == lastNotificationStatus) return
+        lastNotificationStatus = message
+        ThsRecognitionNotification.show(this, message)
     }
 
     /** MIUI 偶尔令 rootInActiveWindow 为空，改从交互窗口列表寻找活动或聚焦窗口。 */
@@ -224,6 +305,7 @@ class ThsTradeAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val MAX_TEXT_NODES = 800
+        private const val MIN_MANUAL_TEXT_NODES = 10
         private const val MIN_SCAN_INTERVAL_MS = 1_200L
         private const val FOREGROUND_POLL_INTERVAL_MS = 2_000L
         private const val BACKGROUND_POLL_INTERVAL_MS = 6_000L

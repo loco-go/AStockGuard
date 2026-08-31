@@ -23,6 +23,10 @@ class SettingsRepository(context: Context) {
     /** 同花顺辅助同步的最后诊断结果，用于区分“未收到事件”和“页面字段未识别”。 */
     var thsLastSyncAt: Long get() = prefs.getLong("ths_last_sync_at", 0L); set(v) = prefs.edit().putLong("ths_last_sync_at", v).apply()
     var thsLastSyncMessage: String get() = prefs.getString("ths_last_sync_message", "") ?: ""; set(v) = prefs.edit().putString("ths_last_sync_message", v).apply()
+    var thsLastSuccessMessage: String get() = prefs.getString("ths_last_success_message", "") ?: ""; set(v) = prefs.edit().putString("ths_last_success_message", v).apply()
+    var thsStatusNotificationEnabled: Boolean
+        get() = prefs.getBoolean("ths_status_notification_enabled", true)
+        set(v) = prefs.edit().putBoolean("ths_status_notification_enabled", v).apply()
 
     var newsEnabled: Boolean get() = prefs.getBoolean("news_enabled", true); set(v) = prefs.edit().putBoolean("news_enabled", v).apply()
     var newsRefreshMinutes: Int get() = prefs.getInt("news_refresh_minutes", 15).coerceIn(5, 120); set(v) = prefs.edit().putInt("news_refresh_minutes", v.coerceIn(5, 120)).apply()

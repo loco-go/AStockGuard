@@ -15,6 +15,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.core.widget.doOnTextChanged
 import com.locogo.astockguard.databinding.ActivitySettingsBinding
 import com.locogo.astockguard.integration.ths.ThsTradeSyncActivity
+import com.locogo.astockguard.integration.ths.ThsRecognitionNotification
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -41,6 +42,17 @@ class SettingsActivity : AppCompatActivity() {
         binding.spBackupType.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, aiTypes)
         binding.spLevel2Type.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, level2Types)
         load()
+        binding.swThsStatusNotification.setOnCheckedChangeListener { _, enabled ->
+            settings.thsStatusNotificationEnabled = enabled
+            if (enabled) {
+                ThsRecognitionNotification.show(
+                    this,
+                    settings.thsLastSyncMessage.ifBlank { "等待辅助服务连接" }
+                )
+            } else {
+                ThsRecognitionNotification.cancel(this)
+            }
+        }
 
         binding.etImportText.filters = emptyArray()
         binding.etImportText.doOnTextChanged { text, _, _, _ ->
@@ -100,6 +112,7 @@ class SettingsActivity : AppCompatActivity() {
         etPositionRatio.setText(settings.positionRatio.toString())
         etCashBalance.setText(settings.cashBalance?.toString().orEmpty())
         etRefreshSeconds.setText(settings.refreshSeconds.toString())
+        swThsStatusNotification.isChecked = settings.thsStatusNotificationEnabled
         swNewsEnabled.isChecked = settings.newsEnabled
         etNewsRefreshMinutes.setText(settings.newsRefreshMinutes.toString())
         etNewsSources.setText(settings.newsSourcesText)
@@ -125,6 +138,7 @@ class SettingsActivity : AppCompatActivity() {
         settings.positionRatio = etPositionRatio.text.toString().toDoubleOrNull() ?: 0.0
         settings.cashBalance = etCashBalance.text.toString().trim().takeIf { it.isNotBlank() }?.toDoubleOrNull()
         settings.refreshSeconds = etRefreshSeconds.text.toString().toIntOrNull() ?: 5
+        settings.thsStatusNotificationEnabled = swThsStatusNotification.isChecked
         settings.newsEnabled = swNewsEnabled.isChecked
         settings.newsRefreshMinutes = etNewsRefreshMinutes.text.toString().toIntOrNull() ?: 15
         settings.newsSourcesText = etNewsSources.text.toString().trim().ifBlank { SettingsRepository.DEFAULT_NEWS_SOURCES }
