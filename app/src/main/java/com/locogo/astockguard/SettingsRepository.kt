@@ -24,6 +24,13 @@ class SettingsRepository(context: Context) {
     var thsLastSyncAt: Long get() = prefs.getLong("ths_last_sync_at", 0L); set(v) = prefs.edit().putLong("ths_last_sync_at", v).apply()
     var thsLastSyncMessage: String get() = prefs.getString("ths_last_sync_message", "") ?: ""; set(v) = prefs.edit().putString("ths_last_sync_message", v).apply()
     var thsLastSuccessMessage: String get() = prefs.getString("ths_last_success_message", "") ?: ""; set(v) = prefs.edit().putString("ths_last_success_message", v).apply()
+    var thsEstimatedTotalAssets: Double?
+        get() = prefs.getString("ths_estimated_total_assets", null)?.toDoubleOrNull()
+        set(v) {
+            val editor = prefs.edit()
+            if (v == null) editor.remove("ths_estimated_total_assets") else editor.putString("ths_estimated_total_assets", v.toString())
+            editor.apply()
+        }
     var thsStatusNotificationEnabled: Boolean
         get() = prefs.getBoolean("ths_status_notification_enabled", true)
         set(v) = prefs.edit().putBoolean("ths_status_notification_enabled", v).apply()

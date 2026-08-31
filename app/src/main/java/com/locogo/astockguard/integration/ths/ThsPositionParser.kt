@@ -7,7 +7,9 @@ data class ParsedThsPosition(
     val code: String,
     val name: String,
     val shares: Int,
-    val cost: Double
+    val cost: Double,
+    val marketValue: Double? = null,
+    val latest: Double? = null
 )
 
 /**
@@ -24,6 +26,8 @@ object ThsPositionParser {
     private val costLabels = listOf("持仓成本", "参考成本价", "成本价格", "成本价", "买入均价", "成本")
     private val sharePairRegex = Regex("(?<![\\d.])(\\d{1,9})\\s*/\\s*\\d{1,9}(?![\\d.])")
     private val pricePairRegex = Regex("(?<![\\d.])(\\d+(?:\\.\\d+)?)\\s*/\\s*\\d+(?:\\.\\d+)?(?![\\d.])")
+    private val ratioRegex = Regex("(?:当前)?仓位(?:比例)?\\s*[:：]?\\s*(\\d+(?:\\.\\d+)?)\\s*%")
+    private val percentOnlyRegex = Regex("^(\\d+(?:\\.\\d+)?)\\s*%$")
     private val ignoredNames = (pageMarkers + shareLabels + costLabels + listOf(
         "证券代码", "股票代码", "证券名称", "股票名称", "可用余额", "可用数量", "现价", "市价",
         "市值", "盈亏", "盈亏比例", "当日盈亏", "更多", "操作", "买入", "卖出"
@@ -39,7 +43,11 @@ object ThsPositionParser {
             .toList()
         if (clean.none { token -> pageMarkers.any(token::contains) }) return emptyList()
 
+        val holdingHeader = clean.indexOfFirst { it.contains("成本/现价") || it.contains("成本价/现价") }
+        val codeScanStart = if (holdingHeader >= 0) holdingHeader + 1 else 0
+        val codeScanEnd = if (holdingHeader >= 0) findHoldingTableEnd(clean, holdingHeader) else clean.size
         val codeIndexes = clean.mapIndexedNotNull { index, token ->
+            if (index !in codeScanStart until codeScanEnd) return@mapIndexedNotNull null
             codeRegex.find(token)?.groupValues?.getOrNull(1)?.let { index to it }
         }
         val results = linkedMapOf<String, ParsedThsPosition>()
@@ -70,11 +78,44 @@ object ThsPositionParser {
         val clean = texts.map(String::trim).filter(String::isNotBlank).take(800)
         val headerEnd = clean.indexOfFirst { it.contains("成本/现价") || it.contains("成本价/现价") }
         if (headerEnd < 0) return emptyList()
-        return clean.mapIndexedNotNull { index, token ->
-            if (index <= headerEnd || token in ignoredNames || numberRegex.containsMatchIn(token)) return@mapIndexedNotNull null
-            val following = clean.subList(index + 1, minOf(clean.size, index + 5))
+        val tableEnd = findHoldingTableEnd(clean, headerEnd)
+        return clean.subList(headerEnd + 1, tableEnd).mapIndexedNotNull { localIndex, token ->
+            if (token in ignoredNames || numberRegex.containsMatchIn(token)) return@mapIndexedNotNull null
+            val index = headerEnd + 1 + localIndex
+            val following = clean.subList(index + 1, minOf(tableEnd, index + 5))
             token.takeIf { following.any { value -> value.contains('%') } && token.length in 2..16 }
         }.distinct()
+    }
+
+    /** 只有检测到持仓数量与成本列，才把当前页面视为可用于整体替换的持仓快照。 */
+    fun isHoldingTable(texts: List<String>): Boolean {
+        val clean = texts.map(String::trim)
+        val cardTable = clean.any { it.contains("持仓/可用") } && clean.any { it.contains("成本/现价") }
+        val classicTable = clean.any { it.contains("股票余额") || it.contains("股份余额") } &&
+            clean.any { it.contains("成本价") }
+        return cardTable || classicTable
+    }
+
+    fun isEmptyHoldingTable(texts: List<String>): Boolean = isHoldingTable(texts) && texts.any { token ->
+        token.contains("暂无持仓") || token.contains("暂无数据") || token.contains("当前无持仓") || token.contains("空仓")
+    }
+
+    /** 解析同花顺账户区的当前仓位百分比，支持标签和值位于同一节点或相邻节点。 */
+    fun parsePositionRatio(texts: List<String>): Double? {
+        texts.forEachIndexed { index, raw ->
+            val token = raw.trim()
+            ratioRegex.find(token)?.groupValues?.getOrNull(1)?.toDoubleOrNull()
+                ?.takeIf { it in 0.0..100.0 }
+                ?.let { return it }
+            if (token == "仓位" || token == "当前仓位" || token == "仓位比例") {
+                texts.getOrNull(index + 1)?.trim()?.let { next ->
+                    percentOnlyRegex.matchEntire(next)?.groupValues?.getOrNull(1)?.toDoubleOrNull()
+                        ?.takeIf { it in 0.0..100.0 }
+                        ?.let { return it }
+                }
+            }
+        }
+        return null
     }
 
     /**
@@ -86,12 +127,13 @@ object ThsPositionParser {
         val normalizedCodes = knownCodeByName.entries.associate { normalizeName(it.key) to SettingsRepository.normalizeCode(it.value) }
         val headerEnd = clean.indexOfFirst { it.contains("成本/现价") || it.contains("成本价/现价") }
         if (headerEnd < 0) return emptyList()
+        val tableEnd = findHoldingTableEnd(clean, headerEnd)
 
         val nameIndexes = clean.mapIndexedNotNull { index, token ->
-            normalizedCodes[normalizeName(token)]?.takeIf { index > headerEnd }?.let { index to it }
+            normalizedCodes[normalizeName(token)]?.takeIf { index > headerEnd && index < tableEnd }?.let { index to it }
         }
         return nameIndexes.mapNotNull { (nameIndex, code) ->
-            val nextNameIndex = nameIndexes.firstOrNull { it.first > nameIndex }?.first ?: clean.size
+            val nextNameIndex = nameIndexes.firstOrNull { it.first > nameIndex }?.first ?: tableEnd
             val row = clean.subList(nameIndex + 1, minOf(nextNameIndex, nameIndex + 10))
             val percentIndex = row.indexOfFirst { it.contains('%') }
             if (percentIndex < 0) return@mapNotNull null
@@ -99,7 +141,10 @@ object ThsPositionParser {
             val shares = valuesAfterPercent.getOrNull(0)?.takeIf(::isShareCount)?.toInt() ?: return@mapNotNull null
             // 实际列顺序为持仓、可用、成本、现价，成本位于第三个数值。
             val cost = valuesAfterPercent.getOrNull(2)?.takeIf(::isCost) ?: return@mapNotNull null
-            ParsedThsPosition(code, clean[nameIndex], shares, cost)
+            val latest = valuesAfterPercent.getOrNull(3)?.takeIf(::isCost)
+            val marketValue = row.take(percentIndex).flatMap(::numbers).firstOrNull { it > 0.0 }
+                ?: latest?.times(shares)
+            ParsedThsPosition(code, clean[nameIndex], shares, cost, marketValue, latest)
         }
     }
 
@@ -169,6 +214,15 @@ object ThsPositionParser {
         }?.replace(rawCode, "")?.trim()?.takeIf { it.isNotBlank() }
     }
 
+    /** 持仓表下方常有资讯和管理模块，必须在边界前停止，防止把已卖股票资讯误识别为持仓。 */
+    private fun findHoldingTableEnd(clean: List<String>, headerEnd: Int): Int = clean.indices.firstOrNull { index ->
+        val token = clean[index]
+        index > headerEnd && (
+            token.contains("持仓管理") || token.contains("持仓资讯") || token.contains("持仓诊断") ||
+                token.contains("查看更多持仓")
+            )
+    } ?: clean.size
+
     private fun firstNumber(value: String): Double? = numberRegex.find(value)?.value?.toDoubleOrNull()
     private fun numbers(value: String): List<Double> = numberRegex.findAll(value.replace(",", ""))
         .mapNotNull { it.value.toDoubleOrNull() }
@@ -179,14 +233,13 @@ object ThsPositionParser {
     private fun isCost(value: Double): Boolean = value in 0.001..100_000.0
 }
 
-/** 将本次可见持仓合并进用户配置，同时保留用户原先设置的仓位角色。 */
+/** 以完整同花顺快照替换应用持仓，同时保留仍在持仓中的股票角色。 */
 object ThsPositionMerger {
-    fun merge(existing: List<Position>, incoming: List<ParsedThsPosition>): List<Position> {
-        val merged = linkedMapOf<String, Position>()
-        existing.forEach { merged[it.code] = it }
-        incoming.forEach { parsed ->
-            val old = merged[parsed.code]
-            merged[parsed.code] = Position(
+    fun replace(existing: List<Position>, incoming: List<ParsedThsPosition>): List<Position> {
+        val existingByCode = existing.associateBy(Position::code)
+        return incoming.distinctBy(ParsedThsPosition::code).map { parsed ->
+            val old = existingByCode[parsed.code]
+            Position(
                 code = parsed.code,
                 name = parsed.name.ifBlank { old?.name.orEmpty() },
                 shares = parsed.shares,
@@ -194,6 +247,29 @@ object ThsPositionMerger {
                 role = old?.role ?: "CORE"
             )
         }
-        return merged.values.toList()
+    }
+}
+
+data class ThsAccountEstimate(
+    val positionRatio: Double,
+    val marketValue: Double,
+    val totalAssets: Double,
+    val cashBalance: Double
+)
+
+/** 使用完整持仓市值和当前仓位反推总资产；任一行缺少市值时拒绝估算。 */
+object ThsAccountCalculator {
+    fun estimate(positions: List<ParsedThsPosition>, positionRatio: Double?): ThsAccountEstimate? {
+        val ratio = positionRatio?.takeIf { it > 0.0 && it <= 100.0 } ?: return null
+        if (positions.isEmpty() || positions.any { it.marketValue == null }) return null
+        val marketValue = positions.sumOf { it.marketValue ?: return null }
+        if (marketValue <= 0.0) return null
+        val totalAssets = marketValue / (ratio / 100.0)
+        return ThsAccountEstimate(
+            positionRatio = ratio,
+            marketValue = marketValue,
+            totalAssets = totalAssets,
+            cashBalance = (totalAssets - marketValue).coerceAtLeast(0.0)
+        )
     }
 }
