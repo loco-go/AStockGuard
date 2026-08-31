@@ -51,9 +51,18 @@ class AStockDatabaseMigrationTest {
         database.close()
     }
 
+    @Test
+    fun migrate11To12AddsStrategyVersion() {
+        helper.createDatabase(TEST_DB_11_12, 11).close()
+        val database = helper.runMigrationsAndValidate(TEST_DB_11_12, 12, true, AStockDatabase.MIGRATION_11_12)
+        database.query("SELECT strategyVersion FROM strategy_signal").close()
+        database.close()
+    }
+
     private companion object {
         const val TEST_DB = "migration-8-9"
         const val TEST_DB_9_10 = "migration-9-10"
         const val TEST_DB_10_11 = "migration-10-11"
+        const val TEST_DB_11_12 = "migration-11-12"
     }
 }

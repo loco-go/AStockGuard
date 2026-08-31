@@ -79,11 +79,15 @@ class StockDetailFragment : Fragment() {
                             else -> "${state.period.name} ${state.candles.size} 根K线"
                         }
                         val score = state.strategy?.score
-                        binding.tvTrendScore.text = score?.trendScore?.toString() ?: "--"
-                        binding.tvVolumeScore.text = score?.volumeScore?.toString() ?: "--"
-                        binding.tvCapitalScore.text = if (score?.capitalAvailable == true) score.capitalScore.toString() else "--"
-                        binding.tvPositionScore.text = score?.positionScore?.toString() ?: "--"
+                        binding.tvTrendScore.text = score?.let { "${it.trendScore}/100" } ?: "--"
+                        binding.tvVolumeScore.text = score?.let { "${it.volumeScore}/100" } ?: "--"
+                        binding.tvCapitalScore.text = if (score?.capitalAvailable == true) "${score.capitalScore}/100" else "--"
+                        binding.tvPositionScore.text = score?.let { "${it.positionScore}/100" } ?: "--"
                         binding.tvTotalScore.text = score?.totalScore?.toString() ?: "--"
+                        binding.tvStrategyMeta.text = score?.let {
+                            val weights = it.factors.joinToString(" · ") { factor -> "${factor.name}${factor.weightPct}%" }
+                            "版本 ${it.strategyVersion} · 数据完整度 ${it.dataCompletenessPct}%\n$weights"
+                        } ?: "等待策略数据"
                         binding.tvStrategyReason.text = state.strategy?.reasons?.joinToString("\n")
                             ?: "当前周期至少需要 60 根K线"
                         binding.tvIntradayBacktest.text = with(state.minuteBacktest) {

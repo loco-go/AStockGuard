@@ -151,6 +151,7 @@
                             </LinearLayout>
                         </LinearLayout>
 
+                        <TextView android:id="@+id/tvStrategyMeta" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:background="@drawable/bg_metric_cell" android:padding="10dp" android:text="等待策略数据" android:textColor="@color/astock_text_secondary" android:textSize="11sp" />
                         <TextView android:id="@+id/tvStrategyReason" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:lineSpacingExtra="3dp" android:text="等待策略计算" android:textColor="@color/astock_text_secondary" android:textSize="12sp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>

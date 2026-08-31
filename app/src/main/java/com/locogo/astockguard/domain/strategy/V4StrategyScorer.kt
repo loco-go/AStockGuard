@@ -101,9 +101,21 @@ object V4StrategyScorer {
 
         val weighted = trend * 0.35 + volume * 0.20 + position * 0.25 + if (capitalAvailable) capital * 0.20 else 0.0
         val total = (weighted / if (capitalAvailable) 1.0 else 0.80).roundToInt().coerceIn(0, 100)
-        val score = StrategyScore(trend, volume, capital, position, total, capitalAvailable)
+        // V4.2仅增加版本、权重和证据元数据，评分公式与V4.1保持一致。
+        val factors = listOf(
+            StrategyFactorScore("TREND", "趋势", trend, 35, true, "收盘/均线、MACD与均线斜率"),
+            StrategyFactorScore("VOLUME", "量能", volume, 20, true, "量比、方向量与VWAP"),
+            StrategyFactorScore("CAPITAL", "资金", capital, 20, capitalAvailable, if (capitalAvailable) "${capitalHorizonDays}日主力净流" else "资金数据缺失或过期"),
+            StrategyFactorScore("POSITION", "风险收益", position, 25, true, "RSI、ATR、动量与潜在盈亏比")
+        )
+        val score = StrategyScore(
+            trend, volume, capital, position, total, capitalAvailable,
+            strategyVersion = StrategyVersions.CURRENT,
+            dataCompletenessPct = if (capitalAvailable) 100 else 80,
+            factors = factors
+        )
         val reasons = listOf(
-            "多因子趋势-波动模型 v4.1：趋势 $trend（收盘/MA20、MA20/MA60、MACD、均线斜率）",
+            "多因子趋势-波动模型 ${StrategyVersions.CURRENT}：趋势 $trend（收盘/MA20、MA20/MA60、MACD、均线斜率）",
             "20/60周期动量 ${pct(momentum20)} / ${pct(momentum60)}，RSI ${"%.1f".format(rsi)}",
             "量比 ${"%.2f".format(volumeRatio)}，10周期方向量 ${pct(signedVolumeBalance)}，量能 $volume",
             "ATR ${pct(atrPercent)}，相对常态波动 ${"%.2f".format(volatilityRatio)} 倍，潜在盈亏比 ${"%.2f".format(rewardRisk)}",

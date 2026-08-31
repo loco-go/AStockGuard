@@ -6,6 +6,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.locogo.astockguard.data.fundflow.FundFlowPoint
 import com.locogo.astockguard.domain.strategy.ChartSignal
+import com.locogo.astockguard.domain.strategy.StrategyVersions
 
 @Entity(
     tableName = "strategy_signal",
@@ -18,7 +19,8 @@ data class StrategySignalEntity(
     val price: Double,
     val action: String,
     val score: Int,
-    val reason: String
+    val reason: String,
+    val strategyVersion: String = StrategyVersions.LEGACY
 ) {
     companion object {
         fun from(symbol: String, signal: ChartSignal) = StrategySignalEntity(
@@ -27,7 +29,8 @@ data class StrategySignalEntity(
             price = signal.price,
             action = signal.action.name,
             score = signal.score,
-            reason = signal.reason
+            reason = signal.reason,
+            strategyVersion = signal.strategyVersion
         )
     }
 }
