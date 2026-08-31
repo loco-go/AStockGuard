@@ -30,6 +30,8 @@ data class MainUiState(
     val selectedCode: String? = null,
     val dailyBars: List<DailyBar> = emptyList(),
     val minuteBars: List<MinuteBar> = emptyList(),
+    val minuteFromCache: Boolean = true,
+    val minuteHistorical: Boolean = false,
     val equityCurve: List<Pair<String, Double>> = emptyList(),
     val stockFundFlow: StockFundFlow? = null,
     val sectorFundFlow: SectorFundFlowResult? = null,

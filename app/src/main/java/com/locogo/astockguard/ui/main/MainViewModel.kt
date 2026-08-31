@@ -131,7 +131,8 @@ class MainViewModel(
         }
         viewModelScope.launch {
             val daily = runCatching { marketRepository.loadDailyBars(code, 30) }.getOrDefault(emptyList())
-            val minute = runCatching { marketRepository.loadMinuteBars(code) }.getOrDefault(emptyList())
+            val minuteSeries = runCatching { marketRepository.loadMinuteSeries(code) }.getOrNull()
+            val minute = minuteSeries?.bars.orEmpty()
             val flow = runCatching { fundFlowRepository.stock(code) }.getOrNull()
             val referencePrice = _uiState.value.snapshot?.quotes?.firstOrNull { it.code == code }?.latest
             val level2 = runCatching { level2Repository.snapshot(code, referencePrice) }.getOrNull()
@@ -141,6 +142,8 @@ class MainViewModel(
                     it.copy(
                         dailyBars = daily,
                         minuteBars = minute,
+                        minuteFromCache = minuteSeries?.fromCache ?: true,
+                        minuteHistorical = minuteSeries?.isHistorical ?: false,
                         stockFundFlow = flow,
                         fundFlowLoading = false,
                         level2 = level2,

@@ -103,6 +103,14 @@
 
                     <com.google.android.material.card.MaterialCardView style="@style/Widget.AStockGuard.Card" android:layout_width="match_parent" android:layout_height="wrap_content">
                         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/astock_card_padding">
+                            <TextView style="@style/TextAppearance.AStockGuard.SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="数据质量中心" />
+                            <TextView android:id="@+id/tvDataQualitySummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="正在检查数据源" android:textColor="@color/astock_accent" android:textStyle="bold" />
+                            <TextView android:id="@+id/tvDataQualityDetails" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:background="@drawable/bg_metric_cell" android:lineSpacingExtra="3dp" android:padding="12dp" android:text="暂无质量报告" android:textColor="@color/astock_text_secondary" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <com.google.android.material.card.MaterialCardView style="@style/Widget.AStockGuard.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp">
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/astock_card_padding">
                             <TextView style="@style/TextAppearance.AStockGuard.SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="账户概览" />
                             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:orientation="horizontal">
                                 <TextView android:id="@+id/tvTotalAssets" style="@style/TextAppearance.AStockGuard.Metric" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:background="@drawable/bg_metric_cell" android:gravity="center" android:padding="12dp" android:text="总资产\n--" />

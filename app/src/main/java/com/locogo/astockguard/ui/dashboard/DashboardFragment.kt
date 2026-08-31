@@ -17,6 +17,7 @@ import com.locogo.astockguard.MainActivity
 import com.locogo.astockguard.R
 import com.locogo.astockguard.chart.ChartPeriod
 import com.locogo.astockguard.databinding.FragmentDashboardBinding
+import com.locogo.astockguard.domain.quality.DataQualityEvaluator
 import com.locogo.astockguard.domain.strategy.ChartSignalAction
 import com.locogo.astockguard.domain.strategy.IntradayChartSignal
 import com.locogo.astockguard.ui.chart.ChartDataMapper
@@ -55,6 +56,15 @@ class DashboardFragment : Fragment(), DashboardHandlers {
     private fun render(state: MainUiState) = with(binding) {
         this.state = state
         val snapshot = state.snapshot
+        val quality = DataQualityEvaluator.evaluate(
+            snapshot = snapshot,
+            minuteCount = state.minuteBars.size,
+            minuteFromCache = state.minuteFromCache,
+            minuteHistorical = state.minuteHistorical,
+            stockFundFlow = state.stockFundFlow,
+            level2 = state.level2,
+            news = state.newsRisk
+        )
         val market = DashboardSummaryMapper.market(snapshot)
         val account = DashboardSummaryMapper.account(snapshot, state.positions, state.cashBalance)
         tvShanghaiIndex.text = indexText(market.indices[0])
@@ -78,6 +88,16 @@ class DashboardFragment : Fragment(), DashboardHandlers {
             "阶段 ${snapshot.assessment.marketPhase}  ·  仓位 ${percentValue(snapshot.positionRatio)}\n" +
                 "平均涨跌 ${percentValue(snapshot.assessment.avgChange)}  ·  下跌占比 ${pct(snapshot.assessment.redRatio)}\n" +
                 "$health  ·  ${snapshot.assessment.advice}"
+        }
+        tvDataQualitySummary.text = if (quality.realtimeReady) {
+            "实时策略数据就绪"
+        } else {
+            "仅观察 · ${quality.blockingReasons.joinToString("；")}"
+        }
+        tvDataQualityDetails.text = quality.items.joinToString("\n") { item ->
+            val permission = if (item.usableForRealtime) "可实时使用" else "仅参考"
+            "${item.name}  ${item.status.label} · ${item.source} · $permission" +
+                item.message.takeIf(String::isNotBlank)?.let { "\n  $it" }.orEmpty()
         }
         positionAdapter.submitList(StrategyUiMapper.map(snapshot, state.positions, state.aiStrategy))
         tvTradePlan.text = state.tTradePlan?.let {
