@@ -38,7 +38,9 @@ class MainViewModel(
     private val aiClient: AiClient,
     private val cacheDao: CacheDao
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(MainUiState())
+    private val _uiState = MutableStateFlow(
+        MainUiState(positions = settings.positions(), cashBalance = settings.cashBalance)
+    )
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
     private val _effects = MutableSharedFlow<MainEffect>(extraBufferCapacity = 1)
     val effects: SharedFlow<MainEffect> = _effects.asSharedFlow()
@@ -50,9 +52,53 @@ class MainViewModel(
         _uiState.update { it.copy(monitorRunning = running) }
     }
 
+    /**
+     * 将持久化的真实持仓同步进页面状态。
+     * 同花顺识别与设置页都可能在首页不可见时修改配置，因此不能只依赖下一次行情快照触发重绘。
+     */
+    fun syncPortfolioSettings(): Boolean {
+        val positions = settings.positions()
+        val cashBalance = settings.cashBalance
+        val current = _uiState.value
+        if (positions == current.positions && cashBalance == current.cashBalance) return false
+
+        val positionCodes = positions.mapTo(hashSetOf()) { it.code }
+        val nextCode = current.selectedCode?.takeIf(positionCodes::contains)
+            ?: positions.firstOrNull()?.code
+        val selectionChanged = nextCode != current.selectedCode
+        _uiState.update {
+            it.copy(
+                positions = positions,
+                cashBalance = cashBalance,
+                selectedCode = nextCode,
+                dailyBars = if (selectionChanged) emptyList() else it.dailyBars,
+                minuteBars = if (selectionChanged) emptyList() else it.minuteBars,
+                stockFundFlow = if (selectionChanged) null else it.stockFundFlow,
+                level2 = if (selectionChanged) null else it.level2,
+                tTradePlan = if (selectionChanged) null else it.tTradePlan
+            )
+        }
+        nextCode?.takeIf { selectionChanged }?.let(::selectStock)
+        return true
+    }
+
     fun acceptSnapshot(snapshot: com.locogo.astockguard.MonitorSnapshot) {
-        val selected = _uiState.value.selectedCode ?: snapshot.quotes.firstOrNull()?.code
-        _uiState.update { it.copy(snapshot = snapshot, loading = false, selectedCode = selected, error = null) }
+        val positions = settings.positions()
+        val cashBalance = settings.cashBalance
+        val positionCodes = positions.mapTo(hashSetOf()) { it.code }
+        val selected = _uiState.value.selectedCode?.takeIf(positionCodes::contains)
+            ?: positions.firstOrNull()?.code
+            ?: snapshot.quotes.firstOrNull()?.code
+        _uiState.update {
+            it.copy(
+                snapshot = snapshot,
+                positions = positions,
+                cashBalance = cashBalance,
+                loading = false,
+                selectedCode = selected,
+                error = null
+            )
+        }
         selected?.let(::selectStock)
         viewModelScope.launch {
             val curve = runCatching { marketRepository.buildPortfolioCurve(settings.positions()) }.getOrDefault(emptyList())

@@ -26,23 +26,27 @@ data class StockStrategyUiModel(
 object StrategyUiMapper {
     fun map(snapshot: MonitorSnapshot?, positions: List<Position>, ai: AiStrategy?): List<StockStrategyUiModel> {
         if (snapshot == null) return emptyList()
-        val posByCode = positions.associateBy { it.code }
+        val quoteByCode = snapshot.quotes.associateBy { it.code }
         val marketValue = positions.sumOf { position ->
-            val latest = snapshot.quotes.firstOrNull { it.code == position.code }?.latest ?: 0.0
+            val latest = quoteByCode[position.code]?.latest ?: 0.0
             latest * position.shares
         }
-        return snapshot.quotes.map { quote ->
-            val position = posByCode[quote.code]
+        // 首页是“真实持仓”列表：自选监控代码即使有行情，也不能伪装成仍在持有的股票。
+        return positions.map { position ->
+            val quote = quoteByCode[position.code] ?: com.locogo.astockguard.Quote(
+                code = position.code,
+                name = position.name
+            )
             val local = snapshot.assessment.signals.firstOrNull { it.code == quote.code }
             val aiStock = ai?.stocks?.firstOrNull { normalize(it.symbol) == normalize(quote.code) }
             val localAction = local?.action ?: "HOLD"
             val aiAction = aiStock?.action ?: "-"
             StockStrategyUiModel(
                 code = quote.code,
-                name = quote.name.ifBlank { position?.name.orEmpty() },
-                role = position?.role ?: "WATCH",
-                positionPct = position?.let { p ->
-                    quote.latest?.takeIf { marketValue > 0.0 }?.let { it * p.shares / marketValue * 100.0 }
+                name = quote.name.ifBlank { position.name },
+                role = position.role,
+                positionPct = quote.latest?.takeIf { marketValue > 0.0 }?.let {
+                    it * position.shares / marketValue * 100.0
                 },
                 price = quote.latest,
                 changeRatio = quote.changeRatio,

@@ -15,7 +15,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.locogo.astockguard.MainActivity
 import com.locogo.astockguard.R
-import com.locogo.astockguard.appContainer
 import com.locogo.astockguard.chart.ChartPeriod
 import com.locogo.astockguard.databinding.FragmentDashboardBinding
 import com.locogo.astockguard.domain.strategy.ChartSignalAction
@@ -56,9 +55,8 @@ class DashboardFragment : Fragment(), DashboardHandlers {
     private fun render(state: MainUiState) = with(binding) {
         this.state = state
         val snapshot = state.snapshot
-        val configuredPositions = requireContext().appContainer.settings.positions()
         val market = DashboardSummaryMapper.market(snapshot)
-        val account = DashboardSummaryMapper.account(snapshot, configuredPositions, requireContext().appContainer.settings.cashBalance)
+        val account = DashboardSummaryMapper.account(snapshot, state.positions, state.cashBalance)
         tvShanghaiIndex.text = indexText(market.indices[0])
         tvShenzhenIndex.text = indexText(market.indices[1])
         tvChinextIndex.text = indexText(market.indices[2])
@@ -81,7 +79,7 @@ class DashboardFragment : Fragment(), DashboardHandlers {
                 "平均涨跌 ${percentValue(snapshot.assessment.avgChange)}  ·  下跌占比 ${pct(snapshot.assessment.redRatio)}\n" +
                 "$health  ·  ${snapshot.assessment.advice}"
         }
-        positionAdapter.submitList(StrategyUiMapper.map(snapshot, configuredPositions, state.aiStrategy))
+        positionAdapter.submitList(StrategyUiMapper.map(snapshot, state.positions, state.aiStrategy))
         tvTradePlan.text = state.tTradePlan?.let {
             "${it.code}  ${it.status}\n买入 ${price(it.buyZoneLow)}-${price(it.buyZoneHigh)}  " +
                 "卖出 ${price(it.sellZoneLow)}-${price(it.sellZoneHigh)}\n" +

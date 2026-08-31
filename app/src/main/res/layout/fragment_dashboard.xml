@@ -127,7 +127,7 @@
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
 
-                    <TextView style="@style/TextAppearance.AStockGuard.SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_marginTop="18dp" android:text="持仓与观察池" />
+                    <TextView style="@style/TextAppearance.AStockGuard.SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_marginTop="18dp" android:text="当前持仓" />
                     <androidx.recyclerview.widget.RecyclerView android:id="@+id/listStrategies" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:nestedScrollingEnabled="false" />
                     <com.google.android.material.button.MaterialButton style="@style/Widget.AStockGuard.SecondaryButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:onClick="@{() -> handlers.onFlowTab()}" android:text="查看行业资金流排名" />
 

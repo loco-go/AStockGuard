@@ -82,6 +82,7 @@ class MainActivity : AppCompatActivity() {
                 launch {
                     ThsSyncBus.events.collect {
                         handledThsSyncAt = settings.thsLastSyncAt
+                        dashboardViewModel.syncPortfolioSettings()
                         dashboardViewModel.refresh()
                     }
                 }
@@ -92,9 +93,14 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        // 设置页也能修改持仓；每次回到首页都先同步本地真值，不依赖网络刷新成功与否。
+        val portfolioChanged = if (::settings.isInitialized) dashboardViewModel.syncPortfolioSettings() else false
         // 用户查看同花顺时首页处于 STOPPED，内存事件可能无人接收，因此返回时再核对持久化时间戳。
-        if (::settings.isInitialized && settings.thsLastSyncAt > handledThsSyncAt) {
+        val thsChanged = ::settings.isInitialized && settings.thsLastSyncAt > handledThsSyncAt
+        if (thsChanged) {
             handledThsSyncAt = settings.thsLastSyncAt
+        }
+        if (portfolioChanged || thsChanged) {
             dashboardViewModel.refresh()
         }
     }
