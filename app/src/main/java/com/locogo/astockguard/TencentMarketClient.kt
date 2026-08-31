@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import java.nio.charset.Charset
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
@@ -22,6 +23,20 @@ class TencentMarketClient(
             if (!response.isSuccessful) error("腾讯行情 HTTP ${response.code}")
             val bytes = response.body?.bytes() ?: return@use emptyList()
             parse(String(bytes, Charset.forName("GBK")))
+        }
+    }
+
+    /** 按证券名称查询腾讯候选代码；最终名称一致性由 Repository 拉取实时行情后二次校验。 */
+    suspend fun searchCodes(name: String): List<String> = withContext(Dispatchers.IO) {
+        if (name.isBlank()) return@withContext emptyList()
+        val url = "https://smartbox.gtimg.cn/s3/".toHttpUrl().newBuilder()
+            .addQueryParameter("q", name.trim())
+            .addQueryParameter("t", "all")
+            .build()
+        val request = Request.Builder().url(url).build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) error("腾讯证券搜索 HTTP ${response.code}")
+            parseSearchCodes(response.body?.string().orEmpty())
         }
     }
 
@@ -66,6 +81,16 @@ class TencentMarketClient(
     }
 
     companion object {
+        /** 解析 smartbox 的 sh~600522~名称 格式，只接受当前应用支持的沪深 A 股代码。 */
+        fun parseSearchCodes(text: String): List<String> = Regex("(?:^|[\\\"^])(sh|sz)~(\\d{6})~", RegexOption.IGNORE_CASE)
+            .findAll(text)
+            .map { match ->
+                val suffix = if (match.groupValues[1].equals("sh", true)) "SH" else "SZ"
+                "${match.groupValues[2]}.$suffix"
+            }
+            .distinct()
+            .toList()
+
         fun toTencentCode(code: String): String {
             val normalized = SettingsRepository.normalizeCode(code)
             val digits = normalized.take(6)

@@ -50,6 +50,36 @@ class ThsPositionParserTest {
     }
 
     @Test
+    fun `解析同花顺卡片式斜杠字段`() {
+        val result = ThsPositionParser.parse(
+            listOf(
+                "持仓", "市值/盈亏", "持仓/可用", "成本/现价",
+                "平安银行 000001", "12720.00/-320.00", "1200/1000", "10.25/10.60"
+            )
+        )
+
+        assertEquals(1, result.size)
+        assertEquals(1200, result.single().shares)
+        assertEquals(10.25, result.single().cost, 0.0001)
+    }
+
+    @Test
+    fun `按本地名称映射解析不含证券代码的真实持仓表`() {
+        val result = ThsPositionParser.parse(
+            texts = listOf(
+                "持仓股", "市值", "盈亏", "持仓/可用", "成本/现价",
+                "平安银行", "12,720.00", "-320.00", "-2.45%", "1200", "1000", "10.25", "10.60"
+            ),
+            knownCodeByName = mapOf("平安银行" to "000001.SZ")
+        )
+
+        assertEquals(1, result.size)
+        assertEquals("000001.SZ", result.single().code)
+        assertEquals(1200, result.single().shares)
+        assertEquals(10.25, result.single().cost, 0.0001)
+    }
+
+    @Test
     fun `合并持仓时保留角色与未显示记录`() {
         val existing = listOf(
             Position("000001.SZ", "旧名称", 100, 9.0, "ATTACK"),

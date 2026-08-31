@@ -77,6 +77,27 @@ class MarketRepository(
 
     suspend fun loadDailyBars(code: String, limit: Int = 30): List<DailyBar> = getHistory(code, limit).takeLast(limit)
 
+    /**
+     * 为同花顺未暴露代码的持仓名称补全代码：Room 优先，远端候选必须再用行情名称精确核验。
+     * 搜索失败只返回空映射，不会生成猜测代码或覆盖现有持仓。
+     */
+    suspend fun resolveCodesByNames(names: List<String>): Map<String, String> {
+        val requested = names.map(String::trim).filter(String::isNotBlank).distinct()
+        if (requested.isEmpty()) return emptyMap()
+        val resolved = linkedMapOf<String, String>()
+        cacheDao?.getQuotesByNames(requested).orEmpty().forEach { cached -> resolved[cached.name] = cached.code }
+        requested.filterNot(resolved::containsKey).take(10).forEach { name ->
+            val candidates = runCatching { tencent.searchCodes(name) }.getOrDefault(emptyList()).take(8)
+            val verified = runCatching { tencent.fetchQuotes(candidates) }.getOrDefault(emptyList())
+                .firstOrNull { normalizeStockName(it.name) == normalizeStockName(name) }
+            if (verified != null) {
+                resolved[name] = verified.code
+                cacheDao?.let { dao -> runCatching { dao.upsertQuotes(listOf(verified.toCacheEntity())) } }
+            }
+        }
+        return resolved
+    }
+
     suspend fun loadMinuteSeries(code: String, date: LocalDate = marketDate()): MinuteSeries {
         val cached = cacheDao?.getMinuteBars(code, date.toString()).orEmpty()
         val isHistorical = date != marketDate()
@@ -161,5 +182,6 @@ class MarketRepository(
         val MARKET_INDEX_CODES = listOf("000001.SH", "399001.SZ", "399006.SZ")
         private val MARKET_ZONE: ZoneId = ZoneId.of("Asia/Shanghai")
         fun marketDate(): LocalDate = LocalDate.now(MARKET_ZONE)
+        private fun normalizeStockName(name: String): String = name.trim().replace(" ", "").uppercase()
     }
 }

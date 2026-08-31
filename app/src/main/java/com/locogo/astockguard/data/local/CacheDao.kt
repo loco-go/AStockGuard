@@ -9,6 +9,7 @@ import androidx.room.Query
 interface CacheDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertQuotes(items: List<QuoteCacheEntity>)
     @Query("SELECT * FROM quote_cache WHERE code IN (:codes)") suspend fun getQuotes(codes: List<String>): List<QuoteCacheEntity>
+    @Query("SELECT * FROM quote_cache WHERE name IN (:names)") suspend fun getQuotesByNames(names: List<String>): List<QuoteCacheEntity>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertDailyBars(items: List<DailyBarCacheEntity>)
     @Query("SELECT * FROM daily_bar_cache WHERE code = :code ORDER BY date DESC LIMIT :limit") suspend fun getDailyBars(code: String, limit: Int): List<DailyBarCacheEntity>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertMinuteBars(items: List<MinuteBarCacheEntity>)

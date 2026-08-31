@@ -68,6 +68,8 @@ class SettingsRepository(context: Context) {
 
     /** 记录一次辅助同步扫描；不保存同花顺页面的原始文本。 */
     fun recordThsSync(message: String, timestamp: Long = System.currentTimeMillis()) {
+        // 实时行情会频繁刷新，相同诊断短时间内无需反复写入闪存。
+        if (message == thsLastSyncMessage && timestamp - thsLastSyncAt < 5_000L) return
         prefs.edit()
             .putLong("ths_last_sync_at", timestamp)
             .putString("ths_last_sync_message", message)

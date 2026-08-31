@@ -27,6 +27,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var settings: SettingsRepository
     private lateinit var hiddenChatGpt: HiddenChatGptSession
     private var pendingManualPrompt: String = ""
+    private var handledThsSyncAt: Long = 0L
 
     val dashboardViewModel: DashboardViewModel by viewModels {
         val c = appContainer
@@ -62,6 +63,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
         applySystemBarInsets(binding.mainContainer)
         settings = appContainer.settings
+        handledThsSyncAt = settings.thsLastSyncAt
         askNotificationPermission()
         hiddenChatGpt = HiddenChatGptSession(
             this, settings, dashboardViewModel::onAiStatus,
@@ -77,10 +79,24 @@ class MainActivity : AppCompatActivity() {
                 launch { MonitorBus.snapshot.collect { it?.let(dashboardViewModel::acceptSnapshot) } }
                 launch { MonitorBus.running.collect(dashboardViewModel::updateMonitorRunning) }
                 // 同花顺辅助服务写入持仓后，立即刷新首页，避免仍显示旧配置。
-                launch { ThsSyncBus.events.collect { dashboardViewModel.refresh() } }
+                launch {
+                    ThsSyncBus.events.collect {
+                        handledThsSyncAt = settings.thsLastSyncAt
+                        dashboardViewModel.refresh()
+                    }
+                }
             }
         }
         if (savedInstanceState == null) dashboardViewModel.refresh()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 用户查看同花顺时首页处于 STOPPED，内存事件可能无人接收，因此返回时再核对持久化时间戳。
+        if (::settings.isInitialized && settings.thsLastSyncAt > handledThsSyncAt) {
+            handledThsSyncAt = settings.thsLastSyncAt
+            dashboardViewModel.refresh()
+        }
     }
 
     fun startMonitor() {

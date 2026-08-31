@@ -2,8 +2,8 @@
 <layout xmlns:android="http://schemas.android.com/apk/res/android">
     <ScrollView android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="18dp">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="同花顺交易同步" android:textSize="24sp" android:textStyle="bold" />
-            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="同步真实成交用于图表买卖点与交易复盘。当前实现只读，不会自动点击或提交委托。" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="同花顺持仓与交易同步" android:textSize="24sp" android:textStyle="bold" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="同步可见持仓和真实成交，用于行情展示、图表买卖点与交易复盘。当前实现只读，不会自动点击或提交委托。" />
             <TextView android:id="@+id/tvEnabled" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:textStyle="bold" />
             <TextView android:id="@+id/tvCount" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" />
             <TextView android:id="@+id/tvStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:background="@color/astock_surface_card" android:minHeight="100dp" android:padding="12dp" />
@@ -12,7 +12,7 @@
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:text="交割单文件导入" android:textSize="18sp" android:textStyle="bold" />
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="支持券商导出的 CSV、TSV 或 TXT 文件。两条同步路径最终写入同一 TradeRecord。" />
             <Button android:id="@+id/btnImport" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="选择交割单文件" />
-            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:text="隐私：不保存辅助功能页面原始文本，只保存股票代码、方向、成交价、数量和时间。" android:textColor="@color/astock_text_secondary" android:textSize="12sp" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:text="隐私：不保存辅助功能页面原始文本，只保存股票代码、名称、持仓数量、成本以及结构化成交字段。" android:textColor="@color/astock_text_secondary" android:textSize="12sp" />
         </LinearLayout>
     </ScrollView>
 </layout>
