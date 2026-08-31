@@ -1,5 +1,7 @@
 package com.locogo.astockguard.domain.review
 
+import com.locogo.astockguard.data.local.AccountLedgerEntity
+
 data class SignalReviewItem(
     val code: String,
     val eventAt: Long,
@@ -27,4 +29,29 @@ data class TradeReviewStats(
     val winRate: Double = 0.0,
     val realizedPnl: Double = 0.0,
     val totalFees: Double = 0.0
+)
+
+enum class AccountLedgerType(val value: String, val displayName: String) {
+    OPENING_BALANCE("OPENING_BALANCE", "期初资产"),
+    DEPOSIT("DEPOSIT", "资金转入"),
+    WITHDRAWAL("WITHDRAWAL", "资金转出"),
+    DIVIDEND("DIVIDEND", "分红"),
+    INTEREST("INTEREST", "利息"),
+    FEE("FEE", "费用"),
+    TAX("TAX", "税费");
+
+    companion object {
+        fun from(value: String): AccountLedgerType? = entries.firstOrNull { it.value == value.uppercase() }
+    }
+}
+
+data class AccountLedgerSummary(
+    val entries: List<AccountLedgerEntity> = emptyList(),
+    val totalAssets: Double? = null,
+    val netInvestedCapital: Double? = null,
+    val cumulativePnl: Double? = null,
+    val unrealizedPnl: Double = 0.0,
+    val investmentIncome: Double = 0.0,
+    val explicitCosts: Double = 0.0,
+    val hasOpeningBalance: Boolean = false
 )

@@ -3,6 +3,7 @@ package com.locogo.astockguard.backup
 import androidx.room.withTransaction
 import com.locogo.astockguard.SettingsRepository
 import com.locogo.astockguard.data.local.AStockDatabase
+import com.locogo.astockguard.data.local.AccountLedgerEntity
 import com.locogo.astockguard.data.local.AiAnalysisEntity
 import com.locogo.astockguard.data.local.PaperAccountEntity
 import com.locogo.astockguard.data.local.PaperOrderEntity
@@ -45,6 +46,7 @@ class BackupManager(
         root.put("signalStates", JSONArray().apply { dao.getSignalStates().forEach { put(it.toJson()) } })
         root.put("signalEvents", JSONArray().apply { dao.getSignalEvents(10_000).forEach { put(it.toJson()) } })
         root.put("tradeRecords", JSONArray().apply { dao.getTradeRecords().forEach { put(it.toJson()) } })
+        root.put("accountLedgers", JSONArray().apply { dao.getAccountLedgers().forEach { put(it.toJson()) } })
         root.put("aiAnalysis", JSONArray().apply { dao.latestAiAnalysis(5_000).forEach { put(it.toJson()) } })
         root.put("paperAccount", dao.getPaperAccount()?.toJson() ?: JSONObject.NULL)
         root.put("paperPositions", JSONArray().apply { dao.getPaperPositions().forEach { put(it.toJson()) } })
@@ -68,6 +70,7 @@ class BackupManager(
         val states = root.optJSONArray("signalStates").toSignalStates()
         val events = root.optJSONArray("signalEvents").toSignalEvents()
         val trades = root.optJSONArray("tradeRecords").toTradeRecords()
+        val ledgers = root.optJSONArray("accountLedgers").toAccountLedgers()
         val ai = root.optJSONArray("aiAnalysis").toAiAnalysis()
         val paperAccount = root.optJSONObject("paperAccount")?.toPaperAccount()
         val paperPositions = root.optJSONArray("paperPositions").toPaperPositions()
@@ -79,6 +82,11 @@ class BackupManager(
             if (states.isNotEmpty()) dao.upsertSignalStates(states)
             if (events.isNotEmpty()) dao.insertSignalEvents(events)
             if (trades.isNotEmpty()) dao.insertTradeRecords(trades)
+            // 旧版备份没有账户流水字段，导入时保留设备上已有流水，避免意外抹掉收益基准。
+            if (root.has("accountLedgers")) {
+                dao.clearAccountLedgers()
+                if (ledgers.isNotEmpty()) dao.insertAccountLedgers(ledgers)
+            }
             if (ai.isNotEmpty()) dao.insertAiAnalyses(ai)
             if (root.has("paperAccount") || root.has("paperPositions") || root.has("paperOrders")) {
                 dao.clearPaperOrders(); dao.clearPaperPositions(); dao.clearPaperEquity()
@@ -123,6 +131,10 @@ class BackupManager(
         put("tradeAt", tradeAt); put("code", code); put("side", side); put("quantity", quantity); put("price", price)
         put("fee", fee); put("source", source); put("note", note)
     }
+    private fun AccountLedgerEntity.toJson() = JSONObject().apply {
+        put("occurredAt", occurredAt); put("type", type); put("amount", amount); put("code", code)
+        put("source", source); put("note", note)
+    }
     private fun AiAnalysisEntity.toJson() = JSONObject().apply {
         put("createdAt", createdAt); put("prompt", prompt); put("rawAnswer", rawAnswer); put("marketAction", marketAction)
         put("confidence", confidence); put("targetPositionPct", targetPositionPct); put("strategyJson", strategyJson)
@@ -148,6 +160,10 @@ class BackupManager(
     private fun JSONArray?.toTradeRecords() = objects().map { o -> TradeRecordEntity(
         tradeAt = o.optLong("tradeAt"), code = o.optString("code"), side = o.optString("side"), quantity = o.optInt("quantity"),
         price = o.optDouble("price"), fee = o.optDouble("fee"), source = o.optString("source", "RESTORE"), note = o.optString("note")) }.filter { it.code.isNotBlank() && it.quantity > 0 }
+    private fun JSONArray?.toAccountLedgers() = objects().map { o -> AccountLedgerEntity(
+        occurredAt = o.optLong("occurredAt"), type = o.optString("type"), amount = o.optDouble("amount"),
+        code = o.optString("code"), source = o.optString("source", "RESTORE"), note = o.optString("note")
+    ) }.filter { it.type.isNotBlank() && it.amount > 0.0 }
     private fun JSONArray?.toAiAnalysis() = objects().map { o -> AiAnalysisEntity(
         createdAt = o.optLong("createdAt"), prompt = o.optString("prompt"), rawAnswer = o.optString("rawAnswer"),
         marketAction = o.optString("marketAction"), confidence = o.optInt("confidence"), targetPositionPct = o.optInt("targetPositionPct"),
@@ -169,7 +185,7 @@ class BackupManager(
 
     companion object {
         private const val FORMAT = "ASTOCK_GUARD_BACKUP"
-        private const val VERSION = 1
+        private const val VERSION = 2
         private const val MAX_IMPORT_CHARS = 20_000_000
     }
 }

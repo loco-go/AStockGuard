@@ -1,6 +1,9 @@
 package com.locogo.astockguard.domain.review
 
 import com.locogo.astockguard.MarketRepository
+import com.locogo.astockguard.Position
+import com.locogo.astockguard.Quote
+import com.locogo.astockguard.data.local.AccountLedgerEntity
 import com.locogo.astockguard.data.local.CacheDao
 import com.locogo.astockguard.data.local.TradeRecordEntity
 import java.time.Instant
@@ -10,6 +13,37 @@ class ReviewRepository(
     private val dao: CacheDao,
     private val marketRepository: MarketRepository
 ) {
+    suspend fun recordAccountLedger(
+        type: AccountLedgerType,
+        amount: Double,
+        code: String = "",
+        note: String = "",
+        source: String = "USER"
+    ) {
+        require(amount.isFinite() && amount > 0.0) { "流水金额必须大于0" }
+        dao.insertAccountLedger(
+            AccountLedgerEntity(
+                occurredAt = System.currentTimeMillis(),
+                type = type.value,
+                amount = amount,
+                code = code.trim(),
+                source = source,
+                note = note.trim()
+            )
+        )
+    }
+
+    suspend fun accountLedgerSummary(
+        positions: List<Position>,
+        quotes: List<Quote>,
+        cashBalance: Double?
+    ): AccountLedgerSummary = AccountLedgerCalculator.calculate(
+        entries = dao.getAccountLedgers(),
+        positions = positions,
+        quotes = quotes,
+        cashBalance = cashBalance
+    )
+
     suspend fun signalStats(limit: Int = 100): SignalReviewStats {
         val events = dao.getSignalEvents(limit).filter { it.price > 0 && it.action.uppercase() in ACTIONS }
         if (events.isEmpty()) return SignalReviewStats()

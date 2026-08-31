@@ -15,6 +15,7 @@ import com.locogo.astockguard.domain.paper.PaperSummary
 import com.locogo.astockguard.domain.replay.ReplayReport
 import com.locogo.astockguard.domain.review.SignalReviewStats
 import com.locogo.astockguard.domain.review.TradeReviewStats
+import com.locogo.astockguard.domain.review.AccountLedgerSummary
 import com.locogo.astockguard.domain.signal.R2ScanRow
 import com.locogo.astockguard.domain.trading.TTradePlan
 
@@ -50,6 +51,7 @@ data class MainUiState(
     val signalStates: List<SignalStateEntity> = emptyList(),
     val signalReviewStats: SignalReviewStats = SignalReviewStats(),
     val tradeReviewStats: TradeReviewStats = TradeReviewStats(),
+    val accountLedgerSummary: AccountLedgerSummary = AccountLedgerSummary(),
     val newsRisk: NewsRiskAssessment = NewsRiskAssessment(),
     val newsLoading: Boolean = false,
     val error: String? = null

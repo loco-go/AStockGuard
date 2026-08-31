@@ -16,6 +16,7 @@ import com.locogo.astockguard.data.news.NewsRepository
 import com.locogo.astockguard.domain.paper.PaperTradingRepository
 import com.locogo.astockguard.domain.replay.ReplayEngine
 import com.locogo.astockguard.domain.review.ReviewRepository
+import com.locogo.astockguard.domain.review.AccountLedgerType
 import com.locogo.astockguard.domain.signal.R2Scanner
 import com.locogo.astockguard.domain.trading.TTradePlanner
 import kotlinx.coroutines.Job
@@ -298,9 +299,34 @@ class MainViewModel(
         viewModelScope.launch {
             val signals = runCatching { reviewRepository.signalStats() }.getOrDefault(com.locogo.astockguard.domain.review.SignalReviewStats())
             val tradeStats = runCatching { reviewRepository.tradeStats() }.getOrDefault(com.locogo.astockguard.domain.review.TradeReviewStats())
+            val current = _uiState.value
+            val ledger = runCatching {
+                reviewRepository.accountLedgerSummary(
+                    positions = current.positions,
+                    quotes = current.snapshot?.quotes.orEmpty(),
+                    cashBalance = current.cashBalance
+                )
+            }.getOrDefault(com.locogo.astockguard.domain.review.AccountLedgerSummary())
             val code = _uiState.value.selectedCode
             val tradeRecords = runCatching { cacheDao.getTradeRecords().filter { code == null || it.code == code } }.getOrDefault(emptyList())
-            _uiState.update { it.copy(signalReviewStats = signals, tradeReviewStats = tradeStats, tradeRecords = tradeRecords) }
+            _uiState.update {
+                it.copy(
+                    signalReviewStats = signals,
+                    tradeReviewStats = tradeStats,
+                    accountLedgerSummary = ledger,
+                    tradeRecords = tradeRecords
+                )
+            }
+        }
+    }
+
+    /** 记录账户资金或收益流水，写入后立即重新计算真实收益基准。 */
+    fun recordAccountLedger(type: AccountLedgerType, amount: Double, note: String = "") {
+        val code = _uiState.value.selectedCode.orEmpty()
+        viewModelScope.launch {
+            runCatching { reviewRepository.recordAccountLedger(type, amount, code, note) }
+                .onSuccess { refreshReviews() }
+                .onFailure { error -> _uiState.update { it.copy(error = error.message ?: "账户流水记录失败") } }
         }
     }
 

@@ -6,6 +6,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ArrayAdapter
+import android.widget.Spinner
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -18,6 +20,7 @@ import com.locogo.astockguard.R
 import com.locogo.astockguard.chart.ChartPeriod
 import com.locogo.astockguard.databinding.FragmentDashboardBinding
 import com.locogo.astockguard.domain.quality.DataQualityEvaluator
+import com.locogo.astockguard.domain.review.AccountLedgerType
 import com.locogo.astockguard.domain.strategy.ChartSignalAction
 import com.locogo.astockguard.domain.strategy.IntradayChartSignal
 import com.locogo.astockguard.ui.chart.ChartDataMapper
@@ -142,6 +145,20 @@ class DashboardFragment : Fragment(), DashboardHandlers {
             "胜率 ${percentValue(state.signalReviewStats.winRate)}  平均优势 ${percentValue(state.signalReviewStats.averageEdgePct)}\n" +
             "真实成交 ${state.tradeReviewStats.trades}  已闭合 ${state.tradeReviewStats.closedTrades}  " +
             "实现盈亏 ${money(state.tradeReviewStats.realizedPnl)}"
+        tvAccountLedger.text = with(state.accountLedgerSummary) {
+            val truePnl = cumulativePnl?.let(::signedMoney) ?: "待记录期初资产"
+            val capital = netInvestedCapital?.let(::money) ?: "--"
+            buildString {
+                append("净投入 $capital  ·  真实累计收益 $truePnl")
+                append("\n持仓浮盈 ${signedMoney(unrealizedPnl)}  ·  分红利息 ${money(investmentIncome)}  ·  费用税费 ${money(explicitCosts)}")
+                if (!hasOpeningBalance) append("\n请先记录一次期初资产，之后的转入/转出才能与投资收益分离。")
+                entries.take(8).forEach { entry ->
+                    val typeName = AccountLedgerType.from(entry.type)?.displayName ?: entry.type
+                    append("\n$typeName  ${money(entry.amount)}")
+                    if (entry.note.isNotBlank()) append("  ${entry.note}")
+                }
+            }
+        }
         tvPaper.text = with(state.paperSummary) {
             "权益 ${money(equity)}  现金 ${money(cash)}  市值 ${money(marketValue)}  收益 ${pct(returnPct / 100.0)}\n" +
                 positions.take(6).joinToString("  ") { "${it.code} ${it.quantity}股" }
@@ -224,6 +241,7 @@ class DashboardFragment : Fragment(), DashboardHandlers {
     override fun onRefreshLevel2() = viewModel.refreshLevel2()
     override fun onRecordBuy() = showTradeDialog("BUY")
     override fun onRecordSell() = showTradeDialog("SELL")
+    override fun onRecordLedger() = showAccountLedgerDialog()
     override fun onIndustryFlow() = viewModel.refreshSectorFlow("INDUSTRY")
     override fun onConceptFlow() = viewModel.refreshSectorFlow("CONCEPT")
     override fun onClearAnchor() = viewModel.clearBuyAnchor()
@@ -261,6 +279,37 @@ class DashboardFragment : Fragment(), DashboardHandlers {
                 val quantity = quantityInput.text.toString().toIntOrNull() ?: return@setPositiveButton
                 val price = priceInput.text.toString().toDoubleOrNull() ?: return@setPositiveButton
                 viewModel.recordTrade(side, quantity, price)
+            }
+            .show()
+    }
+
+    private fun showAccountLedgerDialog() {
+        val types = AccountLedgerType.entries
+        val typeSpinner = Spinner(requireContext()).apply {
+            adapter = ArrayAdapter(
+                requireContext(), android.R.layout.simple_spinner_dropdown_item, types.map { it.displayName }
+            )
+        }
+        val amountInput = EditText(requireContext()).apply {
+            hint = "金额"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+        }
+        val noteInput = EditText(requireContext()).apply { hint = "备注（可选）" }
+        val content = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            val padding = (20 * resources.displayMetrics.density).toInt()
+            setPadding(padding, 0, padding, 0)
+            addView(typeSpinner)
+            addView(amountInput)
+            addView(noteInput)
+        }
+        AlertDialog.Builder(requireContext())
+            .setTitle("记录账户流水")
+            .setView(content)
+            .setNegativeButton("取消", null)
+            .setPositiveButton("保存") { _, _ ->
+                val amount = amountInput.text.toString().toDoubleOrNull() ?: return@setPositiveButton
+                viewModel.recordAccountLedger(types[typeSpinner.selectedItemPosition], amount, noteInput.text.toString())
             }
             .show()
     }

@@ -14,6 +14,7 @@ interface DashboardHandlers {
     fun onRefreshLevel2()
     fun onRecordBuy()
     fun onRecordSell()
+    fun onRecordLedger()
     fun onIndustryFlow()
     fun onConceptFlow()
     fun onClearAnchor()

@@ -43,8 +43,17 @@ class AStockDatabaseMigrationTest {
         database.close()
     }
 
+    @Test
+    fun migrate10To11CreatesAccountLedger() {
+        helper.createDatabase(TEST_DB_10_11, 10).close()
+        val database = helper.runMigrationsAndValidate(TEST_DB_10_11, 11, true, AStockDatabase.MIGRATION_10_11)
+        database.query("SELECT id, occurredAt, type, amount, code, source, note FROM account_ledger").close()
+        database.close()
+    }
+
     private companion object {
         const val TEST_DB = "migration-8-9"
         const val TEST_DB_9_10 = "migration-9-10"
+        const val TEST_DB_10_11 = "migration-10-11"
     }
 }
