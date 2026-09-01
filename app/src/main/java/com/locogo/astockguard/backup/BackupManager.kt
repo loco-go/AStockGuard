@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import com.locogo.astockguard.SettingsRepository
 import com.locogo.astockguard.data.local.AStockDatabase
 import com.locogo.astockguard.data.local.AccountLedgerEntity
+import com.locogo.astockguard.data.local.AlertRecordEntity
 import com.locogo.astockguard.data.local.AiAnalysisEntity
 import com.locogo.astockguard.data.local.PaperAccountEntity
 import com.locogo.astockguard.data.local.PaperOrderEntity
@@ -47,6 +48,7 @@ class BackupManager(
         root.put("signalEvents", JSONArray().apply { dao.getSignalEvents(10_000).forEach { put(it.toJson()) } })
         root.put("tradeRecords", JSONArray().apply { dao.getTradeRecords().forEach { put(it.toJson()) } })
         root.put("accountLedgers", JSONArray().apply { dao.getAccountLedgers().forEach { put(it.toJson()) } })
+        root.put("alertRecords", JSONArray().apply { dao.getAlertRecords(10_000).forEach { put(it.toJson()) } })
         root.put("aiAnalysis", JSONArray().apply { dao.latestAiAnalysis(5_000).forEach { put(it.toJson()) } })
         root.put("paperAccount", dao.getPaperAccount()?.toJson() ?: JSONObject.NULL)
         root.put("paperPositions", JSONArray().apply { dao.getPaperPositions().forEach { put(it.toJson()) } })
@@ -71,6 +73,7 @@ class BackupManager(
         val events = root.optJSONArray("signalEvents").toSignalEvents()
         val trades = root.optJSONArray("tradeRecords").toTradeRecords()
         val ledgers = root.optJSONArray("accountLedgers").toAccountLedgers()
+        val alerts = root.optJSONArray("alertRecords").toAlertRecords()
         val ai = root.optJSONArray("aiAnalysis").toAiAnalysis()
         val paperAccount = root.optJSONObject("paperAccount")?.toPaperAccount()
         val paperPositions = root.optJSONArray("paperPositions").toPaperPositions()
@@ -86,6 +89,11 @@ class BackupManager(
             if (root.has("accountLedgers")) {
                 dao.clearAccountLedgers()
                 if (ledgers.isNotEmpty()) dao.insertAccountLedgers(ledgers)
+            }
+            // 与账户流水相同，导入旧备份时保留本机提醒历史，避免无提示的数据丢失。
+            if (root.has("alertRecords")) {
+                dao.clearAlertRecords()
+                if (alerts.isNotEmpty()) dao.insertAlertRecords(alerts)
             }
             if (ai.isNotEmpty()) dao.insertAiAnalyses(ai)
             if (root.has("paperAccount") || root.has("paperPositions") || root.has("paperOrders")) {
@@ -135,6 +143,14 @@ class BackupManager(
         put("occurredAt", occurredAt); put("type", type); put("amount", amount); put("code", code)
         put("source", source); put("note", note)
     }
+    private fun AlertRecordEntity.toJson() = JSONObject().apply {
+        put("alertKey", alertKey); put("code", code); put("name", name); put("signalAt", signalAt)
+        put("signalDate", signalDate); put("signalTime", signalTime); put("action", action); put("price", price)
+        put("score", score); put("strategyVersion", strategyVersion); put("source", source); put("dataSource", dataSource)
+        put("reason", reason); put("status", status); put("evaluatedAt", evaluatedAt); put("exitPrice", exitPrice)
+        put("netEdgePct", netEdgePct); put("maxFavorablePct", maxFavorablePct); put("maxAdversePct", maxAdversePct)
+        put("horizonBars", horizonBars)
+    }
     private fun AiAnalysisEntity.toJson() = JSONObject().apply {
         put("createdAt", createdAt); put("prompt", prompt); put("rawAnswer", rawAnswer); put("marketAction", marketAction)
         put("confidence", confidence); put("targetPositionPct", targetPositionPct); put("strategyJson", strategyJson)
@@ -164,6 +180,17 @@ class BackupManager(
         occurredAt = o.optLong("occurredAt"), type = o.optString("type"), amount = o.optDouble("amount"),
         code = o.optString("code"), source = o.optString("source", "RESTORE"), note = o.optString("note")
     ) }.filter { it.type.isNotBlank() && it.amount > 0.0 }
+    private fun JSONArray?.toAlertRecords() = objects().map { o -> AlertRecordEntity(
+        alertKey = o.optString("alertKey"), code = o.optString("code"), name = o.optString("name"),
+        signalAt = o.optLong("signalAt"), signalDate = o.optString("signalDate"), signalTime = o.optString("signalTime"),
+        action = o.optString("action"), price = o.optDouble("price"), score = o.optInt("score"),
+        strategyVersion = o.optString("strategyVersion", "LEGACY"), source = o.optString("source", "RESTORE"),
+        dataSource = o.optString("dataSource", "UNKNOWN"), reason = o.optString("reason"),
+        status = o.optString("status", "PENDING"), evaluatedAt = o.optLong("evaluatedAt"),
+        exitPrice = o.optDouble("exitPrice"), netEdgePct = o.optDouble("netEdgePct"),
+        maxFavorablePct = o.optDouble("maxFavorablePct"), maxAdversePct = o.optDouble("maxAdversePct"),
+        horizonBars = o.optInt("horizonBars", 6)
+    ) }.filter { it.alertKey.isNotBlank() && it.code.isNotBlank() && it.price > 0.0 }
     private fun JSONArray?.toAiAnalysis() = objects().map { o -> AiAnalysisEntity(
         createdAt = o.optLong("createdAt"), prompt = o.optString("prompt"), rawAnswer = o.optString("rawAnswer"),
         marketAction = o.optString("marketAction"), confidence = o.optInt("confidence"), targetPositionPct = o.optInt("targetPositionPct"),
@@ -185,7 +212,7 @@ class BackupManager(
 
     companion object {
         private const val FORMAT = "ASTOCK_GUARD_BACKUP"
-        private const val VERSION = 2
+        private const val VERSION = 3
         private const val MAX_IMPORT_CHARS = 20_000_000
     }
 }

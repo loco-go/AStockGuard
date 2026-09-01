@@ -59,10 +59,19 @@ class AStockDatabaseMigrationTest {
         database.close()
     }
 
+    @Test
+    fun migrate12To13CreatesAlertHistory() {
+        helper.createDatabase(TEST_DB_12_13, 12).close()
+        val database = helper.runMigrationsAndValidate(TEST_DB_12_13, 13, true, AStockDatabase.MIGRATION_12_13)
+        database.query("SELECT alertKey, signalAt, strategyVersion, status, netEdgePct FROM alert_record").close()
+        database.close()
+    }
+
     private companion object {
         const val TEST_DB = "migration-8-9"
         const val TEST_DB_9_10 = "migration-9-10"
         const val TEST_DB_10_11 = "migration-10-11"
         const val TEST_DB_11_12 = "migration-11-12"
+        const val TEST_DB_12_13 = "migration-12-13"
     }
 }

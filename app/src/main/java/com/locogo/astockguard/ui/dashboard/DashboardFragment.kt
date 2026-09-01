@@ -141,10 +141,20 @@ class DashboardFragment : Fragment(), DashboardHandlers {
             }
         } ?: "暂无板块排名"
         tvEquity.text = state.equityCurve.takeLast(8).joinToString("  ") { "${it.first} ${String.format(Locale.CHINA, "%.2f", it.second)}" }.ifBlank { "暂无组合净值" }
-        tvReview.text = "信号 ${state.signalReviewStats.evaluated}/${state.signalReviewStats.total}  " +
-            "胜率 ${percentValue(state.signalReviewStats.winRate)}  平均优势 ${percentValue(state.signalReviewStats.averageEdgePct)}\n" +
-            "真实成交 ${state.tradeReviewStats.trades}  已闭合 ${state.tradeReviewStats.closedTrades}  " +
-            "实现盈亏 ${money(state.tradeReviewStats.realizedPnl)}"
+        tvReview.text = with(state.alertHistoryStats) {
+            buildString {
+                append("真实提醒 $evaluated/$total  待评价 $pending  胜率 ${percentValue(winRatePct)}  平均净优势 ${percentValue(averageNetEdgePct)}")
+                append("\n生命周期信号 ${state.signalReviewStats.evaluated}/${state.signalReviewStats.total}  " +
+                    "真实成交 ${state.tradeReviewStats.trades}  已闭合 ${state.tradeReviewStats.closedTrades}  " +
+                    "实现盈亏 ${money(state.tradeReviewStats.realizedPnl)}")
+                recent.take(8).forEach { alert ->
+                    val result = when (alert.status) { "WIN" -> "成功"; "LOSS" -> "失败"; else -> "待评价" }
+                    append("\n${alert.signalDate} ${alert.signalTime} ${alert.name} ${alert.action} $result")
+                    if (alert.status != "PENDING") append(" ${percentValue(alert.netEdgePct)}")
+                    append(" · ${alert.strategyVersion}")
+                }
+            }
+        }
         tvAccountLedger.text = with(state.accountLedgerSummary) {
             val truePnl = cumulativePnl?.let(::signedMoney) ?: "待记录期初资产"
             val capital = netInvestedCapital?.let(::money) ?: "--"

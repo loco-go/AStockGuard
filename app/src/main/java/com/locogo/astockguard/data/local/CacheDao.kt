@@ -25,6 +25,14 @@ interface CacheDao {
     @Query("SELECT * FROM fund_flow WHERE symbol = :symbol ORDER BY date DESC LIMIT :limit") suspend fun getFundFlowRecords(symbol: String, limit: Int = 20): List<FundFlowEntity>
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insertStrategySignal(item: StrategySignalEntity): Long
     @Query("SELECT * FROM strategy_signal WHERE symbol = :symbol ORDER BY time DESC LIMIT :limit") suspend fun getStrategySignals(symbol: String, limit: Int = 100): List<StrategySignalEntity>
+    @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insertAlertRecord(item: AlertRecordEntity): Long
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertAlertRecords(items: List<AlertRecordEntity>)
+    @Query("SELECT * FROM alert_record WHERE code = :code AND status = 'PENDING' ORDER BY signalAt ASC")
+    suspend fun getPendingAlertRecords(code: String): List<AlertRecordEntity>
+    @Query("SELECT * FROM alert_record ORDER BY signalAt DESC LIMIT :limit")
+    suspend fun getAlertRecords(limit: Int = 100): List<AlertRecordEntity>
+    @Query("UPDATE alert_record SET status = :status, evaluatedAt = :evaluatedAt, exitPrice = :exitPrice, netEdgePct = :netEdgePct, maxFavorablePct = :maxFavorablePct, maxAdversePct = :maxAdversePct WHERE id = :id AND status = 'PENDING'")
+    suspend fun evaluateAlertRecord(id: Long, status: String, evaluatedAt: Long, exitPrice: Double, netEdgePct: Double, maxFavorablePct: Double, maxAdversePct: Double): Int
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertSignalState(item: SignalStateEntity)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertSignalStates(items: List<SignalStateEntity>)
     @Query("SELECT * FROM signal_state WHERE code = :code LIMIT 1") suspend fun getSignalState(code: String): SignalStateEntity?
@@ -70,5 +78,6 @@ interface CacheDao {
     @Query("DELETE FROM signal_event") suspend fun clearSignalEvents()
     @Query("DELETE FROM trade_record") suspend fun clearTradeRecords()
     @Query("DELETE FROM account_ledger") suspend fun clearAccountLedgers()
+    @Query("DELETE FROM alert_record") suspend fun clearAlertRecords()
     @Query("DELETE FROM ai_analysis") suspend fun clearAiAnalysis()
 }

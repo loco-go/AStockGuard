@@ -17,6 +17,7 @@ import com.locogo.astockguard.domain.paper.PaperTradingRepository
 import com.locogo.astockguard.domain.replay.ReplayEngine
 import com.locogo.astockguard.domain.review.ReviewRepository
 import com.locogo.astockguard.domain.review.AccountLedgerType
+import com.locogo.astockguard.domain.review.AlertHistoryRepository
 import com.locogo.astockguard.domain.signal.R2Scanner
 import com.locogo.astockguard.domain.trading.TTradePlanner
 import kotlinx.coroutines.Job
@@ -36,6 +37,7 @@ class MainViewModel(
     private val replayEngine: ReplayEngine,
     private val r2Scanner: R2Scanner,
     private val reviewRepository: ReviewRepository,
+    private val alertHistoryRepository: AlertHistoryRepository,
     private val aiClient: AiClient,
     private val cacheDao: CacheDao
 ) : ViewModel() {
@@ -299,6 +301,7 @@ class MainViewModel(
         viewModelScope.launch {
             val signals = runCatching { reviewRepository.signalStats() }.getOrDefault(com.locogo.astockguard.domain.review.SignalReviewStats())
             val tradeStats = runCatching { reviewRepository.tradeStats() }.getOrDefault(com.locogo.astockguard.domain.review.TradeReviewStats())
+            val alertStats = runCatching { alertHistoryRepository.stats() }.getOrDefault(com.locogo.astockguard.domain.review.AlertHistoryStats())
             val current = _uiState.value
             val ledger = runCatching {
                 reviewRepository.accountLedgerSummary(
@@ -314,6 +317,7 @@ class MainViewModel(
                     signalReviewStats = signals,
                     tradeReviewStats = tradeStats,
                     accountLedgerSummary = ledger,
+                    alertHistoryStats = alertStats,
                     tradeRecords = tradeRecords
                 )
             }
@@ -390,13 +394,14 @@ class MainViewModel(
         private val replayEngine: ReplayEngine,
         private val r2Scanner: R2Scanner,
         private val reviewRepository: ReviewRepository,
+        private val alertHistoryRepository: AlertHistoryRepository,
         private val aiClient: AiClient,
         private val cacheDao: CacheDao
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T = MainViewModel(
             settings, marketRepository, fundFlowRepository, newsRepository, level2Repository,
-            paperTradingRepository, replayEngine, r2Scanner, reviewRepository, aiClient, cacheDao
+            paperTradingRepository, replayEngine, r2Scanner, reviewRepository, alertHistoryRepository, aiClient, cacheDao
         ) as T
     }
 }

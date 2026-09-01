@@ -9,6 +9,7 @@ import com.locogo.astockguard.data.fundflow.FundFlowRepository
 import com.locogo.astockguard.data.news.NewsRepository
 import com.locogo.astockguard.domain.strategy.ChartSignalAction
 import com.locogo.astockguard.domain.strategy.IntradaySignalEngine
+import com.locogo.astockguard.domain.review.AlertHistoryRepository
 import com.locogo.astockguard.domain.trading.TTradePlanner
 import kotlinx.coroutines.*
 import java.time.DayOfWeek
@@ -23,6 +24,7 @@ class MarketMonitorService : Service() {
     private lateinit var marketRepository: MarketRepository
     private lateinit var newsRepository: NewsRepository
     private lateinit var fundFlowRepository: FundFlowRepository
+    private lateinit var alertHistoryRepository: AlertHistoryRepository
     private var lastRisk = ""
     private var lastNewsRisk = "E0"
     private var lastNewsRefreshAt = 0L
@@ -39,6 +41,7 @@ class MarketMonitorService : Service() {
         marketRepository = appContainer.marketRepository
         newsRepository = appContainer.newsRepository
         fundFlowRepository = appContainer.fundFlowRepository
+        alertHistoryRepository = appContainer.alertHistoryRepository
         signalLifecycle = appContainer.signalLifecycle
     }
 
@@ -160,6 +163,8 @@ class MarketMonitorService : Service() {
                 if (series.fromCache || series.isHistorical || series.bars.isEmpty()) return@runCatching
                 val candles = MinuteCandleAggregator.aggregate(series.bars)
                 if (candles.size < MIN_INTRADAY_CANDLES) return@runCatching
+                // 每轮先评价历史待定提醒；不足六根后续K线时仍保持待定，不制造提前结论。
+                alertHistoryRepository.evaluatePending(code, series.date, candles, now)
 
                 val flow = fundFlowRepository.stock(code)
                 val freshFlow = flow.minute.takeIf { isMinuteFlowCurrent(it.lastOrNull()?.time, now) }.orEmpty()
@@ -170,9 +175,19 @@ class MarketMonitorService : Service() {
                 // 服务刚启动时不补发早盘旧信号，只提醒最近完成的确认K线。
                 if (!isSignalRecent(signal.time, now)) return@runCatching
                 val alertKey = "${signal.time}:${signal.action}"
-                if (lastIntradayAlert.put(code, alertKey) == alertKey) return@runCatching
+                if (lastIntradayAlert[code] == alertKey) return@runCatching
 
                 val quote = quoteMap[code]
+                // Room唯一键负责跨进程去重；只有成功落库的实时提醒才真正发通知并进入胜率统计。
+                val recorded = alertHistoryRepository.recordLiveAlert(
+                    code = code,
+                    name = quote?.name.orEmpty(),
+                    date = series.date,
+                    signal = signal,
+                    dataSource = if (freshFlow.isEmpty()) "TENCENT_MINUTE" else "TENCENT_MINUTE+FUND_FLOW"
+                )
+                if (!recorded) return@runCatching
+                lastIntradayAlert[code] = alertKey
                 val actionText = if (signal.action == ChartSignalAction.BUY) "买入观察" else "卖出观察"
                 val flowText = if (freshFlow.isEmpty()) "量能确认" else "主力资金与量能确认"
                 NotificationHelper.alert(

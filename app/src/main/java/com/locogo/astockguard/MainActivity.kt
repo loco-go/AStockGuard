@@ -34,7 +34,7 @@ class MainActivity : AppCompatActivity() {
         MainViewModel.Factory(
             c.settings, c.marketRepository, c.fundFlowRepository, c.newsRepository,
             c.level2Repository, c.paperTradingRepository, c.replayEngine, c.r2Scanner,
-            c.reviewRepository, c.aiClient, c.database.cacheDao()
+            c.reviewRepository, c.alertHistoryRepository, c.aiClient, c.database.cacheDao()
         )
     }
 

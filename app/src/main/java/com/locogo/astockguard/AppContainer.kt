@@ -10,6 +10,7 @@ import com.locogo.astockguard.data.repository.StrategySignalRepository
 import com.locogo.astockguard.domain.paper.PaperTradingRepository
 import com.locogo.astockguard.domain.replay.ReplayEngine
 import com.locogo.astockguard.domain.review.ReviewRepository
+import com.locogo.astockguard.domain.review.AlertHistoryRepository
 import com.locogo.astockguard.domain.signal.R2Scanner
 import com.locogo.astockguard.domain.signal.SignalLifecycleManager
 
@@ -26,6 +27,7 @@ class AppContainer(application: Application) {
     val r2Scanner: R2Scanner by lazy { R2Scanner(marketRepository) }
     val signalLifecycle: SignalLifecycleManager by lazy { SignalLifecycleManager(database.cacheDao()) }
     val reviewRepository: ReviewRepository by lazy { ReviewRepository(database.cacheDao(), marketRepository) }
+    val alertHistoryRepository: AlertHistoryRepository by lazy { AlertHistoryRepository(database.cacheDao()) }
     val backupManager: BackupManager by lazy { BackupManager(settings, database) }
     val aiClient: AiClient by lazy { AiClient() }
 }
