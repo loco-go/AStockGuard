@@ -93,6 +93,17 @@ class DashboardFragment : Fragment(), DashboardHandlers {
                 }
             }
         }
+        tvExposureBacktest.text = if (state.exposureBacktestLoading) {
+            "历史回放计算中…"
+        } else with(state.exposureBacktest) {
+            if (status != "READY") note else buildString {
+                append("日K无前视回放 $sampleDays 日 · 降仓提醒 $reductionSignals 次")
+                append("\n策略收益 ${percentValue(strategyReturnPct)} / 满仓基准 ${percentValue(benchmarkReturnPct)}")
+                append("\n最大回撤 ${percentValue(strategyMaxDrawdownPct)} / 基准 ${percentValue(benchmarkMaxDrawdownPct)}")
+                append("\n降仓后3日有效率 ${reductionSuccessRatePct?.let(::percentValue) ?: "样本不足"}")
+                append("\n$note")
+            }
+        }
         applyTone(tvTodayPnl, account.todayPnl)
         applyTone(tvCumulativePnl, account.cumulativePnl)
         tvMarketSummary.text = if (snapshot == null) {
@@ -118,7 +129,8 @@ class DashboardFragment : Fragment(), DashboardHandlers {
             "${it.code}  ${it.status}\n买入 ${price(it.buyZoneLow)}-${price(it.buyZoneHigh)}  " +
                 "卖出 ${price(it.sellZoneLow)}-${price(it.sellZoneHigh)}\n" +
                 "失效 ${price(it.invalidPrice)}  数量 ${it.suggestedQuantity}\n" +
-                "资金 ${it.fundFlowStatus}  利润模式 ${it.profitMode}\n${it.reason}"
+                "资金 ${it.fundFlowStatus}  盘口 ${it.orderBookStatus}\n" +
+                "利润模式 ${it.profitMode}  盘口失衡 ${it.orderBookImbalance?.let(::percentValue) ?: "--"}\n${it.reason}"
         } ?: "暂无计划"
         tvAuctionPlan.text = state.auctionPlan?.let { plan ->
             buildString {

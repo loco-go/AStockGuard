@@ -23,6 +23,7 @@ import com.locogo.astockguard.domain.trading.TTradePlanner
 import com.locogo.astockguard.domain.plan.AuctionPlanEngine
 import com.locogo.astockguard.domain.plan.PositionPlanEngine
 import com.locogo.astockguard.domain.plan.PortfolioExposureEngine
+import com.locogo.astockguard.domain.plan.ExposureBacktestEngine
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -52,6 +53,8 @@ class MainViewModel(
     val effects: SharedFlow<MainEffect> = _effects.asSharedFlow()
     private var lastNewsRefreshAt = 0L
     private var replayJob: Job? = null
+    private var exposureBacktestJob: Job? = null
+    private var exposureBacktestKey: String = ""
 
     /** 接收前台服务运行状态，仅更新界面，不在 ViewModel 中直接启停 Service。 */
     fun updateMonitorRunning(running: Boolean) {
@@ -94,6 +97,7 @@ class MainViewModel(
             )
         }
         nextCode?.takeIf { selectionChanged }?.let(::selectStock)
+        refreshExposureBacktest(positions)
         return true
     }
 
@@ -134,6 +138,30 @@ class MainViewModel(
         refreshReviews()
         refreshPaper()
         refreshNews(force = false)
+        refreshExposureBacktest(positions)
+    }
+
+    /** 按当前持仓权重执行日K无前视回放；相同持仓不会随行情轮询重复请求历史数据。 */
+    private fun refreshExposureBacktest(positions: List<com.locogo.astockguard.Position>) {
+        val key = positions.filter { it.shares > 0 }.joinToString("|") { "${it.code}:${it.shares}" }
+        if (key == exposureBacktestKey) return
+        exposureBacktestJob?.cancel()
+        exposureBacktestKey = key
+        if (key.isBlank()) {
+            _uiState.update { it.copy(exposureBacktest = com.locogo.astockguard.domain.plan.ExposureBacktestReport()) }
+            return
+        }
+        _uiState.update { it.copy(exposureBacktestLoading = true) }
+        exposureBacktestJob = viewModelScope.launch {
+            val selected = positions.filter { it.shares > 0 }.take(MAX_BACKTEST_POSITIONS)
+            val histories = selected.associate { position ->
+                position.code to runCatching {
+                    marketRepository.loadDailyBars(position.code, BACKTEST_DAYS)
+                }.getOrDefault(emptyList())
+            }
+            val report = ExposureBacktestEngine.evaluate(selected, histories)
+            _uiState.update { it.copy(exposureBacktest = report, exposureBacktestLoading = false) }
+        }
     }
 
     fun selectStock(code: String) {
@@ -211,7 +239,8 @@ class MainViewModel(
             fundFlow = state.stockFundFlow,
             marketPhase = snapshot.assessment.marketPhase,
             dataStale = snapshot.dataHealth.isStale,
-            manualAnchorPrice = state.manualBuyAnchor
+            manualAnchorPrice = state.manualBuyAnchor,
+            level2 = state.level2
         )
         if (_uiState.value.selectedCode == code) _uiState.update { it.copy(tTradePlan = plan) }
     }
@@ -224,7 +253,11 @@ class MainViewModel(
             val level2 = runCatching { level2Repository.snapshot(code, referencePrice) }
                 .onFailure { t -> _uiState.update { it.copy(error = "Level2刷新失败：${t.message}") } }
                 .getOrNull()
-            if (_uiState.value.selectedCode == code) _uiState.update { it.copy(level2 = level2 ?: it.level2, level2Loading = false) }
+            if (_uiState.value.selectedCode == code) {
+                _uiState.update { it.copy(level2 = level2 ?: it.level2, level2Loading = false) }
+                // 手动刷新盘口后立即重算计划，避免界面仍展示刷新前的盘口结论。
+                recalculateTPlan(code)
+            }
         }
     }
 
@@ -409,7 +442,16 @@ class MainViewModel(
     fun onAiFailed(message: String) { _uiState.update { it.copy(aiLoading = false, aiText = "AI分析需要人工处理：$message") } }
     fun consumeError() { _uiState.update { it.copy(error = null) } }
 
-    override fun onCleared() { replayJob?.cancel(); super.onCleared() }
+    override fun onCleared() {
+        replayJob?.cancel()
+        exposureBacktestJob?.cancel()
+        super.onCleared()
+    }
+
+    companion object {
+        private const val BACKTEST_DAYS = 180
+        private const val MAX_BACKTEST_POSITIONS = 12
+    }
 
     class Factory(
         private val settings: SettingsRepository,

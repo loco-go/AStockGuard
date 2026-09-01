@@ -4,6 +4,7 @@ import com.locogo.astockguard.MinuteBar
 import com.locogo.astockguard.Position
 import com.locogo.astockguard.Quote
 import com.locogo.astockguard.data.fundflow.StockFundFlow
+import com.locogo.astockguard.data.level2.Level2Snapshot
 import com.locogo.astockguard.domain.plan.PositionCategory
 import kotlin.math.max
 import kotlin.math.min
@@ -29,6 +30,8 @@ data class TTradePlan(
     val expectedEdgePct: Double = 0.0,
     val suggestedQuantity: Int = 0,
     val fundFlowStatus: String = "UNAVAILABLE",
+    val orderBookStatus: String = "UNAVAILABLE",
+    val orderBookImbalance: Double? = null,
     val profitMode: String = "NORMAL",
     val manualAnchorPrice: Double? = null,
     val reason: String = "",
@@ -46,7 +49,8 @@ object TTradePlanner {
         marketPhase: String?,
         dataStale: Boolean,
         manualAnchorPrice: Double? = null,
-        now: Long = System.currentTimeMillis()
+        now: Long = System.currentTimeMillis(),
+        level2: Level2Snapshot? = null
     ): TTradePlan {
         val code = quote?.code ?: position?.code.orEmpty()
         if (dataStale) return TTradePlan(code = code, status = "BLOCKED_STALE", reason = "行情为缓存数据，禁止生成盘中T交易动作。", generatedAt = now)
@@ -62,6 +66,7 @@ object TTradePlanner {
         val vwap = bars.lastOrNull()?.avgPrice?.takeIf { it > 0.0 } ?: quote?.vwap?.takeIf { it > 0.0 } ?: latest
         val rangePct = ((sessionHigh - sessionLow) / latest).coerceAtLeast(0.0)
         val flowMomentum = analyzeFundFlow(fundFlow, now)
+        val bookPressure = OrderBookPressureAnalyzer.analyze(level2, code, now)
 
         // Too little intraday amplitude usually cannot cover fees/slippage/decision error.
         if (rangePct < 0.009) {
@@ -74,9 +79,11 @@ object TTradePlanner {
 
         val dynamicBand = (rangePct * 0.24).coerceIn(0.0035, 0.012)
         val anchor = manualAnchorPrice?.takeIf { it.isFinite() && it > 0.0 }
-        val flowBandMultiplier = when (flowMomentum.status) {
-            "SUSTAINED_INFLOW" -> 1.18
-            "SUSTAINED_OUTFLOW" -> 0.90
+        val flowBandMultiplier = when {
+            flowMomentum.status == "SUSTAINED_INFLOW" && bookPressure.status == OrderBookPressure.BID_DOMINANT -> 1.25
+            flowMomentum.status == "SUSTAINED_INFLOW" -> 1.18
+            bookPressure.status == OrderBookPressure.BID_DOMINANT -> 1.08
+            flowMomentum.status == "SUSTAINED_OUTFLOW" -> 0.90
             else -> 1.0
         }
         val buyDiscountMultiplier = if (flowMomentum.status == "SUSTAINED_OUTFLOW") 1.25 else 1.0
@@ -102,9 +109,11 @@ object TTradePlanner {
         val riskPhase = marketPhase?.uppercase() in setOf("M0", "M1")
         val status = when {
             latest <= invalid -> "INVALIDATED"
-            latest in buyLow..buyHigh && flowMomentum.status != "SUSTAINED_OUTFLOW" && !riskPhase -> "BUY_ZONE"
+            latest in buyLow..buyHigh && flowMomentum.status != "SUSTAINED_OUTFLOW" &&
+                bookPressure.status != OrderBookPressure.ASK_DOMINANT && !riskPhase -> "BUY_ZONE"
             latest in sellLow..sellHigh || latest > sellHigh ||
-                (flowMomentum.status == "SUSTAINED_OUTFLOW" && latest >= vwap * 0.998) -> "SELL_ZONE"
+                (flowMomentum.status == "SUSTAINED_OUTFLOW" && latest >= vwap * 0.998) ||
+                (bookPressure.status == OrderBookPressure.ASK_DOMINANT && latest >= vwap * 0.998) -> "SELL_ZONE"
             latest < buyLow -> "WAIT_RECLAIM"
             else -> "WAIT"
         }
@@ -121,6 +130,7 @@ object TTradePlanner {
             append("近60分钟振幅${"%.2f".format(rangePct * 100)}%，VWAP=${"%.2f".format(vwap)}，$flowText。")
             if (anchor != null) append("买点锚定于用户选择价${"%.2f".format(anchor)}。")
             append("计划价差约${"%.2f".format(expectedEdge)}%；失效位${"%.2f".format(invalid)}。")
+            append("${bookPressure.reason}。")
             if (riskPhase) append("当前市场阶段偏防守，T仓压缩到最多100股。")
         }
 
@@ -136,7 +146,9 @@ object TTradePlanner {
             expectedEdgePct = expectedEdge,
             suggestedQuantity = qty,
             fundFlowStatus = flowMomentum.status,
-            profitMode = if (flowMomentum.status == "SUSTAINED_INFLOW") "EXTEND_PROFIT" else "NORMAL",
+            orderBookStatus = bookPressure.status,
+            orderBookImbalance = bookPressure.imbalance,
+            profitMode = if (flowMomentum.status == "SUSTAINED_INFLOW" || bookPressure.status == OrderBookPressure.BID_DOMINANT) "EXTEND_PROFIT" else "NORMAL",
             manualAnchorPrice = anchor,
             reason = reason,
             generatedAt = now

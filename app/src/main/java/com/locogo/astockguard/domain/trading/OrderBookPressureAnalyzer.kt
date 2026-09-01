@@ -1,0 +1,96 @@
+package com.locogo.astockguard.domain.trading
+
+import com.locogo.astockguard.data.level2.Level2Snapshot
+import kotlin.math.abs
+
+/**
+ * 真实盘口压力分析结果。
+ *
+ * 盘口只作为分时计划的确认层，不能单独生成买卖动作。模拟、缓存、超时或证券代码不匹配的
+ * 快照统一返回 [UNAVAILABLE]，防止开发数据和旧盘口误触发实时提醒。
+ */
+data class OrderBookPressure(
+    val status: String = UNAVAILABLE,
+    val imbalance: Double? = null,
+    val activeBuyRatio: Double? = null,
+    val reason: String = "无可用真实盘口"
+) {
+    companion object {
+        const val UNAVAILABLE = "UNAVAILABLE"
+        const val BID_DOMINANT = "BID_DOMINANT"
+        const val ASK_DOMINANT = "ASK_DOMINANT"
+        const val NEUTRAL = "NEUTRAL"
+    }
+}
+
+object OrderBookPressureAnalyzer {
+    /**
+     * 使用买卖五档委托量失衡和最近主动成交方向交叉确认盘口强弱。
+     * 委托量容易撤单，因此没有主动成交确认时采用更严格的失衡阈值。
+     */
+    fun analyze(
+        snapshot: Level2Snapshot?,
+        expectedCode: String,
+        now: Long = System.currentTimeMillis()
+    ): OrderBookPressure {
+        if (snapshot == null) return unavailable("未获取盘口")
+        if (snapshot.simulated || snapshot.source.equals("MOCK", ignoreCase = true)) {
+            return unavailable("模拟盘口不参与策略")
+        }
+        if (snapshot.stale) return unavailable("缓存盘口不参与策略")
+        if (!sameSecurity(snapshot.code, expectedCode)) return unavailable("盘口证券代码不匹配")
+        if (snapshot.updatedAt <= 0L || now - snapshot.updatedAt !in 0..MAX_AGE_MS) {
+            return unavailable("盘口已超时")
+        }
+
+        val bidVolume = snapshot.bids.take(5).sumOf { it.volume.coerceAtLeast(0L) }.toDouble()
+        val askVolume = snapshot.asks.take(5).sumOf { it.volume.coerceAtLeast(0L) }.toDouble()
+        val totalBook = bidVolume + askVolume
+        if (totalBook <= 0.0) return unavailable("买卖五档委托量为空")
+        val imbalance = (bidVolume - askVolume) / totalBook
+
+        val buyVolume = snapshot.trades.filter { it.side.equals("BUY", true) }
+            .sumOf { it.volume.coerceAtLeast(0L) }.toDouble()
+        val sellVolume = snapshot.trades.filter { it.side.equals("SELL", true) }
+            .sumOf { it.volume.coerceAtLeast(0L) }.toDouble()
+        val activeTotal = buyVolume + sellVolume
+        val activeBuyRatio = if (activeTotal > 0.0) buyVolume / activeTotal else null
+
+        val hasTradeConfirmation = activeBuyRatio != null
+        val status = when {
+            imbalance >= STRONG_BOOK_THRESHOLD && !hasTradeConfirmation -> OrderBookPressure.BID_DOMINANT
+            imbalance <= -STRONG_BOOK_THRESHOLD && !hasTradeConfirmation -> OrderBookPressure.ASK_DOMINANT
+            imbalance >= BOOK_THRESHOLD && (activeBuyRatio ?: 0.0) >= BUY_CONFIRM_RATIO -> OrderBookPressure.BID_DOMINANT
+            imbalance <= -BOOK_THRESHOLD && (activeBuyRatio ?: 1.0) <= SELL_CONFIRM_RATIO -> OrderBookPressure.ASK_DOMINANT
+            else -> OrderBookPressure.NEUTRAL
+        }
+        val direction = when (status) {
+            OrderBookPressure.BID_DOMINANT -> "买盘占优"
+            OrderBookPressure.ASK_DOMINANT -> "卖盘占优"
+            else -> "盘口中性"
+        }
+        val tradeText = activeBuyRatio?.let { "，主动买入占比${percent(it)}" }.orEmpty()
+        return OrderBookPressure(status, imbalance, activeBuyRatio, "$direction，五档失衡${signedPercent(imbalance)}$tradeText")
+    }
+
+    private fun sameSecurity(left: String, right: String): Boolean {
+        val leftDigits = left.filter(Char::isDigit).takeLast(6)
+        val rightDigits = right.filter(Char::isDigit).takeLast(6)
+        return leftDigits.length == 6 && leftDigits == rightDigits
+    }
+
+    private fun unavailable(reason: String) = OrderBookPressure(reason = reason)
+
+    private fun percent(value: Double) = "%.1f%%".format(value * 100.0)
+
+    private fun signedPercent(value: Double): String {
+        val sign = if (value >= 0.0) "+" else "-"
+        return "$sign${"%.1f".format(abs(value) * 100.0)}%"
+    }
+
+    private const val MAX_AGE_MS = 20_000L
+    private const val BOOK_THRESHOLD = 0.18
+    private const val STRONG_BOOK_THRESHOLD = 0.30
+    private const val BUY_CONFIRM_RATIO = 0.52
+    private const val SELL_CONFIRM_RATIO = 0.48
+}

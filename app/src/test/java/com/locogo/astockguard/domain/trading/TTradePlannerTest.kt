@@ -5,6 +5,9 @@ import com.locogo.astockguard.Position
 import com.locogo.astockguard.Quote
 import com.locogo.astockguard.data.fundflow.FundFlowPoint
 import com.locogo.astockguard.data.fundflow.StockFundFlow
+import com.locogo.astockguard.data.level2.Level2Level
+import com.locogo.astockguard.data.level2.Level2Snapshot
+import com.locogo.astockguard.data.level2.Level2Trade
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -142,6 +145,31 @@ class TTradePlannerTest {
         val plan = TTradePlanner.plan(quote, position, volatileBars(), flow, "M2", false, 99.0, now)
 
         assertEquals("UNAVAILABLE", plan.fundFlowStatus)
+    }
+
+    @Test
+    fun freshRealAskPressureBlocksLowBuyAndTriggersDefense() {
+        val now = LocalDate.of(2026, 9, 1).atTime(LocalTime.of(10, 20))
+            .atZone(ZoneId.of("Asia/Shanghai")).toInstant().toEpochMilli()
+        val askPressure = Level2Snapshot(
+            code = position.code,
+            bids = List(5) { Level2Level(99.99 - it * 0.01, 1_000) },
+            asks = List(5) { Level2Level(100.01 + it * 0.01, 4_000) },
+            trades = listOf(
+                Level2Trade("10:20:00", 100.0, 100, "BUY"),
+                Level2Trade("10:20:01", 99.99, 900, "SELL")
+            ),
+            source = "LICENSED_HTTP",
+            updatedAt = now
+        )
+
+        val plan = TTradePlanner.plan(
+            quote, position, volatileBars(), null, "M2", false,
+            manualAnchorPrice = 100.0, now = now, level2 = askPressure
+        )
+
+        assertEquals("ASK_DOMINANT", plan.orderBookStatus)
+        assertEquals("SELL_ZONE", plan.status)
     }
 
     private fun volatileBars(): List<MinuteBar> {

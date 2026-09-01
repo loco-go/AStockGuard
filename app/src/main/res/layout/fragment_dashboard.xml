@@ -113,6 +113,7 @@
                         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/astock_card_padding">
                             <TextView style="@style/TextAppearance.AStockGuard.SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="动态仓位控制" />
                             <TextView android:id="@+id/tvExposurePlan" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:background="@drawable/bg_metric_cell" android:lineSpacingExtra="3dp" android:padding="12dp" android:text="暂无仓位控制计划" />
+                            <TextView android:id="@+id/tvExposureBacktest" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:lineSpacingExtra="3dp" android:text="历史回放计算中" android:textColor="@color/astock_text_secondary" />
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
 

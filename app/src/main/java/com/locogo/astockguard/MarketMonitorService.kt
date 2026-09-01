@@ -7,6 +7,7 @@ import android.util.Log
 import com.locogo.astockguard.chart.MinuteCandleAggregator
 import com.locogo.astockguard.data.fundflow.FundFlowRepository
 import com.locogo.astockguard.data.news.NewsRepository
+import com.locogo.astockguard.data.level2.Level2Repository
 import com.locogo.astockguard.domain.strategy.ChartSignalAction
 import com.locogo.astockguard.domain.strategy.IntradaySignalEngine
 import com.locogo.astockguard.domain.review.AlertHistoryRepository
@@ -26,6 +27,7 @@ class MarketMonitorService : Service() {
     private lateinit var marketRepository: MarketRepository
     private lateinit var newsRepository: NewsRepository
     private lateinit var fundFlowRepository: FundFlowRepository
+    private lateinit var level2Repository: Level2Repository
     private lateinit var alertHistoryRepository: AlertHistoryRepository
     private var lastRisk = ""
     private var lastNewsRisk = "E0"
@@ -46,6 +48,7 @@ class MarketMonitorService : Service() {
         marketRepository = appContainer.marketRepository
         newsRepository = appContainer.newsRepository
         fundFlowRepository = appContainer.fundFlowRepository
+        level2Repository = appContainer.level2Repository
         alertHistoryRepository = appContainer.alertHistoryRepository
         signalLifecycle = appContainer.signalLifecycle
     }
@@ -116,6 +119,8 @@ class MarketMonitorService : Service() {
                 val quote = quoteMap[position.code] ?: return@forEach
                 val bars = runCatching { marketRepository.loadMinuteBars(position.code) }.getOrDefault(emptyList())
                 val fundFlow = runCatching { fundFlowRepository.stock(position.code) }.getOrNull()
+                // 真实盘口不可用时仍可生成基础计划，但引擎会明确排除 MOCK、缓存和超时快照。
+                val level2 = runCatching { level2Repository.snapshot(position.code, quote.latest) }.getOrNull()
                 val plan = TTradePlanner.plan(
                     quote = quote,
                     position = position,
@@ -123,7 +128,8 @@ class MarketMonitorService : Service() {
                     fundFlow = fundFlow,
                     marketPhase = snapshot.assessment.marketPhase,
                     dataStale = snapshot.dataHealth.isStale,
-                    now = now
+                    now = now,
+                    level2 = level2
                 )
                 val previous = lastTStatus.put(position.code, plan.status)
                 if (previous == plan.status) return@forEach

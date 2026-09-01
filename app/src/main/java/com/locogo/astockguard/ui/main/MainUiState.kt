@@ -22,6 +22,7 @@ import com.locogo.astockguard.domain.trading.TTradePlan
 import com.locogo.astockguard.domain.plan.AuctionPlan
 import com.locogo.astockguard.domain.plan.PositionNextDayPlan
 import com.locogo.astockguard.domain.plan.ExposureControlPlan
+import com.locogo.astockguard.domain.plan.ExposureBacktestReport
 
 data class MainUiState(
     val loading: Boolean = false,
@@ -49,6 +50,8 @@ data class MainUiState(
     val auctionPlan: AuctionPlan? = null,
     val positionPlans: List<PositionNextDayPlan> = emptyList(),
     val exposurePlan: ExposureControlPlan = ExposureControlPlan(),
+    val exposureBacktest: ExposureBacktestReport = ExposureBacktestReport(),
+    val exposureBacktestLoading: Boolean = false,
     val manualBuyAnchor: Double? = null,
     val paperSummary: PaperSummary = PaperSummary(),
     val paperLoading: Boolean = false,

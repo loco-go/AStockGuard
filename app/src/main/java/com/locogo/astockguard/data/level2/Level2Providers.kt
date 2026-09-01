@@ -95,6 +95,9 @@ class HttpJsonLevel2Provider(
         val bids = levels("bids")
         val asks = levels("asks")
         require(bids.isNotEmpty() || asks.isNotEmpty()) { "Level2 JSON 缺少 bids/asks" }
+        val rawTimestamp = json.optLong("ts", System.currentTimeMillis())
+        // 部分授权网关返回秒级 Unix 时间戳，统一换算成毫秒后再参与实时性校验。
+        val timestampMs = if (rawTimestamp in 1 until 10_000_000_000L) rawTimestamp * 1000L else rawTimestamp
         return Level2Snapshot(
             code = json.optString("symbol", code),
             bids = bids,
@@ -103,7 +106,7 @@ class HttpJsonLevel2Provider(
             source = json.optString("source", "HTTP_JSON"),
             simulated = false,
             stale = false,
-            updatedAt = json.optLong("ts", System.currentTimeMillis()),
+            updatedAt = timestampMs,
             message = "授权 HTTP JSON Level2"
         )
     }
