@@ -40,6 +40,7 @@ class MarketRepository(
     private data class AuctionCache(val fetchedAt: Long, val series: AuctionSeries)
     private val historyCache = mutableMapOf<String, Cache>()
     private val auctionCache = mutableMapOf<String, AuctionCache>()
+    private val latestQuotes = mutableMapOf<String, Quote>()
 
     suspend fun refresh(): MonitorSnapshot {
         val codes = settings.allCodes()
@@ -60,6 +61,8 @@ class MarketRepository(
         } else {
             cachedQuotes
         }
+        // 保存最新快照供日K加载使用。历史接口盘中可能尚未生成当天K线，不能把昨日K线误当今天展示。
+        latestQuotes.putAll(allQuotes.associateBy { it.code })
         val rawQuotes = allQuotes.filter { it.code in codes }
         val marketIndices = allQuotes.filter { it.code in MARKET_INDEX_CODES }
         if (rawQuotes.isEmpty()) error("实时行情和本地缓存均不可用")
@@ -126,7 +129,8 @@ class MarketRepository(
         )
     }
 
-    suspend fun loadDailyBars(code: String, limit: Int = 30): List<DailyBar> = getHistory(code, limit).takeLast(limit)
+    suspend fun loadDailyBars(code: String, limit: Int = 30): List<DailyBar> =
+        mergeRealtimeDailyBar(getHistory(code, limit), latestQuotes[code], marketDate()).takeLast(limit)
 
     /**
      * 集合竞价只使用 iFinD 正式快照数据；免费源没有等价字段时明确返回不可用，避免伪造竞价判断。
@@ -294,6 +298,31 @@ class MarketRepository(
         private val MARKET_ZONE: ZoneId = ZoneId.of("Asia/Shanghai")
         private const val AUCTION_CACHE_MS = 15_000L
         fun marketDate(): LocalDate = LocalDate.now(MARKET_ZONE)
+
+        /**
+         * 用实时快照补齐当天未收盘日K。历史接口可能只返回到昨日，或盘中 close 尚未更新；
+         * 这里始终以今日 open/latest/high/low 为准，确保红绿颜色与用户看到的实时价格一致。
+         */
+        fun mergeRealtimeDailyBar(
+            history: List<DailyBar>,
+            quote: Quote?,
+            date: LocalDate = marketDate()
+        ): List<DailyBar> {
+            val open = quote?.open?.takeIf { it.isFinite() && it > 0.0 } ?: return history
+            val latest = quote.latest?.takeIf { it.isFinite() && it > 0.0 } ?: return history
+            val high = maxOf(open, latest, quote.high?.takeIf { it.isFinite() && it > 0.0 } ?: latest)
+            val low = minOf(open, latest, quote.low?.takeIf { it.isFinite() && it > 0.0 } ?: latest)
+            val today = DailyBar(
+                date = date.toString(),
+                open = open,
+                close = latest,
+                high = high,
+                low = low,
+                volume = quote.volume?.takeIf { it.isFinite() && it >= 0.0 } ?: 0.0
+            )
+            return (history.filterNot { it.date == today.date } + today).sortedBy { it.date }
+        }
+
         private fun normalizeStockName(name: String): String = name.trim().replace(" ", "").uppercase()
     }
 }

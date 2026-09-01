@@ -38,7 +38,9 @@ else{
  const savedPosition=window.name||'realtime';let initialPositioned=false;
  chart.setStyles({
   candle:{
-   bar:{upColor:'#d92d20',downColor:'#039855',noChangeColor:'#8a8f98',upBorderColor:'#d92d20',downBorderColor:'#039855',noChangeBorderColor:'#8a8f98',upWickColor:'#d92d20',downWickColor:'#039855',noChangeWickColor:'#8a8f98'},
+   // A股日/周/月K统一按本周期开盘价比较：收盘高于开盘为红，低于开盘为绿。
+   // 必须显式设置 compareRule，否则不同版本可能默认按前收盘价着色。
+   bar:{compareRule:'current_open',upColor:'#d92d20',downColor:'#039855',noChangeColor:'#8a8f98',upBorderColor:'#d92d20',downBorderColor:'#039855',noChangeBorderColor:'#8a8f98',upWickColor:'#d92d20',downWickColor:'#039855',noChangeWickColor:'#8a8f98'},
    priceMark:{last:{upColor:'#d92d20',downColor:'#039855',noChangeColor:'#8a8f98'}}
   },
   indicator:{
@@ -111,7 +113,7 @@ function draw(){
  const step=plotW/rows.length,body=Math.max(2,Math.min(9,step*.58)),x=i=>pad.l+(i+.5)*step,y=v=>pad.t+(max-v)*priceH/range;
  c.strokeStyle='#e5e7eb';c.lineWidth=1;for(let i=0;i<4;i++){const yy=pad.t+i*priceH/3;c.beginPath();c.moveTo(pad.l,yy);c.lineTo(w-pad.r,yy);c.stroke();}
  const maxVol=Math.max(...rows.map(r=>r.volume),1);
- rows.forEach((r,i)=>{const xx=x(i),up=r.close>=r.open,color=up?'#d92d20':'#039855';c.strokeStyle=color;c.fillStyle=color;c.beginPath();c.moveTo(xx,y(r.high));c.lineTo(xx,y(r.low));c.stroke();const top=Math.min(y(r.open),y(r.close)),height=Math.max(1,Math.abs(y(r.open)-y(r.close)));c.fillRect(xx-body/2,top,body,height);const vh=r.volume/maxVol*volumeH;c.globalAlpha=.35;c.fillRect(xx-body/2,volumeTop+volumeH-vh,body,vh);c.globalAlpha=1;});
+ rows.forEach((r,i)=>{const xx=x(i),color=r.close>r.open?'#d92d20':(r.close<r.open?'#039855':'#8a8f98');c.strokeStyle=color;c.fillStyle=color;c.beginPath();c.moveTo(xx,y(r.high));c.lineTo(xx,y(r.low));c.stroke();const top=Math.min(y(r.open),y(r.close)),height=Math.max(1,Math.abs(y(r.open)-y(r.close)));c.fillRect(xx-body/2,top,body,height);const vh=r.volume/maxVol*volumeH;c.globalAlpha=.35;c.fillRect(xx-body/2,volumeTop+volumeH-vh,body,vh);c.globalAlpha=1;});
  c.strokeStyle='#d99020';c.lineWidth=1.4;c.beginPath();rows.forEach((r,i)=>{i?c.lineTo(x(i),y(r.average)):c.moveTo(x(i),y(r.average))});c.stroke();
  signals.forEach(s=>{const i=rows.findIndex(r=>r.time===s.time);if(i<0)return;const buy=s.action==='BUY',rawX=x(i),rawY=y(s.price)+(buy?14:-14);c.fillStyle=buy?'#d92d20':'#039855';c.font='bold 11px sans-serif';c.textAlign='center';const label=(s.recommended?(buy?'▲ 推荐买':'▼ 推荐卖'):(buy?'▲ 买':'▼ 卖'))+' '+s.price.toFixed(2),textW=c.measureText(label).width,xx=Math.max(pad.l+textW/2,Math.min(w-pad.r-textW/2,rawX)),yy=Math.max(24,Math.min(volumeTop-4,rawY));c.fillText(label,xx,yy);});
  c.textAlign='left';c.fillStyle='#667085';c.font='11px sans-serif';c.fillText('5分钟K  ·  均价线',pad.l,14);c.fillText(rows[0].time,pad.l,h-6);const last=rows[rows.length-1].time;c.fillText(last,w-pad.r-c.measureText(last).width,h-6);

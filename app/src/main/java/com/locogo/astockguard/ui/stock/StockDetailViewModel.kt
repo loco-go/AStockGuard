@@ -105,7 +105,20 @@ class StockDetailViewModel(
     }
 
     fun updateQuote(quote: Quote?) {
-        if (quote?.code == _state.value.code && quote != _state.value.quote) _state.update { it.copy(quote = quote) }
+        if (quote?.code != _state.value.code || quote == _state.value.quote) return
+        // 盘中实时快照变化时同步重建当天日K，避免详情页一直停留在首次历史请求的昨日蜡烛。
+        dailySource = MarketRepository.mergeRealtimeDailyBar(dailySource, quote)
+        _state.update { current ->
+            if (current.period == ChartPeriod.MINUTE) return@update current.copy(quote = quote)
+            val candles = ChartDataMapper.aggregate(dailySource, current.period)
+            val strategy = evaluate(candles, current.period)
+            current.copy(
+                quote = quote,
+                candles = candles,
+                strategy = strategy,
+                signals = strategy?.signal?.let(::listOf).orEmpty()
+            )
+        }
     }
 
     fun selectPeriod(period: ChartPeriod) {
