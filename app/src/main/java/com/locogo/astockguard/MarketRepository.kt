@@ -3,12 +3,14 @@ package com.locogo.astockguard
 import com.locogo.astockguard.data.local.CacheDao
 import com.locogo.astockguard.data.local.toCacheEntity
 import com.locogo.astockguard.data.local.toModel
+import com.locogo.astockguard.data.ifind.IFindHttpClient
 import java.time.LocalDate
 import java.time.ZoneId
 
 class MarketRepository(
     private val settings: SettingsRepository,
     private val tencent: TencentMarketClient = TencentMarketClient(),
+    private val ifind: IFindHttpClient? = null,
     private val history: TencentHistoryClient = TencentHistoryClient(),
     private val minute: TencentMinuteClient = TencentMinuteClient(),
     private val historicalMinute: EastMoneyMinuteHistoryClient = EastMoneyMinuteHistoryClient(),
@@ -19,22 +21,33 @@ class MarketRepository(
         val bars: List<MinuteBar>,
         val intervalMinutes: Int,
         val fromCache: Boolean,
-        val isHistorical: Boolean
+        val isHistorical: Boolean,
+        /** 本次实际使用的数据源；降级时保留 FALLBACK 标识，便于质量中心和提醒记录追踪。 */
+        val source: String = "ROOM_CACHE"
     )
 
     private data class Cache(val at: Long, val bars: List<DailyBar>, val requestedLimit: Int)
+    private data class QuoteFetch(val quotes: List<Quote>, val source: String, val message: String)
     private val historyCache = mutableMapOf<String, Cache>()
 
     suspend fun refresh(): MonitorSnapshot {
         val codes = settings.allCodes()
         val requestCodes = (codes + MARKET_INDEX_CODES).distinct()
-        val remote = runCatching { tencent.fetchQuotes(requestCodes) }.getOrNull().orEmpty()
-        val usingCache = remote.isEmpty()
-        val allQuotes = if (remote.isNotEmpty()) {
-            cacheDao?.let { dao -> runCatching { dao.upsertQuotes(remote.map { it.toCacheEntity() }) } }
-            remote
+        val fetched = fetchQuotesWithFallback(requestCodes)
+        val usingCache = fetched.quotes.isEmpty()
+        val cachedQuotes = cacheDao?.getQuotes(requestCodes).orEmpty().map { it.toModel() }
+        val knownNames = buildMap {
+            cachedQuotes.filter { it.name.isNotBlank() }.forEach { put(it.code, it.name) }
+            settings.positions().filter { it.name.isNotBlank() }.forEach { put(it.code, it.name) }
+        }
+        val normalizedRemote = fetched.quotes.map { quote ->
+            if (quote.name.isNotBlank()) quote else quote.copy(name = knownNames[quote.code] ?: quote.code)
+        }
+        val allQuotes = if (normalizedRemote.isNotEmpty()) {
+            cacheDao?.let { dao -> runCatching { dao.upsertQuotes(normalizedRemote.map { it.toCacheEntity() }) } }
+            normalizedRemote
         } else {
-            cacheDao?.getQuotes(requestCodes).orEmpty().map { it.toModel() }
+            cachedQuotes
         }
         val rawQuotes = allQuotes.filter { it.code in codes }
         val marketIndices = allQuotes.filter { it.code in MARKET_INDEX_CODES }
@@ -68,10 +81,37 @@ class MarketRepository(
             assessment = assessment,
             positionRatio = settings.positionRatio,
             dataHealth = DataHealth(
-                source = if (usingCache) "ROOM_CACHE" else "TENCENT",
+                source = if (usingCache) "ROOM_CACHE" else fetched.source,
                 isStale = usingCache,
-                message = if (usingCache) "腾讯请求失败，已降级到本地缓存" else "实时行情正常"
+                message = if (usingCache) "iFinD与腾讯实时行情均不可用，已降级到本地缓存。${fetched.message}" else fetched.message
             )
+        )
+    }
+
+    /**
+     * 用户选择iFinD时优先请求正版源；任何鉴权、权限、额度或网络异常都会在本轮主动降级腾讯。
+     * 降级不会把用户设置永久改掉，下一轮仍可在Token恢复后自动回到iFinD。
+     */
+    private suspend fun fetchQuotesWithFallback(codes: List<String>): QuoteFetch {
+        if (settings.marketDataSource != SettingsRepository.MARKET_SOURCE_IFIND) {
+            val free = runCatching { tencent.fetchQuotes(codes) }.getOrDefault(emptyList())
+            return QuoteFetch(free, "TENCENT", if (free.isEmpty()) "腾讯免费行情请求失败" else "腾讯免费实时行情正常")
+        }
+
+        val ifindResult = if (settings.ifindRefreshToken.isBlank()) {
+            Result.failure(IllegalStateException("未填写iFinD refresh token"))
+        } else {
+            runCatching { ifind?.fetchQuotes(codes).orEmpty().also { require(it.isNotEmpty()) { "iFinD实时行情无数据" } } }
+        }
+        ifindResult.getOrNull()?.let { return QuoteFetch(it, "IFIND", "iFinD正版实时行情正常") }
+
+        val reason = ifindResult.exceptionOrNull()?.message?.take(160) ?: "未知错误"
+        val free = runCatching { tencent.fetchQuotes(codes) }.getOrDefault(emptyList())
+        return QuoteFetch(
+            quotes = free,
+            source = if (free.isEmpty()) "IFIND_FALLBACK_FAILED" else "TENCENT_FALLBACK",
+            message = if (free.isEmpty()) "iFinD失败且腾讯免费行情也不可用：$reason"
+            else "iFinD不可用，已自动切换腾讯免费实时行情：$reason"
         )
     }
 
@@ -108,11 +148,29 @@ class MarketRepository(
                 bars = cached.map { it.toModel() },
                 intervalMinutes = cached.first().intervalMinutes,
                 fromCache = true,
-                isHistorical = true
+                isHistorical = true,
+                source = "ROOM_CACHE"
             )
         }
         val intervalMinutes = if (isHistorical) 5 else 1
-        val remote = if (isHistorical) historicalMinute.fetch5Minute(code, date) else minute.fetch(code)
+        val preferIFind = settings.marketDataSource == SettingsRepository.MARKET_SOURCE_IFIND
+        val ifindResult = if (preferIFind && settings.ifindRefreshToken.isNotBlank()) {
+            runCatching { ifind?.fetchMinuteBars(code, date, intervalMinutes).orEmpty() }
+        } else null
+        val ifindBars = ifindResult?.getOrNull().orEmpty()
+        val freeBars = if (ifindBars.isEmpty()) {
+            runCatching {
+                if (isHistorical) historicalMinute.fetch5Minute(code, date) else minute.fetch(code)
+            }.getOrDefault(emptyList())
+        } else emptyList()
+        val remote = ifindBars.ifEmpty { freeBars }
+        val remoteSource = when {
+            ifindBars.isNotEmpty() -> "IFIND"
+            isHistorical && preferIFind -> "EASTMONEY_FALLBACK"
+            isHistorical -> "EASTMONEY"
+            preferIFind -> "TENCENT_FALLBACK"
+            else -> "TENCENT"
+        }
         if (remote.isNotEmpty()) {
             cacheDao?.let { dao ->
                 runCatching {
@@ -121,7 +179,12 @@ class MarketRepository(
             }
         }
         if (remote.isNotEmpty()) {
-            return MinuteSeries(date, remote, intervalMinutes, fromCache = false, isHistorical = isHistorical)
+            return MinuteSeries(
+                date, remote, intervalMinutes,
+                fromCache = false,
+                isHistorical = isHistorical,
+                source = remoteSource
+            )
         }
         // 接口失败时允许展示缓存，但调用方可通过 fromCache 禁止发出实时买卖提醒。
         return MinuteSeries(
@@ -129,21 +192,13 @@ class MarketRepository(
             bars = cached.map { it.toModel() },
             intervalMinutes = cached.firstOrNull()?.intervalMinutes ?: intervalMinutes,
             fromCache = true,
-            isHistorical = isHistorical
+            isHistorical = isHistorical,
+            source = "ROOM_CACHE"
         )
     }
 
-    suspend fun loadMinuteBars(code: String): List<MinuteBar> {
-        val date = marketDate()
-        val remote = runCatching { minute.fetch(code) }.getOrDefault(emptyList())
-        if (remote.isNotEmpty()) {
-            cacheDao?.let { dao ->
-                runCatching { dao.upsertMinuteBars(remote.map { it.toCacheEntity(code, date.toString(), 1) }) }
-            }
-            return remote
-        }
-        return cacheDao?.getMinuteBars(code, date.toString()).orEmpty().map { it.toModel() }
-    }
+    /** 兼容旧调用入口，并统一复用带有 iFinD 降级与缓存安全判断的分时加载流程。 */
+    suspend fun loadMinuteBars(code: String): List<MinuteBar> = loadMinuteSeries(code).bars
 
     suspend fun buildPortfolioCurve(positions: List<Position>, limit: Int = 30): List<Pair<String, Double>> {
         if (positions.isEmpty()) return emptyList()
@@ -164,17 +219,29 @@ class MarketRepository(
 
     private suspend fun getHistory(code: String, limit: Int = 30): List<DailyBar> {
         val now = System.currentTimeMillis()
-        historyCache[code]
+        // 切换首选源后必须重新取数，不能继续命中上一个Provider的内存缓存。
+        val historyKey = "${settings.marketDataSource}:$code"
+        historyCache[historyKey]
             ?.takeIf { now - it.at < 30 * 60 * 1000L && it.requestedLimit >= limit }
             ?.let { return it.bars }
-        val remote = runCatching { history.fetchDaily(code, limit) }.getOrDefault(emptyList())
+        val preferIFind = settings.marketDataSource == SettingsRepository.MARKET_SOURCE_IFIND
+        val ifindBars = if (preferIFind && settings.ifindRefreshToken.isNotBlank()) {
+            val end = marketDate()
+            // 自然日范围留出停牌、周末和节假日余量，最终仍按调用方要求截取条数。
+            val start = end.minusDays((limit * 2L + 30L).coerceAtLeast(60L))
+            runCatching { ifind?.fetchDailyBars(code, start, end).orEmpty() }.getOrDefault(emptyList())
+        } else emptyList()
+        val remote = ifindBars.ifEmpty {
+            // iFinD鉴权、权限、额度或网络异常时自动回到腾讯，不改变用户的长期选择。
+            runCatching { history.fetchDaily(code, limit) }.getOrDefault(emptyList())
+        }.takeLast(limit)
         val bars = if (remote.isNotEmpty()) {
             cacheDao?.let { dao -> runCatching { dao.upsertDailyBars(remote.map { it.toCacheEntity(code, now) }) } }
             remote
         } else {
             cacheDao?.getDailyBars(code, limit).orEmpty().map { it.toModel() }.reversed()
         }
-        historyCache[code] = Cache(now, bars, limit)
+        historyCache[historyKey] = Cache(now, bars, limit)
         return bars
     }
 

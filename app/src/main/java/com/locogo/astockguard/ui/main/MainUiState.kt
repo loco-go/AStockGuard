@@ -34,6 +34,7 @@ data class MainUiState(
     val minuteBars: List<MinuteBar> = emptyList(),
     val minuteFromCache: Boolean = true,
     val minuteHistorical: Boolean = false,
+    val minuteSource: String = "ROOM_CACHE",
     val equityCurve: List<Pair<String, Double>> = emptyList(),
     val stockFundFlow: StockFundFlow? = null,
     val sectorFundFlow: SectorFundFlowResult? = null,

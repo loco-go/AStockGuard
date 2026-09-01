@@ -184,7 +184,7 @@ class MarketMonitorService : Service() {
                     name = quote?.name.orEmpty(),
                     date = series.date,
                     signal = signal,
-                    dataSource = if (freshFlow.isEmpty()) "TENCENT_MINUTE" else "TENCENT_MINUTE+FUND_FLOW"
+                    dataSource = if (freshFlow.isEmpty()) series.source else "${series.source}+FUND_FLOW"
                 )
                 if (!recorded) return@runCatching
                 lastIntradayAlert[code] = alertKey

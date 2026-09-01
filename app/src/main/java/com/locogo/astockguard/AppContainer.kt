@@ -4,6 +4,7 @@ import android.app.Application
 import com.locogo.astockguard.backup.BackupManager
 import com.locogo.astockguard.data.fundflow.FundFlowRepository
 import com.locogo.astockguard.data.level2.Level2Repository
+import com.locogo.astockguard.data.ifind.IFindHttpClient
 import com.locogo.astockguard.data.local.AStockDatabase
 import com.locogo.astockguard.data.news.NewsRepository
 import com.locogo.astockguard.data.repository.StrategySignalRepository
@@ -17,7 +18,10 @@ import com.locogo.astockguard.domain.signal.SignalLifecycleManager
 class AppContainer(application: Application) {
     val settings: SettingsRepository by lazy { SettingsRepository(application) }
     val database: AStockDatabase by lazy { AStockDatabase.get(application) }
-    val marketRepository: MarketRepository by lazy { MarketRepository(settings = settings, cacheDao = database.cacheDao()) }
+    val ifindHttpClient: IFindHttpClient by lazy { IFindHttpClient(settings) }
+    val marketRepository: MarketRepository by lazy {
+        MarketRepository(settings = settings, ifind = ifindHttpClient, cacheDao = database.cacheDao())
+    }
     val fundFlowRepository: FundFlowRepository by lazy { FundFlowRepository(cacheDao = database.cacheDao()) }
     val strategySignalRepository: StrategySignalRepository by lazy { StrategySignalRepository(database.cacheDao()) }
     val newsRepository: NewsRepository by lazy { NewsRepository(settings, database.cacheDao()) }

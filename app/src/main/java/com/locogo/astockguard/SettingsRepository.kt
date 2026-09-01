@@ -20,6 +20,30 @@ class SettingsRepository(context: Context) {
         }
     var refreshSeconds: Int get() = prefs.getInt("refresh_seconds", 5).coerceIn(3, 60); set(v) = prefs.edit().putInt("refresh_seconds", v.coerceIn(3, 60)).apply()
 
+    /** 行情首选源：FREE始终使用免费接口；IFIND在失败时自动降级免费接口。 */
+    var marketDataSource: String
+        get() = prefs.getString("market_data_source", MARKET_SOURCE_FREE) ?: MARKET_SOURCE_FREE
+        set(v) = prefs.edit().putString("market_data_source", if (v == MARKET_SOURCE_IFIND) v else MARKET_SOURCE_FREE).apply()
+    var ifindRefreshToken: String
+        get() = crypto.get("ifind_refresh_token")
+        set(v) {
+            val normalized = v.trim()
+            if (normalized != crypto.get("ifind_refresh_token")) clearIFindAccessToken()
+            crypto.put("ifind_refresh_token", normalized)
+        }
+    val ifindAccessToken: String get() = crypto.get("ifind_access_token")
+    val ifindAccessTokenFetchedAt: Long get() = prefs.getLong("ifind_access_token_fetched_at", 0L)
+
+    fun saveIFindAccessToken(token: String, fetchedAt: Long) {
+        crypto.put("ifind_access_token", token)
+        prefs.edit().putLong("ifind_access_token_fetched_at", fetchedAt).apply()
+    }
+
+    fun clearIFindAccessToken() {
+        crypto.put("ifind_access_token", "")
+        prefs.edit().remove("ifind_access_token_fetched_at").apply()
+    }
+
     /** 同花顺辅助同步的最后诊断结果，用于区分“未收到事件”和“页面字段未识别”。 */
     var thsLastSyncAt: Long get() = prefs.getLong("ths_last_sync_at", 0L); set(v) = prefs.edit().putLong("ths_last_sync_at", v).apply()
     var thsLastSyncMessage: String get() = prefs.getString("ths_last_sync_message", "") ?: ""; set(v) = prefs.edit().putString("ths_last_sync_message", v).apply()
@@ -100,6 +124,8 @@ class SettingsRepository(context: Context) {
     fun backupProvider(): AiProviderConfig? = if (backupBaseUrl.isBlank() || backupApiKey.isBlank()) null else AiProviderConfig(backupType, "backup", backupBaseUrl, backupApiKey, "", "", backupModel.ifBlank { primaryModel }, extraHeadersJson)
 
     companion object {
+        const val MARKET_SOURCE_FREE = "FREE"
+        const val MARKET_SOURCE_IFIND = "IFIND"
         const val DEFAULT_WATCH_CODES = "000636.SZ,000938.SZ,600667.SH,002579.SZ"
         val DEFAULT_POSITIONS = """
 000636.SZ,风华高科,500,45.679,CORE

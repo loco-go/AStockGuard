@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layout>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true">
@@ -30,13 +31,49 @@
         </LinearLayout>
         <TextView android:id="@+id/tvImportResult" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="8dp" android:text="尚未解析" />
 
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="行情：腾讯免费接口（无需 Key）" android:textSize="18sp" android:textStyle="bold" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="行情数据源" android:textSize="18sp" android:textStyle="bold" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="可手动切换iFinD正版接口或腾讯免费接口。选择iFinD后，Token过期、权限、额度或网络异常会自动降级腾讯，缓存数据仍不会触发实时买卖提醒。" android:textSize="12sp" />
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/groupMarketSource"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            app:selectionRequired="true"
+            app:singleSelection="true">
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnMarketFree"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="腾讯免费" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnMarketIFind"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="iFinD优先" />
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+        <EditText
+            android:id="@+id/etIFindRefreshToken"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="iFinD refresh token（本机Keystore加密）"
+            android:inputType="textPassword" />
+        <TextView
+            android:id="@+id/tvIFindStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="6dp"
+            android:text="尚未测试iFinD"
+            android:textSize="12sp" />
         <EditText android:id="@+id/etWatchCodes" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="000636.SZ,000938.SZ,600667.SH" />
         <EditText android:id="@+id/etPositions" android:layout_width="match_parent" android:layout_height="160dp" android:gravity="top" android:hint="代码,名称,股数,成本,角色" android:inputType="textMultiLine" />
         <EditText android:id="@+id/etPositionRatio" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="当前总仓位%" android:inputType="numberDecimal" />
         <EditText android:id="@+id/etCashBalance" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="账户现金余额（可选，用于计算真实总资产）" android:inputType="numberDecimal" />
         <EditText android:id="@+id/etRefreshSeconds" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="轮询秒数（3-60）" android:inputType="number" />
-        <Button android:id="@+id/btnTestMarket" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="测试腾讯行情" />
+        <Button android:id="@+id/btnTestMarket" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="测试当前行情源与自动降级" />
 
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:text="新闻 / 黑天鹅覆盖层" android:textSize="18sp" android:textStyle="bold" />
         <Switch android:id="@+id/swNewsEnabled" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="启用新闻风险抓取" />

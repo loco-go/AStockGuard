@@ -108,6 +108,11 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun load() = with(binding) {
         etWatchCodes.setText(settings.watchCodes)
+        groupMarketSource.check(
+            if (settings.marketDataSource == SettingsRepository.MARKET_SOURCE_IFIND) btnMarketIFind.id else btnMarketFree.id
+        )
+        etIFindRefreshToken.setText(settings.ifindRefreshToken)
+        tvIFindStatus.text = if (settings.ifindRefreshToken.isBlank()) "尚未填写iFinD refresh token" else "iFinD凭据已加密保存，等待测试"
         etPositions.setText(settings.positionsText)
         etPositionRatio.setText(settings.positionRatio.toString())
         etCashBalance.setText(settings.cashBalance?.toString().orEmpty())
@@ -134,6 +139,12 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun save() = with(binding) {
         settings.watchCodes = etWatchCodes.text.toString().trim()
+        settings.marketDataSource = if (btnMarketIFind.isChecked) {
+            SettingsRepository.MARKET_SOURCE_IFIND
+        } else {
+            SettingsRepository.MARKET_SOURCE_FREE
+        }
+        settings.ifindRefreshToken = etIFindRefreshToken.text.toString().trim()
         settings.positionsText = etPositions.text.toString().trim()
         settings.positionRatio = etPositionRatio.text.toString().toDoubleOrNull() ?: 0.0
         settings.cashBalance = etCashBalance.text.toString().trim().takeIf { it.isNotBlank() }?.toDoubleOrNull()
@@ -205,9 +216,29 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun testMarket() = lifecycleScope.launch {
-        binding.tvTestResult.text = "测试腾讯行情..."
-        try { binding.tvTestResult.text = "腾讯行情 OK\n${market.fetchQuotes(settings.allCodes().take(3)).joinToString("\n")}" }
-        catch (t: Throwable) { binding.tvTestResult.text = "行情失败：${t.message}" }
+        save()
+        val codes = settings.allCodes().take(3).ifEmpty { listOf("000001.SH") }
+        if (settings.marketDataSource == SettingsRepository.MARKET_SOURCE_FREE) {
+            binding.tvTestResult.text = "测试腾讯免费行情..."
+            runCatching { market.fetchQuotes(codes) }
+                .onSuccess { binding.tvTestResult.text = "腾讯免费行情 OK · ${it.size}只\n${it.joinToString("\n")}" }
+                .onFailure { binding.tvTestResult.text = "腾讯免费行情失败：${it.message}" }
+            return@launch
+        }
+
+        binding.tvTestResult.text = "测试iFinD鉴权与实时行情..."
+        val ifindStatus = appContainer.ifindHttpClient.test(codes)
+        binding.tvIFindStatus.text = ifindStatus.message
+        if (ifindStatus.ready) {
+            binding.tvTestResult.text = "iFinD正版行情 OK · ${ifindStatus.quoteCount}只\nToken过期时将自动重新获取access token。"
+        } else {
+            val free = runCatching { market.fetchQuotes(codes) }.getOrDefault(emptyList())
+            binding.tvTestResult.text = buildString {
+                append("iFinD不可用：${ifindStatus.message}")
+                if (free.isNotEmpty()) append("\n自动降级验证成功：腾讯免费行情可用 · ${free.size}只")
+                else append("\n自动降级也失败：腾讯免费行情无数据")
+            }
+        }
     }
 
     private fun testAi() {

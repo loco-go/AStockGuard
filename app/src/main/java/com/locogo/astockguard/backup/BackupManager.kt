@@ -27,6 +27,7 @@ class BackupManager(
         root.put("createdAt", System.currentTimeMillis())
         root.put("settings", JSONObject().apply {
             put("watchCodes", settings.watchCodes)
+            put("marketDataSource", settings.marketDataSource)
             put("positionsText", settings.positionsText)
             put("positionRatio", settings.positionRatio)
             put("cashBalance", settings.cashBalance ?: JSONObject.NULL)
@@ -58,6 +59,7 @@ class BackupManager(
             put("containsCookies", false)
             put("containsSessionTokens", false)
             put("containsLevel2Tokens", false)
+            put("containsIFindTokens", false)
         })
         return root.toString(2)
     }
@@ -105,6 +107,7 @@ class BackupManager(
         }
 
         settings.watchCodes = s.optString("watchCodes", settings.watchCodes)
+        settings.marketDataSource = s.optString("marketDataSource", settings.marketDataSource)
         settings.positionsText = s.optString("positionsText", settings.positionsText)
         settings.positionRatio = s.optDouble("positionRatio", settings.positionRatio)
         settings.cashBalance = when {

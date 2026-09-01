@@ -35,6 +35,7 @@ object DataQualityEvaluator {
         minuteCount: Int,
         minuteFromCache: Boolean,
         minuteHistorical: Boolean,
+        minuteSource: String = "TENCENT",
         stockFundFlow: StockFundFlow?,
         level2: Level2Snapshot?,
         news: NewsRiskAssessment
@@ -65,7 +66,7 @@ object DataQualityEvaluator {
                 message = "远端分时失败，缓存不得触发实时提醒"
             )
             else -> DataQualityItem(
-                "当日分时", "TENCENT", DataQualityStatus.LIVE,
+                "当日分时", minuteSource, DataQualityStatus.LIVE,
                 usableForRealtime = true, requiredForRealtime = true,
                 message = "$minuteCount 条分钟数据"
             )

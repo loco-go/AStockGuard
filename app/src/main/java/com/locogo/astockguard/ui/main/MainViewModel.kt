@@ -147,6 +147,7 @@ class MainViewModel(
                         minuteBars = minute,
                         minuteFromCache = minuteSeries?.fromCache ?: true,
                         minuteHistorical = minuteSeries?.isHistorical ?: false,
+                        minuteSource = minuteSeries?.source ?: "ROOM_CACHE",
                         stockFundFlow = flow,
                         fundFlowLoading = false,
                         level2 = level2,

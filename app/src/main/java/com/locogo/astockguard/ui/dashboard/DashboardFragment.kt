@@ -64,6 +64,7 @@ class DashboardFragment : Fragment(), DashboardHandlers {
             minuteCount = state.minuteBars.size,
             minuteFromCache = state.minuteFromCache,
             minuteHistorical = state.minuteHistorical,
+            minuteSource = state.minuteSource,
             stockFundFlow = state.stockFundFlow,
             level2 = state.level2,
             news = state.newsRisk

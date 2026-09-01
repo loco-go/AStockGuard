@@ -6,6 +6,7 @@ import com.locogo.astockguard.MonitorSnapshot
 import com.locogo.astockguard.Quote
 import com.locogo.astockguard.data.level2.Level2Snapshot
 import com.locogo.astockguard.data.news.NewsRiskAssessment
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -37,14 +38,23 @@ class DataQualityEvaluatorTest {
         assertFalse(report.items.first { it.name.contains("Level-2") }.usableForRealtime)
     }
 
+    @Test
+    fun `数据质量中心展示分时实际来源`() {
+        val report = evaluate(minuteFromCache = false, minuteSource = "TENCENT_FALLBACK")
+
+        assertEquals("TENCENT_FALLBACK", report.items.first { it.name == "当日分时" }.source)
+    }
+
     private fun evaluate(
         minuteFromCache: Boolean,
+        minuteSource: String = "TENCENT",
         level2: Level2Snapshot? = null
     ) = DataQualityEvaluator.evaluate(
         snapshot = snapshot(stale = false),
         minuteCount = 120,
         minuteFromCache = minuteFromCache,
         minuteHistorical = false,
+        minuteSource = minuteSource,
         stockFundFlow = null,
         level2 = level2,
         news = NewsRiskAssessment()
