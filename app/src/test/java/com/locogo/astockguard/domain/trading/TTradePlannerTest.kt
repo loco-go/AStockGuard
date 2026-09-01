@@ -87,6 +87,20 @@ class TTradePlannerTest {
         assertEquals(100, plan.suggestedQuantity)
     }
 
+    @Test
+    fun positionCategoryControlsMaximumTQuantity() {
+        val longPlan = TTradePlanner.plan(
+            quote, position.copy(shares = 3000, role = "LONG"), volatileBars(), null, "M2", false, 99.0
+        )
+        val attackPlan = TTradePlanner.plan(
+            quote, position.copy(shares = 3000, role = "ATTACK"), volatileBars(), null, "M2", false, 99.0
+        )
+
+        assertEquals(300, longPlan.suggestedQuantity)
+        assertEquals(1000, attackPlan.suggestedQuantity)
+        assertTrue(attackPlan.suggestedQuantity > longPlan.suggestedQuantity)
+    }
+
     private fun volatileBars(): List<MinuteBar> {
         val prices = listOf(99.2, 98.8, 98.5, 98.9, 99.4, 99.8, 100.1, 100.4, 100.8, 101.2, 101.5, 100.9)
         return prices.mapIndexed { index, price ->

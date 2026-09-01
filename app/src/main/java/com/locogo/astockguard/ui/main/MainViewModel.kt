@@ -20,6 +20,8 @@ import com.locogo.astockguard.domain.review.AccountLedgerType
 import com.locogo.astockguard.domain.review.AlertHistoryRepository
 import com.locogo.astockguard.domain.signal.R2Scanner
 import com.locogo.astockguard.domain.trading.TTradePlanner
+import com.locogo.astockguard.domain.plan.AuctionPlanEngine
+import com.locogo.astockguard.domain.plan.PositionPlanEngine
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -78,7 +80,11 @@ class MainViewModel(
                 minuteBars = if (selectionChanged) emptyList() else it.minuteBars,
                 stockFundFlow = if (selectionChanged) null else it.stockFundFlow,
                 level2 = if (selectionChanged) null else it.level2,
-                tTradePlan = if (selectionChanged) null else it.tTradePlan
+                tTradePlan = if (selectionChanged) null else it.tTradePlan,
+                auctionPlan = if (selectionChanged) null else it.auctionPlan,
+                positionPlans = current.snapshot?.let { snapshot ->
+                    PositionPlanEngine.evaluate(positions, snapshot.quotes, snapshot.assessment.marketPhase, snapshot.dataHealth.isStale)
+                }.orEmpty()
             )
         }
         nextCode?.takeIf { selectionChanged }?.let(::selectStock)
@@ -99,6 +105,9 @@ class MainViewModel(
                 cashBalance = cashBalance,
                 loading = false,
                 selectedCode = selected,
+                positionPlans = PositionPlanEngine.evaluate(
+                    positions, snapshot.quotes, snapshot.assessment.marketPhase, snapshot.dataHealth.isStale
+                ),
                 error = null
             )
         }
@@ -128,6 +137,7 @@ class MainViewModel(
                 level2Loading = true,
                 manualBuyAnchor = if (changed) null else it.manualBuyAnchor,
                 tTradePlan = if (changed) null else it.tTradePlan,
+                auctionPlan = if (changed) null else it.auctionPlan,
                 replayIndex = if (changed) -1 else it.replayIndex,
                 replayReport = if (changed) null else it.replayReport
             )
@@ -135,11 +145,17 @@ class MainViewModel(
         viewModelScope.launch {
             val daily = runCatching { marketRepository.loadDailyBars(code, 30) }.getOrDefault(emptyList())
             val minuteSeries = runCatching { marketRepository.loadMinuteSeries(code) }.getOrNull()
+            val auctionSeries = runCatching { marketRepository.loadAuctionSeries(code) }.getOrNull()
             val minute = minuteSeries?.bars.orEmpty()
             val flow = runCatching { fundFlowRepository.stock(code) }.getOrNull()
             val referencePrice = _uiState.value.snapshot?.quotes?.firstOrNull { it.code == code }?.latest
             val level2 = runCatching { level2Repository.snapshot(code, referencePrice) }.getOrNull()
             val trades = runCatching { cacheDao.getTradeRecords().filter { it.code == code } }.getOrDefault(emptyList())
+            val quote = _uiState.value.snapshot?.quotes?.firstOrNull { it.code == code }
+            val position = settings.positions().firstOrNull { it.code == code }
+            val auctionPlan = auctionSeries?.let { series ->
+                AuctionPlanEngine.evaluate(code, position?.role, quote?.previousClose, daily, series)
+            }
             if (_uiState.value.selectedCode == code) {
                 _uiState.update {
                     it.copy(
@@ -152,6 +168,7 @@ class MainViewModel(
                         fundFlowLoading = false,
                         level2 = level2,
                         level2Loading = false,
+                        auctionPlan = auctionPlan,
                         tradeRecords = trades
                     )
                 }

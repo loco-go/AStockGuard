@@ -4,6 +4,7 @@ import com.locogo.astockguard.MinuteBar
 import com.locogo.astockguard.Position
 import com.locogo.astockguard.Quote
 import com.locogo.astockguard.data.fundflow.StockFundFlow
+import com.locogo.astockguard.domain.plan.PositionCategory
 import kotlin.math.max
 import kotlin.math.min
 
@@ -61,7 +62,7 @@ object TTradePlanner {
         if (rangePct < 0.009) {
             return TTradePlan(
                 code = code, status = "NO_T", referencePrice = latest,
-                suggestedQuantity = lotQuantity(position.shares),
+                suggestedQuantity = lotQuantity(position),
                 reason = "近60分钟振幅不足0.9%，T交易空间偏小，优先减少无效交易。", generatedAt = now
             )
         }
@@ -75,7 +76,7 @@ object TTradePlanner {
         if (sellCenter <= buyCenter * 1.0045) {
             return TTradePlan(
                 code = code, status = "NO_T", referencePrice = latest,
-                suggestedQuantity = lotQuantity(position.shares), manualAnchorPrice = anchor,
+                suggestedQuantity = lotQuantity(position), manualAnchorPrice = anchor,
                 reason = "当前上方空间不足，计划买卖价差无法形成有效安全垫。", generatedAt = now
             )
         }
@@ -103,7 +104,7 @@ object TTradePlanner {
             else -> "WAIT"
         }
 
-        val qty = lotQuantity(position.shares).let { if (riskPhase) min(it, 100) else it }
+        val qty = lotQuantity(position).let { if (riskPhase) min(it, 100) else it }
         val expectedEdge = (sellCenter / buyCenter - 1.0) * 100.0
         val flowText = when {
             flowImproving == true -> "主力分钟流向改善"
@@ -134,8 +135,9 @@ object TTradePlanner {
         )
     }
 
-    private fun lotQuantity(shares: Int): Int {
-        val maxT = (shares / 3 / 100) * 100
-        return maxT.coerceAtLeast(100).coerceAtMost(shares - (shares % 100))
+    private fun lotQuantity(position: Position): Int {
+        val categoryPct = PositionCategory.from(position.role).maxTSharePct
+        val maxT = (position.shares * categoryPct / 100 / 100) * 100
+        return maxT.coerceAtLeast(100).coerceAtMost(position.shares - (position.shares % 100))
     }
 }

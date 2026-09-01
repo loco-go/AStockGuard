@@ -19,6 +19,8 @@ import com.locogo.astockguard.domain.review.AccountLedgerSummary
 import com.locogo.astockguard.domain.review.AlertHistoryStats
 import com.locogo.astockguard.domain.signal.R2ScanRow
 import com.locogo.astockguard.domain.trading.TTradePlan
+import com.locogo.astockguard.domain.plan.AuctionPlan
+import com.locogo.astockguard.domain.plan.PositionNextDayPlan
 
 data class MainUiState(
     val loading: Boolean = false,
@@ -43,6 +45,8 @@ data class MainUiState(
     val level2Loading: Boolean = false,
     val tradeRecords: List<TradeRecordEntity> = emptyList(),
     val tTradePlan: TTradePlan? = null,
+    val auctionPlan: AuctionPlan? = null,
+    val positionPlans: List<PositionNextDayPlan> = emptyList(),
     val manualBuyAnchor: Double? = null,
     val paperSummary: PaperSummary = PaperSummary(),
     val paperLoading: Boolean = false,

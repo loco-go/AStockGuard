@@ -4,6 +4,7 @@ import com.locogo.astockguard.data.local.CacheDao
 import com.locogo.astockguard.data.local.toCacheEntity
 import com.locogo.astockguard.data.local.toModel
 import com.locogo.astockguard.data.ifind.IFindHttpClient
+import com.locogo.astockguard.data.ifind.IFindAuctionTick
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -26,9 +27,19 @@ class MarketRepository(
         val source: String = "ROOM_CACHE"
     )
 
+    data class AuctionSeries(
+        val date: LocalDate,
+        val ticks: List<IFindAuctionTick>,
+        val source: String,
+        val fresh: Boolean,
+        val message: String
+    )
+
     private data class Cache(val at: Long, val bars: List<DailyBar>, val requestedLimit: Int)
     private data class QuoteFetch(val quotes: List<Quote>, val source: String, val message: String)
+    private data class AuctionCache(val fetchedAt: Long, val series: AuctionSeries)
     private val historyCache = mutableMapOf<String, Cache>()
+    private val auctionCache = mutableMapOf<String, AuctionCache>()
 
     suspend fun refresh(): MonitorSnapshot {
         val codes = settings.allCodes()
@@ -116,6 +127,39 @@ class MarketRepository(
     }
 
     suspend fun loadDailyBars(code: String, limit: Int = 30): List<DailyBar> = getHistory(code, limit).takeLast(limit)
+
+    /**
+     * 集合竞价只使用 iFinD 正式快照数据；免费源没有等价字段时明确返回不可用，避免伪造竞价判断。
+     * 竞价期间短缓存降低接口流量，9:30 后当日结果固定并复用内存缓存。
+     */
+    suspend fun loadAuctionSeries(code: String, date: LocalDate = marketDate()): AuctionSeries {
+        if (settings.marketDataSource != SettingsRepository.MARKET_SOURCE_IFIND) {
+            return AuctionSeries(date, emptyList(), "NONE", false, "腾讯免费源不提供可验证的集合竞价快照")
+        }
+        if (settings.ifindRefreshToken.isBlank()) {
+            return AuctionSeries(date, emptyList(), "NONE", false, "未填写iFinD refresh token")
+        }
+        val key = "$date:$code"
+        val now = System.currentTimeMillis()
+        auctionCache[key]?.takeIf { cached ->
+            val auctionFinalized = LocalDate.now(MARKET_ZONE) != date ||
+                java.time.LocalTime.now(MARKET_ZONE).isAfter(java.time.LocalTime.of(9, 30))
+            (auctionFinalized && cached.series.fresh) || now - cached.fetchedAt < AUCTION_CACHE_MS
+        }?.let { return it.series }
+
+        val result = runCatching { ifind?.fetchAuctionTicks(code, date).orEmpty() }
+        val ticks = result.getOrNull().orEmpty()
+        val series = if (ticks.isNotEmpty()) {
+            AuctionSeries(date, ticks, "IFIND_SNAPSHOT", true, "iFinD集合竞价快照正常")
+        } else {
+            AuctionSeries(
+                date, emptyList(), "NONE", false,
+                result.exceptionOrNull()?.message?.take(160) ?: "iFinD集合竞价快照无数据或当前无权限"
+            )
+        }
+        auctionCache[key] = AuctionCache(now, series)
+        return series
+    }
 
     /**
      * 为同花顺未暴露代码的持仓名称补全代码：Room 优先，远端候选必须再用行情名称精确核验。
@@ -248,6 +292,7 @@ class MarketRepository(
     companion object {
         val MARKET_INDEX_CODES = listOf("000001.SH", "399001.SZ", "399006.SZ")
         private val MARKET_ZONE: ZoneId = ZoneId.of("Asia/Shanghai")
+        private const val AUCTION_CACHE_MS = 15_000L
         fun marketDate(): LocalDate = LocalDate.now(MARKET_ZONE)
         private fun normalizeStockName(name: String): String = name.trim().replace(" ", "").uppercase()
     }

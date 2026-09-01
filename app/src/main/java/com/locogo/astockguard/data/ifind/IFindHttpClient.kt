@@ -23,6 +23,14 @@ data class IFindConnectionStatus(
     val quoteCount: Int = 0
 )
 
+/** iFinD 日内快照中的竞价时点；成交量和成交额保留接口原始单位。 */
+data class IFindAuctionTick(
+    val time: String,
+    val price: Double,
+    val volume: Double,
+    val amount: Double
+)
+
 class IFindApiException(
     val errorCode: Int,
     message: String
@@ -89,6 +97,21 @@ class IFindHttpClient(
             })
         })
         return IFindResponseParser.parseDailyBars(root)
+    }
+
+    /**
+     * 获取 9:15—9:30 的集合竞价快照。
+     * 这里只使用实时行情已确认支持的 latest/volume/amount，不猜测未公开的十档或撤单指标名。
+     */
+    suspend fun fetchAuctionTicks(code: String, date: LocalDate): List<IFindAuctionTick> {
+        require(settings.ifindRefreshToken.isNotBlank()) { "尚未填写 iFinD refresh token" }
+        val root = requestWithTokenRetry(SNAPSHOT_PATH, JSONObject().apply {
+            put("codes", code)
+            put("indicators", "latest,volume,amount")
+            put("starttime", "$date 09:15:00")
+            put("endtime", "$date 09:30:00")
+        })
+        return IFindResponseParser.parseAuctionTicks(root)
     }
 
     suspend fun test(codes: List<String>): IFindConnectionStatus = runCatching {
@@ -166,6 +189,7 @@ class IFindHttpClient(
         private const val REALTIME_PATH = "real_time_quotation"
         private const val HIGH_FREQUENCY_PATH = "high_frequency"
         private const val HISTORY_PATH = "cmd_history_quotation"
+        private const val SNAPSHOT_PATH = "snap_shot"
         private const val MAX_CODES_PER_REQUEST = 40
         // 官方access token有效期为7天；第6天主动重新获取，给设备时钟偏差留出余量。
         private const val ACCESS_TOKEN_REUSE_MS = 6L * 24 * 60 * 60 * 1_000
@@ -212,7 +236,7 @@ internal object IFindResponseParser {
     fun parseMinuteBars(root: JSONObject): List<MinuteBar> {
         val row = firstTable(root) ?: return emptyList()
         val table = row.optJSONObject("table") ?: return emptyList()
-        val times = row.optJSONArray("time") ?: table.optJSONArray("time") ?: return emptyList()
+        val times = timeArray(root, row, table) ?: return emptyList()
         var weightedAmount = 0.0
         var weightedVolume = 0.0
         return buildList {
@@ -239,7 +263,7 @@ internal object IFindResponseParser {
     fun parseDailyBars(root: JSONObject): List<DailyBar> {
         val row = firstTable(root) ?: return emptyList()
         val table = row.optJSONObject("table") ?: return emptyList()
-        val times = row.optJSONArray("time") ?: table.optJSONArray("time") ?: return emptyList()
+        val times = timeArray(root, row, table) ?: return emptyList()
         return buildList {
             for (index in 0 until times.length()) {
                 val close = table.doubleAt("close", index) ?: continue
@@ -257,10 +281,34 @@ internal object IFindResponseParser {
         }.sortedBy { it.date }
     }
 
+    fun parseAuctionTicks(root: JSONObject): List<IFindAuctionTick> {
+        val row = firstTable(root) ?: return emptyList()
+        val table = row.optJSONObject("table") ?: return emptyList()
+        val times = timeArray(root, row, table) ?: return emptyList()
+        return buildList {
+            for (index in 0 until times.length()) {
+                val price = table.doubleAt("latest", index) ?: continue
+                if (!price.isFinite() || price <= 0.0) continue
+                add(
+                    IFindAuctionTick(
+                        time = times.optString(index).toMarketTime(),
+                        price = price,
+                        volume = table.doubleAt("volume", index) ?: 0.0,
+                        amount = table.doubleAt("amount", index) ?: 0.0
+                    )
+                )
+            }
+        }.distinctBy { it.time }.sortedBy { it.time }
+    }
+
     private fun firstTable(root: JSONObject): JSONObject? {
         val tables = root.optJSONArray("tables") ?: root.optJSONObject("data")?.optJSONArray("tables")
         return tables?.optJSONObject(0)
     }
+
+    /** 不同HTTP函数会把时间数组放在根节点、table行或table对象中，统一兼容三种结构。 */
+    private fun timeArray(root: JSONObject, row: JSONObject, table: JSONObject): JSONArray? =
+        row.optJSONArray("time") ?: table.optJSONArray("time") ?: root.optJSONArray("time")
 
     private fun JSONObject.firstString(key: String): String {
         val value = opt(key) ?: return ""

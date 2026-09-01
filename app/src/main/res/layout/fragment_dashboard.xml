@@ -135,6 +135,14 @@
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
 
+                    <com.google.android.material.card.MaterialCardView style="@style/Widget.AStockGuard.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp">
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/astock_card_padding">
+                            <TextView style="@style/TextAppearance.AStockGuard.SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="竞价与隔日计划" />
+                            <TextView android:id="@+id/tvAuctionPlan" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:background="@drawable/bg_metric_cell" android:lineSpacingExtra="3dp" android:padding="12dp" android:text="暂无真实竞价数据" />
+                            <TextView android:id="@+id/tvPositionPlans" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:lineSpacingExtra="3dp" android:text="暂无隔日持仓计划" android:textColor="@color/astock_text_secondary" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
                     <TextView style="@style/TextAppearance.AStockGuard.SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_marginTop="18dp" android:text="当前持仓" />
                     <androidx.recyclerview.widget.RecyclerView android:id="@+id/listStrategies" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:nestedScrollingEnabled="false" />
                     <com.google.android.material.button.MaterialButton style="@style/Widget.AStockGuard.SecondaryButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:onClick="@{() -> handlers.onFlowTab()}" android:text="查看行业资金流排名" />

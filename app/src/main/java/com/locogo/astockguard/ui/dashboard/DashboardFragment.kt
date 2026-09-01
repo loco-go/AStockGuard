@@ -109,6 +109,22 @@ class DashboardFragment : Fragment(), DashboardHandlers {
                 "卖出 ${price(it.sellZoneLow)}-${price(it.sellZoneHigh)}\n" +
                 "失效 ${price(it.invalidPrice)}  数量 ${it.suggestedQuantity}\n${it.reason}"
         } ?: "暂无计划"
+        tvAuctionPlan.text = state.auctionPlan?.let { plan ->
+            buildString {
+                append("${plan.code}  ${plan.status}  评分${plan.score}  ·  ${plan.source}")
+                plan.gapPct?.let { append("\n竞价缺口 ${percentValue(it)}") }
+                plan.auctionVolumePct?.let { append("  竞价量/10日日均量 ${percentValue(it)}") }
+                append("\n${plan.reason}")
+            }
+        } ?: "暂无真实竞价数据；腾讯免费源不生成模拟竞价结论"
+        tvPositionPlans.text = state.positionPlans.joinToString("\n\n") { plan ->
+            buildString {
+                append("${plan.name.ifBlank { plan.code }}  ${plan.category.label}  ·  ${plan.action}")
+                append("\n最大T仓 ${plan.maxTQuantity}股")
+                plan.defensePrice?.let { append("  防守参考 ${price(it)}") }
+                append("\n${plan.reason}")
+            }
+        }.ifBlank { "暂无隔日持仓计划" }
         tvR2.text = state.r2ScanRows.take(8).joinToString("\n") { "${it.code}  ${it.score}/${it.grade}  ${it.stageHint}\n${it.reason}" }.ifBlank { "暂无扫描结果" }
         tvSignals.text = state.signalStates.take(8).joinToString("\n") { "${it.code}  ${it.stage}  ${it.lastAction}  ${it.reason}" }.ifBlank { "暂无信号" }
         tvNews.text = with(state.newsRisk) {

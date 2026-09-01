@@ -86,4 +86,22 @@ class IFindResponseParserTest {
         assertEquals(listOf("2026-08-31", "2026-09-01"), bars.map { it.date })
         assertEquals(12.3, bars.last().close, 0.0001)
     }
+
+    @Test
+    fun parsesAuctionSnapshotAndDropsInvalidPrice() {
+        val root = JSONObject(
+            """{
+              "tables":[{
+                "thscode":"600000.SH",
+                "time":["2026-09-01 09:15:03","2026-09-01 09:20:00","2026-09-01 09:25:00"],
+                "table":{"latest":[10.0,"--",10.2],"volume":[100,200,500],"amount":[1000,2000,5100]}
+              }]
+            }"""
+        )
+
+        val ticks = IFindResponseParser.parseAuctionTicks(root)
+
+        assertEquals(listOf("09:15", "09:25"), ticks.map { it.time })
+        assertEquals(500.0, ticks.last().volume, 0.0001)
+    }
 }

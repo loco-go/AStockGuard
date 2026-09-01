@@ -11,6 +11,7 @@ import com.locogo.astockguard.domain.strategy.ChartSignalAction
 import com.locogo.astockguard.domain.strategy.IntradaySignalEngine
 import com.locogo.astockguard.domain.review.AlertHistoryRepository
 import com.locogo.astockguard.domain.trading.TTradePlanner
+import com.locogo.astockguard.domain.plan.AuctionPlanEngine
 import kotlinx.coroutines.*
 import java.time.DayOfWeek
 import java.time.Instant
@@ -30,8 +31,10 @@ class MarketMonitorService : Service() {
     private var lastNewsRefreshAt = 0L
     private var lastTScanAt = 0L
     private var lastIntradayScanAt = 0L
+    private var lastAuctionScanAt = 0L
     private val lastTStatus = mutableMapOf<String, String>()
     private val lastIntradayAlert = mutableMapOf<String, String>()
+    private val lastAuctionStatus = mutableMapOf<String, String>()
     private lateinit var signalLifecycle: com.locogo.astockguard.domain.signal.SignalLifecycleManager
 
     override fun onCreate() {
@@ -55,7 +58,7 @@ class MarketMonitorService : Service() {
 
     private fun startLoop() {
         if (loopJob?.isActive == true) return
-        startForeground(NOTIFICATION_ID, NotificationHelper.serviceNotification(this, "腾讯行情初始化..."))
+        startForeground(NOTIFICATION_ID, NotificationHelper.serviceNotification(this, "行情源初始化..."))
         MonitorBus.updateRunning(true)
         loopJob = scope.launch {
             while (isActive) {
@@ -64,6 +67,7 @@ class MarketMonitorService : Service() {
                     MonitorBus.update(s)
                     emitAlerts(s)
                     refreshNewsIfDue()
+                    scanAuctionPlansIfDue(s)
                     scanTPlansIfDue(s)
                     scanIntradaySignalsIfDue(s)
                     val source = if (s.dataHealth.isStale) "缓存" else "实时"
@@ -141,6 +145,39 @@ class MarketMonitorService : Service() {
                     )
                 }
             }
+    }
+
+    /**
+     * 9:15—9:30 使用 iFinD 真实快照更新集合竞价预案。
+     * 免费源、缓存或无权限状态不会触发竞价提醒，且任何强竞价都要求开盘后二次确认。
+     */
+    private suspend fun scanAuctionPlansIfDue(snapshot: MonitorSnapshot) {
+        if (snapshot.dataHealth.isStale || settings.marketDataSource != SettingsRepository.MARKET_SOURCE_IFIND) return
+        val now = System.currentTimeMillis()
+        if (!isAuctionTime(now) || now - lastAuctionScanAt < AUCTION_SCAN_INTERVAL_MS) return
+        lastAuctionScanAt = now
+        val quoteMap = snapshot.quotes.associateBy { it.code }
+        settings.positions().take(MAX_AUCTION_SCAN_POSITIONS).forEach { position ->
+            runCatching {
+                val series = marketRepository.loadAuctionSeries(position.code)
+                if (!series.fresh || series.ticks.isEmpty()) return@runCatching
+                val daily = marketRepository.loadDailyBars(position.code, 12)
+                val plan = AuctionPlanEngine.evaluate(
+                    position.code, position.role, quoteMap[position.code]?.previousClose, daily, series
+                )
+                if (plan.status == "NO_DATA") return@runCatching
+                val previous = lastAuctionStatus.put(position.code, plan.status)
+                if (previous == plan.status) return@runCatching
+                NotificationHelper.alert(
+                    this,
+                    auctionNotificationId(position.code),
+                    "${position.name} · ${plan.status}",
+                    "竞价评分${plan.score}，${plan.reason} 数据源${plan.source}。仅更新开盘预案，不自动下单。"
+                )
+            }.onFailure { error ->
+                Log.w("MarketMonitor", "集合竞价扫描失败 ${position.code}: ${error.message}")
+            }
+        }
     }
 
     /**
@@ -245,6 +282,16 @@ class MarketMonitorService : Service() {
         return 4000 + (positiveHash % 700) * 4 + type
     }
 
+    private fun isAuctionTime(epochMs: Long): Boolean {
+        val dt = Instant.ofEpochMilli(epochMs).atZone(CHINA_ZONE)
+        if (dt.dayOfWeek == DayOfWeek.SATURDAY || dt.dayOfWeek == DayOfWeek.SUNDAY) return false
+        val time = dt.toLocalTime()
+        return !time.isBefore(LocalTime.of(9, 15)) && !time.isAfter(LocalTime.of(9, 30))
+    }
+
+    private fun auctionNotificationId(code: String): Int =
+        11_000 + ((code.hashCode() and Int.MAX_VALUE) % 900)
+
     private fun intradayNotificationId(code: String, action: ChartSignalAction): Int {
         val positiveHash = code.hashCode() and Int.MAX_VALUE
         return 7000 + (positiveHash % 900) * 2 + if (action == ChartSignalAction.BUY) 0 else 1
@@ -265,7 +312,9 @@ class MarketMonitorService : Service() {
         const val NOTIFICATION_ID = 1001
         private const val T_SCAN_INTERVAL_MS = 30_000L
         private const val INTRADAY_SCAN_INTERVAL_MS = 60_000L
+        private const val AUCTION_SCAN_INTERVAL_MS = 15_000L
         private const val MAX_T_SCAN_POSITIONS = 6
+        private const val MAX_AUCTION_SCAN_POSITIONS = 6
         private const val MAX_INTRADAY_SCAN_CODES = 6
         private const val MIN_INTRADAY_CANDLES = 8
         private const val MAX_FLOW_AGE_MINUTES = 10

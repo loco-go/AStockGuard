@@ -70,6 +70,7 @@
             android:textSize="12sp" />
         <EditText android:id="@+id/etWatchCodes" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="000636.SZ,000938.SZ,600667.SH" />
         <EditText android:id="@+id/etPositions" android:layout_width="match_parent" android:layout_height="160dp" android:gravity="top" android:hint="代码,名称,股数,成本,角色" android:inputType="textMultiLine" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="角色支持：LONG长期持仓、CORE趋势核心、ATTACK短期套利、PROFIT格局利润仓；角色会影响隔日减仓纪律和最大T仓比例。" android:textSize="12sp" />
         <EditText android:id="@+id/etPositionRatio" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="当前总仓位%" android:inputType="numberDecimal" />
         <EditText android:id="@+id/etCashBalance" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="账户现金余额（可选，用于计算真实总资产）" android:inputType="numberDecimal" />
         <EditText android:id="@+id/etRefreshSeconds" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="轮询秒数（3-60）" android:inputType="number" />
