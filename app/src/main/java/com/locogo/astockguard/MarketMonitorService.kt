@@ -134,6 +134,22 @@ class MarketMonitorService : Service() {
                 val previous = lastTStatus.put(position.code, plan.status)
                 if (previous == plan.status) return@forEach
 
+                if (plan.actionable) {
+                    val evidenceSource = buildString {
+                        append(snapshot.dataHealth.source)
+                        append("+FUND_").append(plan.fundFlowStatus)
+                        append("+L2_").append(level2?.source ?: "NONE")
+                    }
+                    // 只有成功写入Room且通过跨进程唯一键去重的提醒，才进入通知栏和真实胜率统计。
+                    val recorded = alertHistoryRepository.recordTPlanAlert(
+                        name = position.name,
+                        plan = plan,
+                        dataSource = evidenceSource,
+                        now = now
+                    )
+                    if (!recorded) return@forEach
+                }
+
                 when (plan.status) {
                     "BUY_ZONE" -> NotificationHelper.alert(
                         this,

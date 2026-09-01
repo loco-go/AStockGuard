@@ -152,7 +152,8 @@ class BackupManager(
         put("score", score); put("strategyVersion", strategyVersion); put("source", source); put("dataSource", dataSource)
         put("reason", reason); put("status", status); put("evaluatedAt", evaluatedAt); put("exitPrice", exitPrice)
         put("netEdgePct", netEdgePct); put("maxFavorablePct", maxFavorablePct); put("maxAdversePct", maxAdversePct)
-        put("horizonBars", horizonBars)
+        put("horizonBars", horizonBars); put("alertType", alertType); put("targetPrice", targetPrice)
+        put("stopPrice", stopPrice); put("evidenceJson", evidenceJson)
     }
     private fun AiAnalysisEntity.toJson() = JSONObject().apply {
         put("createdAt", createdAt); put("prompt", prompt); put("rawAnswer", rawAnswer); put("marketAction", marketAction)
@@ -189,6 +190,8 @@ class BackupManager(
         action = o.optString("action"), price = o.optDouble("price"), score = o.optInt("score"),
         strategyVersion = o.optString("strategyVersion", "LEGACY"), source = o.optString("source", "RESTORE"),
         dataSource = o.optString("dataSource", "UNKNOWN"), reason = o.optString("reason"),
+        alertType = o.optString("alertType", "INTRADAY_SIGNAL"), targetPrice = o.optDouble("targetPrice"),
+        stopPrice = o.optDouble("stopPrice"), evidenceJson = o.optString("evidenceJson", "{}"),
         status = o.optString("status", "PENDING"), evaluatedAt = o.optLong("evaluatedAt"),
         exitPrice = o.optDouble("exitPrice"), netEdgePct = o.optDouble("netEdgePct"),
         maxFavorablePct = o.optDouble("maxFavorablePct"), maxAdversePct = o.optDouble("maxAdversePct"),

@@ -10,7 +10,8 @@ import androidx.room.PrimaryKey
     indices = [
         Index(value = ["alertKey"], unique = true),
         Index(value = ["signalAt"]),
-        Index(value = ["status"])
+        Index(value = ["status"]),
+        Index(value = ["alertType"])
     ]
 )
 data class AlertRecordEntity(
@@ -28,6 +29,13 @@ data class AlertRecordEntity(
     val source: String,
     val dataSource: String,
     val reason: String,
+    /** INTRADAY_SIGNAL 为原分时信号，T_PLAN 为资金流/盘口做T提醒。 */
+    val alertType: String = "INTRADAY_SIGNAL",
+    /** 计划自带目标/止损价；旧信号为0时继续使用固定百分比评价。 */
+    val targetPrice: Double = 0.0,
+    val stopPrice: Double = 0.0,
+    /** 仅保存结构化策略证据，不保存Token或接口原始响应。 */
+    val evidenceJson: String = "{}",
     val status: String = "PENDING",
     val evaluatedAt: Long = 0,
     val exitPrice: Double = 0.0,

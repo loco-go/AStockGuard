@@ -6,6 +6,7 @@ import com.locogo.astockguard.data.local.CacheDao
 import com.locogo.astockguard.domain.strategy.ChartSignalAction
 import com.locogo.astockguard.domain.strategy.IntradayChartSignal
 import com.locogo.astockguard.domain.strategy.StrategyVersions
+import com.locogo.astockguard.domain.trading.TTradePlan
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
@@ -18,6 +19,12 @@ data class AlertHistoryStats(
     val wins: Int = 0,
     val winRatePct: Double = 0.0,
     val averageNetEdgePct: Double = 0.0,
+    val tTotal: Int = 0,
+    val tPending: Int = 0,
+    val tEvaluated: Int = 0,
+    val tWins: Int = 0,
+    val tWinRatePct: Double = 0.0,
+    val tAverageNetEdgePct: Double = 0.0,
     val recent: List<AlertRecordEntity> = emptyList()
 )
 
@@ -65,6 +72,64 @@ class AlertHistoryRepository(private val dao: CacheDao) {
         ) != -1L
     }
 
+    /**
+     * 只记录真正进入系统通知栏的做T动作。目标价、止损价和触发证据随提醒固化，后续策略升级
+     * 不会改写历史评价口径；证据中不保存接口原文和任何鉴权信息。
+     */
+    suspend fun recordTPlanAlert(
+        name: String,
+        plan: TTradePlan,
+        dataSource: String,
+        now: Long
+    ): Boolean {
+        if (!plan.actionable || plan.referencePrice <= 0.0) return false
+        val isBuy = plan.status == "BUY_ZONE"
+        val target = if (isBuy) plan.sellZoneLow else plan.buyZoneHigh
+        val stop = if (isBuy) plan.invalidPrice else max(plan.sellZoneHigh, plan.referencePrice * (1.0 + T_SELL_STOP_RATIO))
+        if (target <= 0.0 || stop <= 0.0) return false
+        if (isBuy && (target <= plan.referencePrice || stop >= plan.referencePrice)) return false
+        if (!isBuy && (target >= plan.referencePrice || stop <= plan.referencePrice)) return false
+
+        val point = java.time.Instant.ofEpochMilli(now).atZone(CHINA_ZONE)
+        val signalTime = "%02d:%02d".format(point.hour, point.minute / 5 * 5)
+        val action = if (isBuy) ChartSignalAction.BUY.name else ChartSignalAction.SELL.name
+        val alertKey = listOf(plan.code, point.toLocalDate(), signalTime, action, T_PLAN_VERSION).joinToString("|")
+        val score = (50 + when (plan.fundFlowStatus) {
+            "SUSTAINED_INFLOW" -> 12
+            "SUSTAINED_OUTFLOW" -> -12
+            else -> 0
+        } + when (plan.orderBookStatus) {
+            "BID_DOMINANT" -> 12
+            "ASK_DOMINANT" -> -12
+            else -> 0
+        }).coerceIn(0, 100)
+        val imbalance = plan.orderBookImbalance?.takeIf(Double::isFinite)?.toString() ?: "null"
+        val evidence = "{\"fundFlow\":\"${plan.fundFlowStatus}\",\"orderBook\":\"${plan.orderBookStatus}\"," +
+            "\"imbalance\":$imbalance,\"expectedEdgePct\":${plan.expectedEdgePct}}"
+        return dao.insertAlertRecord(
+            AlertRecordEntity(
+                alertKey = alertKey,
+                code = plan.code,
+                name = name.ifBlank { plan.code },
+                signalAt = now,
+                signalDate = point.toLocalDate().toString(),
+                signalTime = signalTime,
+                action = action,
+                price = plan.referencePrice,
+                score = score,
+                strategyVersion = T_PLAN_VERSION,
+                source = "T_PLAN_NOTIFICATION",
+                dataSource = dataSource,
+                reason = plan.reason,
+                alertType = "T_PLAN",
+                targetPrice = target,
+                stopPrice = stop,
+                evidenceJson = evidence,
+                horizonBars = T_HORIZON_BARS
+            )
+        ) != -1L
+    }
+
     /** 数据不足时保留PENDING；止盈/止损已触发时允许提前定案。 */
     suspend fun evaluatePending(code: String, date: LocalDate, candles: List<MinuteCandle>, now: Long) {
         dao.getPendingAlertRecords(code)
@@ -87,6 +152,9 @@ class AlertHistoryRepository(private val dao: CacheDao) {
         val records = dao.getAlertRecords(limit)
         val evaluated = records.filter { it.status == "WIN" || it.status == "LOSS" }
         val wins = evaluated.count { it.status == "WIN" }
+        val tRecords = records.filter { it.alertType == "T_PLAN" }
+        val tEvaluated = tRecords.filter { it.status == "WIN" || it.status == "LOSS" }
+        val tWins = tEvaluated.count { it.status == "WIN" }
         return AlertHistoryStats(
             total = records.size,
             pending = records.count { it.status == "PENDING" },
@@ -94,6 +162,12 @@ class AlertHistoryRepository(private val dao: CacheDao) {
             wins = wins,
             winRatePct = if (evaluated.isEmpty()) 0.0 else wins * 100.0 / evaluated.size,
             averageNetEdgePct = if (evaluated.isEmpty()) 0.0 else evaluated.map { it.netEdgePct }.average(),
+            tTotal = tRecords.size,
+            tPending = tRecords.count { it.status == "PENDING" },
+            tEvaluated = tEvaluated.size,
+            tWins = tWins,
+            tWinRatePct = if (tEvaluated.isEmpty()) 0.0 else tWins * 100.0 / tEvaluated.size,
+            tAverageNetEdgePct = if (tEvaluated.isEmpty()) 0.0 else tEvaluated.map { it.netEdgePct }.average(),
             recent = records.take(20)
         )
     }
@@ -105,6 +179,9 @@ class AlertHistoryRepository(private val dao: CacheDao) {
     private companion object {
         val CHINA_ZONE: ZoneId = ZoneId.of("Asia/Shanghai")
         val TIME_REGEX = Regex("(\\d{2}):(\\d{2})")
+        const val T_PLAN_VERSION = "T_PLAN_V2_BOOK_FLOW"
+        const val T_HORIZON_BARS = 6
+        const val T_SELL_STOP_RATIO = 0.0035
     }
 }
 
@@ -120,17 +197,24 @@ object AlertOutcomeEvaluator {
         var status: String? = null
         var maxFavorable = 0.0
         var maxAdverse = 0.0
+        val customPrices = record.targetPrice > 0.0 && record.stopPrice > 0.0
         future.forEach { candle ->
             val favorable = if (isBuy) candle.high / record.price - 1.0 else record.price / candle.low - 1.0
             val adverse = if (isBuy) record.price / candle.low - 1.0 else candle.high / record.price - 1.0
             maxFavorable = max(maxFavorable, favorable)
             maxAdverse = max(maxAdverse, adverse)
-            if (status == null && adverse >= STOP_RATIO) {
+            val stopHit = if (customPrices) {
+                if (isBuy) candle.low <= record.stopPrice else candle.high >= record.stopPrice
+            } else adverse >= STOP_RATIO
+            val targetHit = if (customPrices) {
+                if (isBuy) candle.high >= record.targetPrice else candle.low <= record.targetPrice
+            } else favorable >= TARGET_RATIO
+            if (status == null && stopHit) {
                 status = "LOSS"
-                exitPrice = record.price * if (isBuy) 1.0 - STOP_RATIO else 1.0 + STOP_RATIO
-            } else if (status == null && favorable >= TARGET_RATIO) {
+                exitPrice = if (customPrices) record.stopPrice else record.price * if (isBuy) 1.0 - STOP_RATIO else 1.0 + STOP_RATIO
+            } else if (status == null && targetHit) {
                 status = "WIN"
-                exitPrice = record.price * if (isBuy) 1.0 + TARGET_RATIO else 1.0 - TARGET_RATIO
+                exitPrice = if (customPrices) record.targetPrice else record.price * if (isBuy) 1.0 + TARGET_RATIO else 1.0 - TARGET_RATIO
             }
         }
         // 尚未走完观察窗口且没有触发止盈止损，不提前用不完整数据评分。

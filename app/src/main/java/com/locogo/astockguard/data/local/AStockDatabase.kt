@@ -14,7 +14,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         Level2SnapshotEntity::class, PaperAccountEntity::class, PaperPositionEntity::class,
         PaperOrderEntity::class, PaperEquityEntity::class, StrategySignalEntity::class,
         FundFlowEntity::class, AccountLedgerEntity::class, AlertRecordEntity::class],
-    version = 13,
+    version = 14,
     exportSchema = true
 )
 abstract class AStockDatabase : RoomDatabase() {
@@ -144,6 +144,13 @@ abstract class AStockDatabase : RoomDatabase() {
             db.execSQL("CREATE INDEX IF NOT EXISTS index_alert_record_signalAt ON alert_record(signalAt)")
             db.execSQL("CREATE INDEX IF NOT EXISTS index_alert_record_status ON alert_record(status)")
         } }
+        val MIGRATION_13_14 = object : Migration(13, 14) { override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE alert_record ADD COLUMN alertType TEXT NOT NULL DEFAULT 'INTRADAY_SIGNAL'")
+            db.execSQL("ALTER TABLE alert_record ADD COLUMN targetPrice REAL NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE alert_record ADD COLUMN stopPrice REAL NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE alert_record ADD COLUMN evidenceJson TEXT NOT NULL DEFAULT '{}'")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_alert_record_alertType ON alert_record(alertType)")
+        } }
 
         @Volatile private var instance: AStockDatabase? = null
         fun get(context: Context): AStockDatabase = instance ?: synchronized(this) {
@@ -151,7 +158,7 @@ abstract class AStockDatabase : RoomDatabase() {
                 .addMigrations(
                     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
                     MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
-                    MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13
+                    MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14
                 )
                 .build().also { instance = it }
         }

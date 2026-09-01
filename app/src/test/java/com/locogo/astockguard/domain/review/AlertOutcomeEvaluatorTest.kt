@@ -41,6 +41,40 @@ class AlertOutcomeEvaluatorTest {
         assertTrue(result!!.netEdgePct < 0.0)
     }
 
+    @Test
+    fun tPlanBuyUsesItsPersistedTargetInsteadOfGenericThreshold() {
+        val tPlan = record().copy(alertType = "T_PLAN", targetPrice = 10.20, stopPrice = 9.80)
+        val candles = listOf(candle("10:00", 10.0), candle("10:05", 10.15, high = 10.21, low = 9.95))
+
+        val result = AlertOutcomeEvaluator.evaluate(tPlan, candles)
+
+        assertEquals("WIN", result?.status)
+        assertEquals(10.20, result!!.exitPrice, 0.0001)
+        assertTrue(result.netEdgePct > 0.0)
+    }
+
+    @Test
+    fun tPlanSellUsesLowerBuybackTarget() {
+        val tPlan = record().copy(
+            action = "SELL", alertType = "T_PLAN", targetPrice = 9.80, stopPrice = 10.20
+        )
+        val candles = listOf(candle("10:00", 10.0), candle("10:05", 9.85, high = 10.05, low = 9.79))
+
+        val result = AlertOutcomeEvaluator.evaluate(tPlan, candles)
+
+        assertEquals("WIN", result?.status)
+        assertEquals(9.80, result!!.exitPrice, 0.0001)
+        assertTrue(result.netEdgePct > 0.0)
+    }
+
+    @Test
+    fun tPlanSameBarStopAndTargetStillCountsAsLoss() {
+        val tPlan = record().copy(alertType = "T_PLAN", targetPrice = 10.20, stopPrice = 9.80)
+        val candles = listOf(candle("10:00", 10.0), candle("10:05", 10.0, high = 10.21, low = 9.79))
+
+        assertEquals("LOSS", AlertOutcomeEvaluator.evaluate(tPlan, candles)?.status)
+    }
+
     private fun record() = AlertRecordEntity(
         alertKey = "key",
         code = "000001.SZ",
