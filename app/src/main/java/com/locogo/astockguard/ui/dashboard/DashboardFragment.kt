@@ -30,6 +30,9 @@ import com.locogo.astockguard.ui.main.StrategyUiMapper
 import com.locogo.astockguard.ui.stock.StockDetailFragment
 import kotlinx.coroutines.launch
 import java.util.Locale
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 class DashboardFragment : Fragment(), DashboardHandlers {
     private var _binding: FragmentDashboardBinding? = null
@@ -156,6 +159,13 @@ class DashboardFragment : Fragment(), DashboardHandlers {
                 evidence.take(3).joinToString(separator = "\n", prefix = if (evidence.isEmpty()) "" else "\n") { it.title }
         }
         klineView.setBars(state.dailyBars)
+        tvDailyDataStatus.text = state.dailyBars.lastOrNull()?.let { latest ->
+            val cache = if (state.dailyFromCache) " · 缓存，仅供参考" else ""
+            val merged = if (state.dailyRealtimeMerged) " · 实时补齐今日K" else ""
+            val fetched = state.dailyUpdatedAt.takeIf { it > 0L }?.let { " · 拉取${clock(it)}" }.orEmpty()
+            "${latest.date}  开 ${price(latest.open)}  收/现 ${price(latest.close)}  " +
+                "高 ${price(latest.high)}  低 ${price(latest.low)}\n来源 ${state.dailySource}$merged$cache$fetched"
+        } ?: "暂无日K数据 · 来源 ${state.dailySource}"
         tvTrades.text = state.tradeRecords.takeLast(12).joinToString("\n") {
             "${it.code}  ${it.side}  ${it.quantity}股  ${price(it.price)}  ${it.source}"
         }.ifBlank { "暂无成交记录" }
@@ -384,6 +394,8 @@ class DashboardFragment : Fragment(), DashboardHandlers {
     }
 
     private fun price(value: Double) = String.format(Locale.CHINA, "%.2f", value)
+    private fun clock(epochMs: Long): String = Instant.ofEpochMilli(epochMs).atZone(ZoneId.of("Asia/Shanghai"))
+        .format(DateTimeFormatter.ofPattern("HH:mm:ss"))
     private fun pct(value: Double) = String.format(Locale.CHINA, "%+.2f%%", value * 100.0)
     private fun percentValue(value: Double) = String.format(Locale.CHINA, "%+.2f%%", value)
     private fun indexText(index: MarketIndexUi) = "${index.name}\n" +

@@ -35,7 +35,22 @@ class MarketRepository(
         val message: String
     )
 
-    private data class Cache(val at: Long, val bars: List<DailyBar>, val requestedLimit: Int)
+    /** 日K数据及其来源信息，供图表明确展示缓存和盘中补齐状态。 */
+    data class DailySeries(
+        val bars: List<DailyBar>,
+        val source: String,
+        val fromCache: Boolean,
+        val realtimeMerged: Boolean,
+        val updatedAt: Long,
+        val message: String
+    )
+
+    private data class Cache(
+        val at: Long,
+        val bars: List<DailyBar>,
+        val requestedLimit: Int,
+        val source: String
+    )
     private data class QuoteFetch(val quotes: List<Quote>, val source: String, val message: String)
     private data class AuctionCache(val fetchedAt: Long, val series: AuctionSeries)
     private val historyCache = mutableMapOf<String, Cache>()
@@ -129,8 +144,23 @@ class MarketRepository(
         )
     }
 
-    suspend fun loadDailyBars(code: String, limit: Int = 30): List<DailyBar> =
-        mergeRealtimeDailyBar(getHistory(code, limit), latestQuotes[code], marketDate()).takeLast(limit)
+    suspend fun loadDailyBars(code: String, limit: Int = 30): List<DailyBar> = loadDailySeries(code, limit).bars
+
+    suspend fun loadDailySeries(code: String, limit: Int = 30): DailySeries {
+        val history = getHistory(code, limit)
+        val metadata = historyCache[historyKey(code)]
+        val merged = mergeRealtimeDailyBar(history, latestQuotes[code], marketDate()).takeLast(limit)
+        val realtimeMerged = merged != history.takeLast(limit)
+        val baseSource = metadata?.source ?: "UNKNOWN"
+        val source = if (realtimeMerged) "$baseSource+REALTIME" else baseSource
+        val fromCache = baseSource == "ROOM_CACHE"
+        val message = when {
+            realtimeMerged -> "历史日K已用实时快照补齐今日未收盘K线"
+            fromCache -> "远端日K不可用，当前显示Room缓存"
+            else -> "历史日K接口数据"
+        }
+        return DailySeries(merged, source, fromCache, realtimeMerged, metadata?.at ?: 0L, message)
+    }
 
     /**
      * 集合竞价只使用 iFinD 正式快照数据；免费源没有等价字段时明确返回不可用，避免伪造竞价判断。
@@ -268,7 +298,7 @@ class MarketRepository(
     private suspend fun getHistory(code: String, limit: Int = 30): List<DailyBar> {
         val now = System.currentTimeMillis()
         // 切换首选源后必须重新取数，不能继续命中上一个Provider的内存缓存。
-        val historyKey = "${settings.marketDataSource}:$code"
+        val historyKey = historyKey(code)
         historyCache[historyKey]
             ?.takeIf { now - it.at < 30 * 60 * 1000L && it.requestedLimit >= limit }
             ?.let { return it.bars }
@@ -279,19 +309,28 @@ class MarketRepository(
             val start = end.minusDays((limit * 2L + 30L).coerceAtLeast(60L))
             runCatching { ifind?.fetchDailyBars(code, start, end).orEmpty() }.getOrDefault(emptyList())
         } else emptyList()
-        val remote = ifindBars.ifEmpty {
+        val tencentBars = if (ifindBars.isEmpty()) {
             // iFinD鉴权、权限、额度或网络异常时自动回到腾讯，不改变用户的长期选择。
             runCatching { history.fetchDaily(code, limit) }.getOrDefault(emptyList())
-        }.takeLast(limit)
+        } else emptyList()
+        val remote = ifindBars.ifEmpty { tencentBars }.takeLast(limit)
+        val source = when {
+            ifindBars.isNotEmpty() -> "IFIND"
+            tencentBars.isNotEmpty() && preferIFind -> "TENCENT_FALLBACK"
+            tencentBars.isNotEmpty() -> "TENCENT"
+            else -> "ROOM_CACHE"
+        }
         val bars = if (remote.isNotEmpty()) {
             cacheDao?.let { dao -> runCatching { dao.upsertDailyBars(remote.map { it.toCacheEntity(code, now) }) } }
             remote
         } else {
             cacheDao?.getDailyBars(code, limit).orEmpty().map { it.toModel() }.reversed()
         }
-        historyCache[historyKey] = Cache(now, bars, limit)
+        historyCache[historyKey] = Cache(now, bars, limit, source)
         return bars
     }
+
+    private fun historyKey(code: String): String = "${settings.marketDataSource}:$code"
 
     companion object {
         val MARKET_INDEX_CODES = listOf("000001.SH", "399001.SZ", "399006.SZ")

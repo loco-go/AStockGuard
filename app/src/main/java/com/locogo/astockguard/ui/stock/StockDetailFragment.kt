@@ -19,6 +19,8 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.Instant
+import java.time.format.DateTimeFormatter
 
 class StockDetailFragment : Fragment() {
     private var _binding: FragmentStockDetailBinding? = null
@@ -76,7 +78,18 @@ class StockDetailFragment : Fragment() {
                                 "今日缓存 · ${state.minuteCandles.size} 根 · 参考点 ${state.minuteSignals.size} 个（非实时信号）"
                             state.period == ChartPeriod.MINUTE ->
                                 "分时 ${state.minuteCandles.size} 根 · 买卖点 ${state.minuteSignals.size} 个"
-                            else -> "${state.period.name} ${state.candles.size} 根K线"
+                            else -> {
+                                val latest = state.candles.lastOrNull()
+                                val ohlc = latest?.let {
+                                    " · ${it.date} 开${price(it.open)} 收${price(it.close)} 高${price(it.high)} 低${price(it.low)}"
+                                }.orEmpty()
+                                val flags = buildString {
+                                    if (state.dailyRealtimeMerged) append(" · 实时补齐今日K")
+                                    if (state.dailyFromCache) append(" · 缓存仅供参考")
+                                    if (state.dailyUpdatedAt > 0L) append(" · 拉取${clock(state.dailyUpdatedAt)}")
+                                }
+                                "${state.period.name} ${state.candles.size} 根K线 · ${state.dailySource}$ohlc$flags"
+                            }
                         }
                         val score = state.strategy?.score
                         binding.tvTrendScore.text = score?.let { "${it.trendScore}/100" } ?: "--"
@@ -146,6 +159,11 @@ class StockDetailFragment : Fragment() {
                 .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         }.show()
     }
+
+    private fun price(value: Double): String = String.format(Locale.CHINA, "%.2f", value)
+
+    private fun clock(epochMs: Long): String = Instant.ofEpochMilli(epochMs).atZone(ZoneId.of("Asia/Shanghai"))
+        .format(DateTimeFormatter.ofPattern("HH:mm:ss"))
 
     override fun onDestroyView() {
         binding.klineView.release()

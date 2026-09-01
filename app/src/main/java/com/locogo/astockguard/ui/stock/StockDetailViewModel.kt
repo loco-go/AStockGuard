@@ -35,6 +35,10 @@ data class StockDetailUiState(
     val quote: Quote? = null,
     val period: ChartPeriod = ChartPeriod.DAY,
     val candles: List<StockKLine> = emptyList(),
+    val dailySource: String = "UNKNOWN",
+    val dailyFromCache: Boolean = true,
+    val dailyRealtimeMerged: Boolean = false,
+    val dailyUpdatedAt: Long = 0L,
     val minuteCandles: List<MinuteCandle> = emptyList(),
     val minuteSignals: List<IntradayChartSignal> = emptyList(),
     val minuteBacktest: IntradayBacktestStats = IntradayBacktestStats(),
@@ -64,13 +68,14 @@ class StockDetailViewModel(
         if (code.isBlank() || (_state.value.code == code && dailySource.isNotEmpty())) return
         _state.value = StockDetailUiState(code = code, loading = true)
         viewModelScope.launch {
-            val dailyRequest = async { runCatching { marketRepository.loadDailyBars(code, CHART_HISTORY_DAYS) } }
+            val dailyRequest = async { runCatching { marketRepository.loadDailySeries(code, CHART_HISTORY_DAYS) } }
             val minuteRequest = async { runCatching { marketRepository.loadMinuteSeries(code) } }
             val flowRequest = async { runCatching { fundFlowRepository.stock(code) } }
             val dailyResult = dailyRequest.await()
             val minuteResult = minuteRequest.await()
             fundFlow = flowRequest.await().getOrNull()
-            dailySource = dailyResult.getOrDefault(emptyList())
+            val dailySeries = dailyResult.getOrNull()
+            dailySource = dailySeries?.bars.orEmpty()
             var generatedSignal: ChartSignal? = null
             _state.update { current ->
                 val minuteSeries = minuteResult.getOrNull()
@@ -84,6 +89,10 @@ class StockDetailViewModel(
                 generatedSignal = strategy?.signal
                 current.copy(
                     candles = candles,
+                    dailySource = dailySeries?.source ?: "UNKNOWN",
+                    dailyFromCache = dailySeries?.fromCache ?: true,
+                    dailyRealtimeMerged = dailySeries?.realtimeMerged == true,
+                    dailyUpdatedAt = dailySeries?.updatedAt ?: 0L,
                     minuteCandles = minuteCandles,
                     minuteSignals = minuteEvaluation.first,
                     minuteBacktest = minuteEvaluation.second,
@@ -107,7 +116,9 @@ class StockDetailViewModel(
     fun updateQuote(quote: Quote?) {
         if (quote?.code != _state.value.code || quote == _state.value.quote) return
         // 盘中实时快照变化时同步重建当天日K，避免详情页一直停留在首次历史请求的昨日蜡烛。
+        val before = dailySource
         dailySource = MarketRepository.mergeRealtimeDailyBar(dailySource, quote)
+        val realtimeMerged = before != dailySource
         _state.update { current ->
             if (current.period == ChartPeriod.MINUTE) return@update current.copy(quote = quote)
             val candles = ChartDataMapper.aggregate(dailySource, current.period)
@@ -115,6 +126,10 @@ class StockDetailViewModel(
             current.copy(
                 quote = quote,
                 candles = candles,
+                dailySource = if (realtimeMerged && !current.dailySource.endsWith("+REALTIME")) {
+                    "${current.dailySource}+REALTIME"
+                } else current.dailySource,
+                dailyRealtimeMerged = current.dailyRealtimeMerged || realtimeMerged,
                 strategy = strategy,
                 signals = strategy?.signal?.let(::listOf).orEmpty()
             )

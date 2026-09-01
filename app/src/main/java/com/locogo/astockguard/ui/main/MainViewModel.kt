@@ -81,6 +81,10 @@ class MainViewModel(
                 cashBalance = cashBalance,
                 selectedCode = nextCode,
                 dailyBars = if (selectionChanged) emptyList() else it.dailyBars,
+                dailySource = if (selectionChanged) "UNKNOWN" else it.dailySource,
+                dailyFromCache = if (selectionChanged) true else it.dailyFromCache,
+                dailyRealtimeMerged = if (selectionChanged) false else it.dailyRealtimeMerged,
+                dailyUpdatedAt = if (selectionChanged) 0L else it.dailyUpdatedAt,
                 minuteBars = if (selectionChanged) emptyList() else it.minuteBars,
                 stockFundFlow = if (selectionChanged) null else it.stockFundFlow,
                 level2 = if (selectionChanged) null else it.level2,
@@ -180,7 +184,8 @@ class MainViewModel(
             )
         }
         viewModelScope.launch {
-            val daily = runCatching { marketRepository.loadDailyBars(code, 30) }.getOrDefault(emptyList())
+            val dailySeries = runCatching { marketRepository.loadDailySeries(code, 30) }.getOrNull()
+            val daily = dailySeries?.bars.orEmpty()
             val minuteSeries = runCatching { marketRepository.loadMinuteSeries(code) }.getOrNull()
             val auctionSeries = runCatching { marketRepository.loadAuctionSeries(code) }.getOrNull()
             val minute = minuteSeries?.bars.orEmpty()
@@ -197,6 +202,10 @@ class MainViewModel(
                 _uiState.update {
                     it.copy(
                         dailyBars = daily,
+                        dailySource = dailySeries?.source ?: "UNKNOWN",
+                        dailyFromCache = dailySeries?.fromCache ?: true,
+                        dailyRealtimeMerged = dailySeries?.realtimeMerged == true,
+                        dailyUpdatedAt = dailySeries?.updatedAt ?: 0L,
                         minuteBars = minute,
                         minuteFromCache = minuteSeries?.fromCache ?: true,
                         minuteHistorical = minuteSeries?.isHistorical ?: false,
