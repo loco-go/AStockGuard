@@ -63,7 +63,8 @@ class SettingsRepository(context: Context) {
     var newsRefreshMinutes: Int get() = prefs.getInt("news_refresh_minutes", 15).coerceIn(5, 120); set(v) = prefs.edit().putInt("news_refresh_minutes", v.coerceIn(5, 120)).apply()
     var newsSourcesText: String get() = prefs.getString("news_sources", DEFAULT_NEWS_SOURCES) ?: DEFAULT_NEWS_SOURCES; set(v) = prefs.edit().putString("news_sources", v).apply()
 
-    var level2ProviderType: String get() = prefs.getString("level2_provider_type", "MOCK") ?: "MOCK"; set(v) = prefs.edit().putString("level2_provider_type", v).apply()
+    /** 新安装默认复用iFinD官方HTTP；无Token或无十档权限时仓位策略只会把盘口标记为不可用。 */
+    var level2ProviderType: String get() = prefs.getString("level2_provider_type", "IFIND_HTTP") ?: "IFIND_HTTP"; set(v) = prefs.edit().putString("level2_provider_type", v).apply()
     var level2BaseUrl: String get() = prefs.getString("level2_base_url", "") ?: ""; set(v) = prefs.edit().putString("level2_base_url", v).apply()
     var level2ApiToken: String get() = crypto.get("level2_api_token"); set(v) = crypto.put("level2_api_token", v)
 

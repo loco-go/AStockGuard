@@ -26,7 +26,7 @@ class SettingsActivity : AppCompatActivity() {
     private val market = TencentMarketClient()
     private val ai = AiClient()
     private val aiTypes = listOf("CHATGPT_WEB", "RESPONSES", "CHAT_COMPLETIONS", "LOCAL")
-    private val level2Types = listOf("MOCK", "HTTP_JSON")
+    private val level2Types = listOf("IFIND_HTTP", "HTTP_JSON", "MOCK")
 
     private val openImportFile = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let { importFromUri(it) } }
     private val createBackupFile = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri -> uri?.let(::writeBackup) }
@@ -174,13 +174,14 @@ class SettingsActivity : AppCompatActivity() {
         lifecycleScope.launch {
             binding.tvTestResult.text = "测试 Level2..."
             val code = settings.allCodes().firstOrNull() ?: "000001.SZ"
-            runCatching { appContainer.level2Repository.snapshot(code) }
+            runCatching { appContainer.level2Repository.testConnection(code) }
                 .onSuccess { s ->
-                    binding.tvTestResult.text = if (s == null) "Level2 无数据" else buildString {
+                    binding.tvTestResult.text = buildString {
                         append("Level2 OK · ${s.source}")
                         if (s.simulated) append(" · MOCK模拟") else append(" · 真实Provider")
                         if (s.stale) append(" · STALE缓存")
                         append("\n$code 买档=${s.bids.size} 卖档=${s.asks.size} 成交=${s.trades.size}")
+                        append("\n${s.message}")
                     }
                 }
                 .onFailure { binding.tvTestResult.text = "Level2失败：${it.message}" }

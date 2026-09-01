@@ -1,5 +1,6 @@
 package com.locogo.astockguard.data.level2
 
+import com.locogo.astockguard.data.ifind.IFindHttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -10,6 +11,12 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.math.max
+
+/** 直接复用App内已加密保存的iFinD refresh token，不需要重复填写Level-2 Bearer Token。 */
+class IFindLevel2Provider(private val client: IFindHttpClient) : Level2Provider {
+    override suspend fun snapshot(code: String, referencePrice: Double?): Level2Snapshot =
+        client.fetchLevel2Snapshot(code)
+}
 
 class MockLevel2Provider : Level2Provider {
     override suspend fun snapshot(code: String, referencePrice: Double?): Level2Snapshot {

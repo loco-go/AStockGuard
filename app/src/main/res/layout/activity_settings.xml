@@ -83,7 +83,7 @@
         <EditText android:id="@+id/etNewsSources" android:layout_width="match_parent" android:layout_height="180dp" android:gravity="top|start" android:hint="GoogleNews-A股|https://..." android:inputType="textMultiLine|textNoSuggestions" android:scrollbars="vertical" />
 
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:text="Level2 十档盘口" android:textSize="18sp" android:textStyle="bold" />
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="MOCK 仅用于 UI/策略回放，不会作为 AI 实盘证据。HTTP_JSON 只用于你有权访问的 Level2 服务，约定 GET /level2?symbol=代码。" android:textSize="12sp" android:paddingBottom="4dp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="IFIND_HTTP 复用上方已加密保存的iFinD refresh token读取官方十档；HTTP_JSON用于自有授权网关；MOCK仅用于开发，不参与实盘策略。" android:textSize="12sp" android:paddingBottom="4dp" />
         <Spinner android:id="@+id/spLevel2Type" android:layout_width="match_parent" android:layout_height="wrap_content" />
         <EditText android:id="@+id/etLevel2BaseUrl" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="HTTPS Level2 Base URL，例如 https://example.com/api" android:inputType="textUri" />
         <EditText android:id="@+id/etLevel2Token" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Level2 Bearer Token（本机 Keystore 加密）" android:inputType="textPassword" />

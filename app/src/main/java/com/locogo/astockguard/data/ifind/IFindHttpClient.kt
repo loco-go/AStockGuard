@@ -4,6 +4,8 @@ import com.locogo.astockguard.Quote
 import com.locogo.astockguard.MinuteBar
 import com.locogo.astockguard.DailyBar
 import com.locogo.astockguard.SettingsRepository
+import com.locogo.astockguard.data.level2.Level2Level
+import com.locogo.astockguard.data.level2.Level2Snapshot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -16,6 +18,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 data class IFindConnectionStatus(
     val ready: Boolean,
@@ -114,6 +120,19 @@ class IFindHttpClient(
         return IFindResponseParser.parseAuctionTicks(root)
     }
 
+    /**
+     * 使用 iFinD 官方实时行情函数读取十档盘口。这里仅请求用户手册中定义的十档价格和数量，
+     * 不把十档快照冒充逐笔委托/逐笔成交；账号没有对应权限时由官方错误码直接反馈。
+     */
+    suspend fun fetchLevel2Snapshot(code: String): Level2Snapshot {
+        require(settings.ifindRefreshToken.isNotBlank()) { "尚未填写 iFinD refresh token" }
+        val root = requestWithTokenRetry(REALTIME_PATH, JSONObject().apply {
+            put("codes", code)
+            put("indicators", LEVEL2_INDICATORS)
+        })
+        return IFindResponseParser.parseLevel2Snapshot(root, code, System.currentTimeMillis())
+    }
+
     suspend fun test(codes: List<String>): IFindConnectionStatus = runCatching {
         val quotes = fetchQuotes(codes.take(3))
         if (quotes.isEmpty()) IFindConnectionStatus(false, "iFinD鉴权成功，但实时行情没有返回数据")
@@ -195,6 +214,13 @@ class IFindHttpClient(
         private const val ACCESS_TOKEN_REUSE_MS = 6L * 24 * 60 * 60 * 1_000
         private const val QUOTE_INDICATORS =
             "tradeTime,preClose,open,high,low,latest,avgPrice,changeRatio,volume,amount"
+        private val LEVEL2_INDICATORS = buildList {
+            add("tradeTime")
+            (1..10).forEach { add("bid$it") }
+            (1..10).forEach { add("bidSize$it") }
+            (1..10).forEach { add("ask$it") }
+            (1..10).forEach { add("askSize$it") }
+        }.joinToString(",")
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
 
         private fun defaultClient() = OkHttpClient.Builder()
@@ -301,6 +327,39 @@ internal object IFindResponseParser {
         }.distinctBy { it.time }.sortedBy { it.time }
     }
 
+    /** 将官方实时行情的十档字段转换为Provider无关模型；缺少盘口字段时明确报权限/指标错误。 */
+    fun parseLevel2Snapshot(root: JSONObject, requestedCode: String, receivedAt: Long): Level2Snapshot {
+        val row = firstTable(root) ?: error("iFinD Level-2响应缺少tables")
+        val table = row.optJSONObject("table") ?: row
+        fun levels(side: String, sizePrefix: String): List<Level2Level> = buildList {
+            for (level in 1..10) {
+                val price = table.firstDouble("$side$level") ?: continue
+                val volume = table.firstDouble("$sizePrefix$level") ?: continue
+                if (price.isFinite() && price > 0.0 && volume.isFinite() && volume >= 0.0) {
+                    add(Level2Level(price, volume.toLong()))
+                }
+            }
+        }
+        val bids = levels("bid", "bidSize")
+        val asks = levels("ask", "askSize")
+        if (bids.isEmpty() && asks.isEmpty()) {
+            error("iFinD返回成功但没有十档盘口字段，请检查Level-2权限或用SuperCommand确认指标")
+        }
+        val tradeTime = table.firstString("tradeTime")
+        return Level2Snapshot(
+            code = SettingsRepository.normalizeCode(row.optString("thscode", requestedCode)),
+            bids = bids,
+            asks = asks,
+            trades = emptyList(),
+            source = "IFIND_HTTP_LEVEL2",
+            simulated = false,
+            stale = false,
+            updatedAt = parseMarketTimestamp(tradeTime, receivedAt),
+            receivedAt = receivedAt,
+            message = "iFinD官方十档盘口正常；逐笔成交尚未接入"
+        )
+    }
+
     private fun firstTable(root: JSONObject): JSONObject? {
         val tables = root.optJSONArray("tables") ?: root.optJSONObject("data")?.optJSONArray("tables")
         return tables?.optJSONObject(0)
@@ -331,5 +390,16 @@ internal object IFindResponseParser {
     private fun String.toMarketTime(): String {
         val match = Regex("(\\d{2}:\\d{2})(?::\\d{2})?").find(this)
         return match?.groupValues?.get(1) ?: this
+    }
+
+    private fun parseMarketTimestamp(value: String, fallback: Long): Long {
+        if (value.isBlank()) return fallback
+        val zone = ZoneId.of("Asia/Shanghai")
+        val dateTime = runCatching {
+            LocalDateTime.parse(value.take(19), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        }.getOrNull()
+        if (dateTime != null) return dateTime.atZone(zone).toInstant().toEpochMilli()
+        val time = runCatching { LocalTime.parse(value.takeLast(8), DateTimeFormatter.ofPattern("HH:mm:ss")) }.getOrNull()
+        return time?.let { LocalDate.now(zone).atTime(it).atZone(zone).toInstant().toEpochMilli() } ?: fallback
     }
 }

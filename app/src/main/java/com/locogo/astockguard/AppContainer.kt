@@ -25,7 +25,9 @@ class AppContainer(application: Application) {
     val fundFlowRepository: FundFlowRepository by lazy { FundFlowRepository(cacheDao = database.cacheDao()) }
     val strategySignalRepository: StrategySignalRepository by lazy { StrategySignalRepository(database.cacheDao()) }
     val newsRepository: NewsRepository by lazy { NewsRepository(settings, database.cacheDao()) }
-    val level2Repository: Level2Repository by lazy { Level2Repository(settings, database.cacheDao()) }
+    val level2Repository: Level2Repository by lazy {
+        Level2Repository(settings, database.cacheDao(), ifindHttpClient)
+    }
     val paperTradingRepository: PaperTradingRepository by lazy { PaperTradingRepository(database) }
     val replayEngine: ReplayEngine by lazy { ReplayEngine() }
     val r2Scanner: R2Scanner by lazy { R2Scanner(marketRepository) }

@@ -3,6 +3,7 @@ package com.locogo.astockguard.data.ifind
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class IFindResponseParserTest {
@@ -103,5 +104,24 @@ class IFindResponseParserTest {
 
         assertEquals(listOf("09:15", "09:25"), ticks.map { it.time })
         assertEquals(500.0, ticks.last().volume, 0.0001)
+    }
+
+    @Test
+    fun parsesOfficialTenLevelOrderBookWithoutInventingTrades() {
+        val root = JSONObject(
+            """{"tables":[{"thscode":"000001.SZ","table":{
+              "tradeTime":["2026-09-01 10:20:01"],
+              "bid1":[10.00],"bidSize1":[12000],"bid2":[9.99],"bidSize2":[8000],
+              "ask1":[10.01],"askSize1":[6000],"ask2":[10.02],"askSize2":[9000]
+            }}]}"""
+        )
+
+        val snapshot = IFindResponseParser.parseLevel2Snapshot(root, "000001.SZ", 1_788_229_201_000L)
+
+        assertEquals("IFIND_HTTP_LEVEL2", snapshot.source)
+        assertEquals(2, snapshot.bids.size)
+        assertEquals(12_000L, snapshot.bids.first().volume)
+        assertEquals(2, snapshot.asks.size)
+        assertTrue(snapshot.trades.isEmpty())
     }
 }

@@ -1,6 +1,7 @@
 package com.locogo.astockguard.data.level2
 
 import com.locogo.astockguard.SettingsRepository
+import com.locogo.astockguard.data.ifind.IFindHttpClient
 import com.locogo.astockguard.data.local.CacheDao
 import com.locogo.astockguard.data.local.Level2SnapshotHistoryEntity
 import com.locogo.astockguard.data.local.Level2SnapshotEntity
@@ -9,7 +10,8 @@ import org.json.JSONObject
 
 class Level2Repository(
     private val settings: SettingsRepository,
-    private val cacheDao: CacheDao
+    private val cacheDao: CacheDao,
+    private val ifindClient: IFindHttpClient? = null
 ) {
     private var lastHistoryPruneAt = 0L
 
@@ -46,7 +48,11 @@ class Level2Repository(
             .mapNotNull { it.toModel() }
             .sortedBy { it.receivedAt }
 
+    /** 连接测试绕过缓存回退，确保设置页展示的是本次真实接口结果。 */
+    suspend fun testConnection(code: String): Level2Snapshot = provider().snapshot(code)
+
     private fun provider(): Level2Provider = when (settings.level2ProviderType.uppercase()) {
+        "IFIND_HTTP" -> IFindLevel2Provider(requireNotNull(ifindClient) { "iFinD客户端尚未初始化" })
         "HTTP_JSON" -> HttpJsonLevel2Provider(settings.level2BaseUrl, settings.level2ApiToken)
         else -> MockLevel2Provider()
     }
