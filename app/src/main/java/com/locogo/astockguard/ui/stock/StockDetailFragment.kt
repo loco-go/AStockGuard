@@ -96,8 +96,9 @@ class StockDetailFragment : Fragment() {
                                 evaluated == 0 -> "当前日期没有足够的已完成提醒可统计（推荐价位不计入胜率）"
                                 else -> String.format(
                                     Locale.CHINA,
-                                    "提醒回测：%d/%d 成功 · 胜率 %.1f%% · 平均净优势 %+.2f%%\n口径：信号后%d根5分钟K，先到+%.2f%%为成功、先到-%.2f%%为失败，已扣0.10%%成本%s",
-                                    wins, evaluated, winRatePct, averageEdgePct, horizonBars, targetPct, stopPct,
+                                    "提醒回测：%d/%d 成功 · 胜率 %.1f%% · 平均净优势 %+.2f%% · 成本合计 %.2f元\n口径：信号后%d根5分钟K，先到+%.2f%%为成功、先到-%.2f%%为失败；%s%s",
+                                    wins, evaluated, winRatePct, averageEdgePct, totalCosts, horizonBars, targetPct, stopPct,
+                                    rulesDescription,
                                     if (state.minuteFundFlowAvailable) " · 含同日主力分钟净流增量" else " · 无同日资金流，使用量能/VWAP降级策略"
                                 )
                             }

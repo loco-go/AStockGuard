@@ -164,8 +164,11 @@ class DashboardFragment : Fragment(), DashboardHandlers {
                 positions.take(6).joinToString("  ") { "${it.code} ${it.quantity}股" }
         }
         tvReplay.text = state.replayReport?.let {
-            "${it.strategy}  收益 ${pct(it.returnPct / 100.0)}  最大回撤 ${pct(it.maxDrawdownPct / 100.0)}\n" +
-                "闭合 ${it.closedTrades}  胜率 ${pct(it.winRatePct / 100.0)}  PF ${String.format(Locale.CHINA, "%.2f", it.profitFactor)}"
+            "${it.strategy}  收益 ${pct(it.returnPct / 100.0)}  基准 ${pct(it.benchmarkReturnPct / 100.0)}  " +
+                "超额 ${signedMoney(it.excessPnl)}\n最大回撤 ${pct(it.maxDrawdownPct / 100.0)}  " +
+                "闭合 ${it.closedTrades}  胜率 ${pct(it.winRatePct / 100.0)}  PF ${String.format(Locale.CHINA, "%.2f", it.profitFactor)}\n" +
+                "费用 ${money(it.totalFees)}  印花税 ${money(it.totalTax)}  滑点 ${money(it.slippageCost)}  " +
+                "未闭合 ${it.unclosedQuantity}股  拒绝 ${it.rejectedTrades}次\n${it.rulesDescription}"
         } ?: "进度 ${state.replayIndex + 1}/${state.minuteBars.size}${if (state.replayRunning) "  ·  播放中" else ""}"
         updateStateButtons(state)
         renderReplayChart(state)

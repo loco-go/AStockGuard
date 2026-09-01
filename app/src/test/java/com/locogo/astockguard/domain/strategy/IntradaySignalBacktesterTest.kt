@@ -22,6 +22,7 @@ class IntradaySignalBacktesterTest {
         assertEquals(1, result.wins)
         assertEquals(100.0, result.winRatePct, 0.001)
         assertTrue(result.averageEdgePct > 0.0)
+        assertTrue(result.totalCosts > 0.0)
     }
 
     @Test
@@ -38,6 +39,25 @@ class IntradaySignalBacktesterTest {
 
         assertEquals(1, result.signals)
         assertEquals(0, result.wins)
+    }
+
+    @Test
+    fun minimumCommissionCanTurnSmallPriceMoveIntoNetLoss() {
+        val candles = listOf(
+            candle("10:00", 10.00, 10.01, 9.99),
+            candle("10:05", 10.00, 10.01, 9.99),
+            candle("10:10", 10.01, 10.02, 9.99)
+        )
+        val signal = IntradayChartSignal("10:05", 10.00, ChartSignalAction.BUY, 80, "test")
+
+        val result = IntradaySignalBacktester.run(
+            candles,
+            listOf(signal),
+            IntradayBacktestRules(quantity = 100)
+        )
+
+        assertEquals(0, result.wins)
+        assertTrue(result.averageEdgePct < 0.0)
     }
 
     private fun candle(time: String, close: Double, high: Double, low: Double) = MinuteCandle(
