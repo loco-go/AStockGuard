@@ -13,6 +13,8 @@ data class OrderBookPressure(
     val status: String = UNAVAILABLE,
     val imbalance: Double? = null,
     val activeBuyRatio: Double? = null,
+    val persistence: String = "UNAVAILABLE",
+    val sampleCount: Int = 0,
     val reason: String = "无可用真实盘口"
 ) {
     companion object {
@@ -31,7 +33,60 @@ object OrderBookPressureAnalyzer {
     fun analyze(
         snapshot: Level2Snapshot?,
         expectedCode: String,
-        now: Long = System.currentTimeMillis()
+        now: Long = System.currentTimeMillis(),
+        history: List<Level2Snapshot> = emptyList()
+    ): OrderBookPressure {
+        val current = analyzeSingle(snapshot, expectedCode, now, MAX_AGE_MS)
+        if (current.status == OrderBookPressure.UNAVAILABLE) return current
+
+        // 收集期不足时沿用单帧结论；达到两个跨20秒样本后，方向必须连续才保留强信号。
+        val sequence = (history + listOfNotNull(snapshot))
+            .distinctBy { it.receivedAt.takeIf { time -> time > 0L } ?: it.updatedAt }
+            .filter {
+                !it.simulated && !it.stale && sameSecurity(it.code, expectedCode) &&
+                    it.updatedAt > 0L && now - it.updatedAt in -MAX_FUTURE_SKEW_MS..SEQUENCE_MAX_AGE_MS &&
+                    it.receivedAt > 0L && now - it.receivedAt in -MAX_FUTURE_SKEW_MS..SEQUENCE_MAX_AGE_MS
+            }
+            .sortedBy { it.receivedAt }
+            .takeLast(MAX_SEQUENCE_SAMPLES)
+        val span = (sequence.lastOrNull()?.receivedAt ?: 0L) - (sequence.firstOrNull()?.receivedAt ?: 0L)
+        if (sequence.size < MIN_SEQUENCE_SAMPLES || span < MIN_SEQUENCE_SPAN_MS) {
+            return current.copy(persistence = "COLLECTING", sampleCount = sequence.size)
+        }
+
+        val pressures = sequence.map { analyzeSingle(it, expectedCode, now, SEQUENCE_MAX_AGE_MS) }
+            .filter { it.status != OrderBookPressure.UNAVAILABLE }
+        val bidCount = pressures.count { it.status == OrderBookPressure.BID_DOMINANT }
+        val askCount = pressures.count { it.status == OrderBookPressure.ASK_DOMINANT }
+        val persistentStatus = when {
+            current.status == OrderBookPressure.BID_DOMINANT && bidCount >= 2 && askCount == 0 -> OrderBookPressure.BID_DOMINANT
+            current.status == OrderBookPressure.ASK_DOMINANT && askCount >= 2 && bidCount == 0 -> OrderBookPressure.ASK_DOMINANT
+            else -> OrderBookPressure.NEUTRAL
+        }
+        val persistence = when (persistentStatus) {
+            OrderBookPressure.BID_DOMINANT -> "PERSISTENT_BID"
+            OrderBookPressure.ASK_DOMINANT -> "PERSISTENT_ASK"
+            else -> if (bidCount > 0 && askCount > 0) "REVERSING" else "UNCONFIRMED"
+        }
+        val persistenceText = when (persistence) {
+            "PERSISTENT_BID" -> "连续买压确认"
+            "PERSISTENT_ASK" -> "连续卖压确认"
+            "REVERSING" -> "盘口方向反复，强信号降级"
+            else -> "盘口尚未连续，强信号降级"
+        }
+        return current.copy(
+            status = persistentStatus,
+            persistence = persistence,
+            sampleCount = pressures.size,
+            reason = "${current.reason}；$persistenceText（${pressures.size}帧）"
+        )
+    }
+
+    private fun analyzeSingle(
+        snapshot: Level2Snapshot?,
+        expectedCode: String,
+        now: Long,
+        maxAgeMs: Long
     ): OrderBookPressure {
         if (snapshot == null) return unavailable("未获取盘口")
         if (snapshot.simulated || snapshot.source.equals("MOCK", ignoreCase = true)) {
@@ -39,7 +94,7 @@ object OrderBookPressureAnalyzer {
         }
         if (snapshot.stale) return unavailable("缓存盘口不参与策略")
         if (!sameSecurity(snapshot.code, expectedCode)) return unavailable("盘口证券代码不匹配")
-        if (snapshot.updatedAt <= 0L || now - snapshot.updatedAt !in 0..MAX_AGE_MS) {
+        if (snapshot.updatedAt <= 0L || now - snapshot.updatedAt !in -MAX_FUTURE_SKEW_MS..maxAgeMs) {
             return unavailable("盘口已超时")
         }
 
@@ -70,7 +125,14 @@ object OrderBookPressureAnalyzer {
             else -> "盘口中性"
         }
         val tradeText = activeBuyRatio?.let { "，主动买入占比${percent(it)}" }.orEmpty()
-        return OrderBookPressure(status, imbalance, activeBuyRatio, "$direction，五档失衡${signedPercent(imbalance)}$tradeText")
+        return OrderBookPressure(
+            status = status,
+            imbalance = imbalance,
+            activeBuyRatio = activeBuyRatio,
+            persistence = "SINGLE",
+            sampleCount = 1,
+            reason = "$direction，五档失衡${signedPercent(imbalance)}$tradeText"
+        )
     }
 
     private fun sameSecurity(left: String, right: String): Boolean {
@@ -89,6 +151,11 @@ object OrderBookPressureAnalyzer {
     }
 
     private const val MAX_AGE_MS = 20_000L
+    private const val SEQUENCE_MAX_AGE_MS = 120_000L
+    private const val MIN_SEQUENCE_SPAN_MS = 20_000L
+    private const val MIN_SEQUENCE_SAMPLES = 2
+    private const val MAX_SEQUENCE_SAMPLES = 5
+    private const val MAX_FUTURE_SKEW_MS = 5_000L
     private const val BOOK_THRESHOLD = 0.18
     private const val STRONG_BOOK_THRESHOLD = 0.30
     private const val BUY_CONFIRM_RATIO = 0.52

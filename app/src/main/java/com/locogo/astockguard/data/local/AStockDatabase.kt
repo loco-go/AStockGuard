@@ -11,10 +11,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
     entities = [QuoteCacheEntity::class, DailyBarCacheEntity::class, MinuteBarCacheEntity::class,
         FundFlowCacheEntity::class, SectorFundFlowCacheEntity::class, SignalStateEntity::class,
         SignalEventEntity::class, TradeRecordEntity::class, AiAnalysisEntity::class, NewsItemEntity::class,
-        Level2SnapshotEntity::class, PaperAccountEntity::class, PaperPositionEntity::class,
+        Level2SnapshotEntity::class, Level2SnapshotHistoryEntity::class,
+        PaperAccountEntity::class, PaperPositionEntity::class,
         PaperOrderEntity::class, PaperEquityEntity::class, StrategySignalEntity::class,
         FundFlowEntity::class, AccountLedgerEntity::class, AlertRecordEntity::class],
-    version = 14,
+    version = 15,
     exportSchema = true
 )
 abstract class AStockDatabase : RoomDatabase() {
@@ -151,6 +152,16 @@ abstract class AStockDatabase : RoomDatabase() {
             db.execSQL("ALTER TABLE alert_record ADD COLUMN evidenceJson TEXT NOT NULL DEFAULT '{}'")
             db.execSQL("CREATE INDEX IF NOT EXISTS index_alert_record_alertType ON alert_record(alertType)")
         } }
+        val MIGRATION_14_15 = object : Migration(14, 15) { override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""CREATE TABLE IF NOT EXISTS level2_snapshot_history (
+                code TEXT NOT NULL,
+                capturedAt INTEGER NOT NULL,
+                payloadJson TEXT NOT NULL,
+                source TEXT NOT NULL,
+                providerUpdatedAt INTEGER NOT NULL,
+                PRIMARY KEY(code, capturedAt))""".trimIndent())
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_level2_snapshot_history_capturedAt ON level2_snapshot_history(capturedAt)")
+        } }
 
         @Volatile private var instance: AStockDatabase? = null
         fun get(context: Context): AStockDatabase = instance ?: synchronized(this) {
@@ -158,7 +169,8 @@ abstract class AStockDatabase : RoomDatabase() {
                 .addMigrations(
                     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
                     MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
-                    MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14
+                    MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
+                    MIGRATION_14_15
                 )
                 .build().also { instance = it }
         }

@@ -129,10 +129,19 @@ class DashboardFragment : Fragment(), DashboardHandlers {
         }
         positionAdapter.submitList(StrategyUiMapper.map(snapshot, state.positions, state.aiStrategy))
         tvTradePlan.text = state.tTradePlan?.let {
+            val bookSequence = when (it.orderBookPersistence) {
+                "PERSISTENT_BID" -> "连续买压"
+                "PERSISTENT_ASK" -> "连续卖压"
+                "REVERSING" -> "方向反复"
+                "UNCONFIRMED" -> "尚未连续"
+                "COLLECTING" -> "采集中"
+                else -> "不可用"
+            }
             "${it.code}  ${it.status}\n买入 ${price(it.buyZoneLow)}-${price(it.buyZoneHigh)}  " +
                 "卖出 ${price(it.sellZoneLow)}-${price(it.sellZoneHigh)}\n" +
                 "失效 ${price(it.invalidPrice)}  数量 ${it.suggestedQuantity}\n" +
                 "资金 ${it.fundFlowStatus}  盘口 ${it.orderBookStatus}\n" +
+                "盘口时序 $bookSequence（${it.orderBookSampleCount}帧）\n" +
                 "利润模式 ${it.profitMode}  盘口失衡 ${it.orderBookImbalance?.let(::percentValue) ?: "--"}\n${it.reason}"
         } ?: "暂无计划"
         tvAuctionPlan.text = state.auctionPlan?.let { plan ->

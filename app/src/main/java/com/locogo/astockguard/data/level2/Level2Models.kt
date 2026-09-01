@@ -18,6 +18,8 @@ data class Level2Snapshot(
     val simulated: Boolean = false,
     val stale: Boolean = false,
     val updatedAt: Long = 0L,
+    /** App实际收到快照的时间，用于连续盘口排序；服务端行情时间仍由updatedAt表示。 */
+    val receivedAt: Long = 0L,
     val message: String = ""
 )
 

@@ -99,12 +99,13 @@ class AlertHistoryRepository(private val dao: CacheDao) {
             "SUSTAINED_OUTFLOW" -> -12
             else -> 0
         } + when (plan.orderBookStatus) {
-            "BID_DOMINANT" -> 12
-            "ASK_DOMINANT" -> -12
+            "BID_DOMINANT" -> if (plan.orderBookPersistence == "PERSISTENT_BID") 15 else 8
+            "ASK_DOMINANT" -> if (plan.orderBookPersistence == "PERSISTENT_ASK") -15 else -8
             else -> 0
         }).coerceIn(0, 100)
         val imbalance = plan.orderBookImbalance?.takeIf(Double::isFinite)?.toString() ?: "null"
         val evidence = "{\"fundFlow\":\"${plan.fundFlowStatus}\",\"orderBook\":\"${plan.orderBookStatus}\"," +
+            "\"bookPersistence\":\"${plan.orderBookPersistence}\",\"bookSamples\":${plan.orderBookSampleCount}," +
             "\"imbalance\":$imbalance,\"expectedEdgePct\":${plan.expectedEdgePct}}"
         return dao.insertAlertRecord(
             AlertRecordEntity(
@@ -179,7 +180,7 @@ class AlertHistoryRepository(private val dao: CacheDao) {
     private companion object {
         val CHINA_ZONE: ZoneId = ZoneId.of("Asia/Shanghai")
         val TIME_REGEX = Regex("(\\d{2}):(\\d{2})")
-        const val T_PLAN_VERSION = "T_PLAN_V2_BOOK_FLOW"
+        const val T_PLAN_VERSION = "T_PLAN_V3_BOOK_SEQUENCE"
         const val T_HORIZON_BARS = 6
         const val T_SELL_STOP_RATIO = 0.0035
     }

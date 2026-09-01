@@ -121,6 +121,11 @@ class MarketMonitorService : Service() {
                 val fundFlow = runCatching { fundFlowRepository.stock(position.code) }.getOrNull()
                 // 真实盘口不可用时仍可生成基础计划，但引擎会明确排除 MOCK、缓存和超时快照。
                 val level2 = runCatching { level2Repository.snapshot(position.code, quote.latest) }.getOrNull()
+                // 网络请求完成后重新取时，避免接收时间比本轮开始时间晚几毫秒而被误判为未来数据。
+                val evaluationNow = System.currentTimeMillis()
+                val level2History = if (level2?.simulated == false && level2.stale.not()) {
+                    runCatching { level2Repository.recentSnapshots(position.code, evaluationNow) }.getOrDefault(emptyList())
+                } else emptyList()
                 val plan = TTradePlanner.plan(
                     quote = quote,
                     position = position,
@@ -128,8 +133,9 @@ class MarketMonitorService : Service() {
                     fundFlow = fundFlow,
                     marketPhase = snapshot.assessment.marketPhase,
                     dataStale = snapshot.dataHealth.isStale,
-                    now = now,
-                    level2 = level2
+                    now = evaluationNow,
+                    level2 = level2,
+                    level2History = level2History
                 )
                 val previous = lastTStatus.put(position.code, plan.status)
                 if (previous == plan.status) return@forEach
@@ -139,13 +145,14 @@ class MarketMonitorService : Service() {
                         append(snapshot.dataHealth.source)
                         append("+FUND_").append(plan.fundFlowStatus)
                         append("+L2_").append(level2?.source ?: "NONE")
+                        append("+").append(plan.orderBookPersistence)
                     }
                     // 只有成功写入Room且通过跨进程唯一键去重的提醒，才进入通知栏和真实胜率统计。
                     val recorded = alertHistoryRepository.recordTPlanAlert(
                         name = position.name,
                         plan = plan,
                         dataSource = evidenceSource,
-                        now = now
+                        now = evaluationNow
                     )
                     if (!recorded) return@forEach
                 }

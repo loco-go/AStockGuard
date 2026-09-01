@@ -31,6 +31,8 @@ data class TTradePlan(
     val suggestedQuantity: Int = 0,
     val fundFlowStatus: String = "UNAVAILABLE",
     val orderBookStatus: String = "UNAVAILABLE",
+    val orderBookPersistence: String = "UNAVAILABLE",
+    val orderBookSampleCount: Int = 0,
     val orderBookImbalance: Double? = null,
     val profitMode: String = "NORMAL",
     val manualAnchorPrice: Double? = null,
@@ -50,7 +52,8 @@ object TTradePlanner {
         dataStale: Boolean,
         manualAnchorPrice: Double? = null,
         now: Long = System.currentTimeMillis(),
-        level2: Level2Snapshot? = null
+        level2: Level2Snapshot? = null,
+        level2History: List<Level2Snapshot> = emptyList()
     ): TTradePlan {
         val code = quote?.code ?: position?.code.orEmpty()
         if (dataStale) return TTradePlan(code = code, status = "BLOCKED_STALE", reason = "行情为缓存数据，禁止生成盘中T交易动作。", generatedAt = now)
@@ -66,7 +69,7 @@ object TTradePlanner {
         val vwap = bars.lastOrNull()?.avgPrice?.takeIf { it > 0.0 } ?: quote?.vwap?.takeIf { it > 0.0 } ?: latest
         val rangePct = ((sessionHigh - sessionLow) / latest).coerceAtLeast(0.0)
         val flowMomentum = analyzeFundFlow(fundFlow, now)
-        val bookPressure = OrderBookPressureAnalyzer.analyze(level2, code, now)
+        val bookPressure = OrderBookPressureAnalyzer.analyze(level2, code, now, level2History)
 
         // Too little intraday amplitude usually cannot cover fees/slippage/decision error.
         if (rangePct < 0.009) {
@@ -147,6 +150,8 @@ object TTradePlanner {
             suggestedQuantity = qty,
             fundFlowStatus = flowMomentum.status,
             orderBookStatus = bookPressure.status,
+            orderBookPersistence = bookPressure.persistence,
+            orderBookSampleCount = bookPressure.sampleCount,
             orderBookImbalance = bookPressure.imbalance,
             profitMode = if (flowMomentum.status == "SUSTAINED_INFLOW" || bookPressure.status == OrderBookPressure.BID_DOMINANT) "EXTEND_PROFIT" else "NORMAL",
             manualAnchorPrice = anchor,

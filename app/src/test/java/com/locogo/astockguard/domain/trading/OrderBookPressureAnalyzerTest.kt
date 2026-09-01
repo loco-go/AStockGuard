@@ -43,6 +43,35 @@ class OrderBookPressureAnalyzerTest {
         assertEquals(OrderBookPressure.UNAVAILABLE, OrderBookPressureAnalyzer.analyze(base.copy(updatedAt = now - 20_001L), "000001.SZ", now).status)
     }
 
+    @Test
+    fun twoConsecutiveBidSnapshotsConfirmPersistentBuyingPressure() {
+        val previous = snapshot(2800L, 1000L, 700L, 300L).copy(
+            updatedAt = now - 30_000L,
+            receivedAt = now - 30_000L
+        )
+        val current = snapshot(3200L, 1000L, 800L, 200L).copy(receivedAt = now)
+
+        val result = OrderBookPressureAnalyzer.analyze(current, "000001.SZ", now, listOf(previous))
+
+        assertEquals(OrderBookPressure.BID_DOMINANT, result.status)
+        assertEquals("PERSISTENT_BID", result.persistence)
+        assertEquals(2, result.sampleCount)
+    }
+
+    @Test
+    fun directionReversalDowngradesSingleFrameDominance() {
+        val previousAsk = snapshot(1000L, 3200L, 200L, 800L).copy(
+            updatedAt = now - 30_000L,
+            receivedAt = now - 30_000L
+        )
+        val currentBid = snapshot(3200L, 1000L, 800L, 200L).copy(receivedAt = now)
+
+        val result = OrderBookPressureAnalyzer.analyze(currentBid, "000001.SZ", now, listOf(previousAsk))
+
+        assertEquals(OrderBookPressure.NEUTRAL, result.status)
+        assertEquals("REVERSING", result.persistence)
+    }
+
     private fun snapshot(bids: Long, asks: Long, buyTrades: Long, sellTrades: Long) = Level2Snapshot(
         code = "000001.SZ",
         bids = List(5) { Level2Level(10.0 - it * 0.01, bids) },
@@ -54,6 +83,7 @@ class OrderBookPressureAnalyzerTest {
         source = "LICENSED_HTTP",
         simulated = false,
         stale = false,
-        updatedAt = now
+        updatedAt = now,
+        receivedAt = now
     )
 }

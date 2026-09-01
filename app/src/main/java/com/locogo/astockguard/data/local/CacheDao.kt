@@ -58,6 +58,12 @@ interface CacheDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertLevel2(item: Level2SnapshotEntity)
     @Query("SELECT * FROM level2_snapshot WHERE code = :code LIMIT 1") suspend fun getLevel2(code: String): Level2SnapshotEntity?
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertLevel2History(item: Level2SnapshotHistoryEntity): Long
+    @Query("SELECT * FROM level2_snapshot_history WHERE code = :code AND capturedAt >= :since ORDER BY capturedAt DESC LIMIT :limit")
+    suspend fun getRecentLevel2History(code: String, since: Long, limit: Int): List<Level2SnapshotHistoryEntity>
+    @Query("DELETE FROM level2_snapshot_history WHERE capturedAt < :before")
+    suspend fun deleteOldLevel2History(before: Long): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertPaperAccount(item: PaperAccountEntity)
     @Query("SELECT * FROM paper_account WHERE id = 1 LIMIT 1") suspend fun getPaperAccount(): PaperAccountEntity?

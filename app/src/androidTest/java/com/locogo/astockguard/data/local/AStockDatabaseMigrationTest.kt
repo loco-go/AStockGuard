@@ -75,6 +75,14 @@ class AStockDatabaseMigrationTest {
         database.close()
     }
 
+    @Test
+    fun migrate14To15CreatesLevel2History() {
+        helper.createDatabase(TEST_DB_14_15, 14).close()
+        val database = helper.runMigrationsAndValidate(TEST_DB_14_15, 15, true, AStockDatabase.MIGRATION_14_15)
+        database.query("SELECT code, capturedAt, payloadJson, source, providerUpdatedAt FROM level2_snapshot_history").close()
+        database.close()
+    }
+
     private companion object {
         const val TEST_DB = "migration-8-9"
         const val TEST_DB_9_10 = "migration-9-10"
@@ -82,5 +90,6 @@ class AStockDatabaseMigrationTest {
         const val TEST_DB_11_12 = "migration-11-12"
         const val TEST_DB_12_13 = "migration-12-13"
         const val TEST_DB_13_14 = "migration-13-14"
+        const val TEST_DB_14_15 = "migration-14-15"
     }
 }
