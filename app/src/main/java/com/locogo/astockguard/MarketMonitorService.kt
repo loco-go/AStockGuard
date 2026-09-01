@@ -12,6 +12,7 @@ import com.locogo.astockguard.domain.strategy.IntradaySignalEngine
 import com.locogo.astockguard.domain.review.AlertHistoryRepository
 import com.locogo.astockguard.domain.trading.TTradePlanner
 import com.locogo.astockguard.domain.plan.AuctionPlanEngine
+import com.locogo.astockguard.domain.plan.PortfolioExposureEngine
 import kotlinx.coroutines.*
 import java.time.DayOfWeek
 import java.time.Instant
@@ -35,6 +36,7 @@ class MarketMonitorService : Service() {
     private val lastTStatus = mutableMapOf<String, String>()
     private val lastIntradayAlert = mutableMapOf<String, String>()
     private val lastAuctionStatus = mutableMapOf<String, String>()
+    private var lastExposureStatus = ""
     private lateinit var signalLifecycle: com.locogo.astockguard.domain.signal.SignalLifecycleManager
 
     override fun onCreate() {
@@ -66,6 +68,7 @@ class MarketMonitorService : Service() {
                     val s = marketRepository.refresh()
                     MonitorBus.update(s)
                     emitAlerts(s)
+                    emitExposureAlert(s)
                     refreshNewsIfDue()
                     scanAuctionPlansIfDue(s)
                     scanTPlansIfDue(s)
@@ -112,11 +115,12 @@ class MarketMonitorService : Service() {
             .forEach { position ->
                 val quote = quoteMap[position.code] ?: return@forEach
                 val bars = runCatching { marketRepository.loadMinuteBars(position.code) }.getOrDefault(emptyList())
+                val fundFlow = runCatching { fundFlowRepository.stock(position.code) }.getOrNull()
                 val plan = TTradePlanner.plan(
                     quote = quote,
                     position = position,
                     minuteBars = bars,
-                    fundFlow = null,
+                    fundFlow = fundFlow,
                     marketPhase = snapshot.assessment.marketPhase,
                     dataStale = snapshot.dataHealth.isStale,
                     now = now
@@ -145,6 +149,28 @@ class MarketMonitorService : Service() {
                     )
                 }
             }
+    }
+
+    /** 只在实时行情下提示组合级降仓顺序；同一状态不重复轰炸通知。 */
+    private fun emitExposureAlert(snapshot: MonitorSnapshot) {
+        val plan = PortfolioExposureEngine.evaluate(
+            settings.positions(), snapshot.quotes, snapshot.assessment, snapshot.positionRatio, snapshot.dataHealth.isStale
+        )
+        // 数量可能随价格小幅变化，去重键只跟状态、仓位上限和减仓顺序绑定，避免高频重复提醒。
+        val stateKey = "${plan.status}:${plan.targetPositionPct.toInt()}:${plan.reductions.joinToString { it.code }}"
+        if (!plan.actionable) {
+            lastExposureStatus = stateKey
+            return
+        }
+        if (stateKey == lastExposureStatus) return
+        lastExposureStatus = stateKey
+        val actions = plan.reductions.take(4).joinToString("；") { "${it.name}减${it.quantity}股" }
+        NotificationHelper.alert(
+            this,
+            EXPOSURE_NOTIFICATION_ID,
+            "组合回撤防守 · 建议降低仓位",
+            "当前${"%.1f".format(plan.currentPositionPct)}%，目标不高于${"%.1f".format(plan.targetPositionPct)}%。$actions。${plan.reason}"
+        )
     }
 
     /**
@@ -204,7 +230,9 @@ class MarketMonitorService : Service() {
                 alertHistoryRepository.evaluatePending(code, series.date, candles, now)
 
                 val flow = fundFlowRepository.stock(code)
-                val freshFlow = flow.minute.takeIf { isMinuteFlowCurrent(it.lastOrNull()?.time, now) }.orEmpty()
+                val freshFlow = flow.minute.takeIf {
+                    !flow.minuteStale && isMinuteFlowCurrent(it.lastOrNull()?.time, now)
+                }.orEmpty()
                 val signal = IntradaySignalEngine.evaluate(candles, dataIsFresh = true, fundFlow = freshFlow)
                     .asSequence()
                     .filterNot { it.recommended }
@@ -319,6 +347,7 @@ class MarketMonitorService : Service() {
         private const val MIN_INTRADAY_CANDLES = 8
         private const val MAX_FLOW_AGE_MINUTES = 10
         private const val MAX_SIGNAL_AGE_MINUTES = 12
+        private const val EXPOSURE_NOTIFICATION_ID = 10_801
         private val TIME_REGEX = Regex("(\\d{2}):(\\d{2})")
         private val CHINA_ZONE: ZoneId = ZoneId.of("Asia/Shanghai")
     }

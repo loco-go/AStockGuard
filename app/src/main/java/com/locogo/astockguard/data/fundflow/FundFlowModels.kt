@@ -38,7 +38,10 @@ data class StockFundFlow(
     val minute: List<FundFlowPoint>,
     val periods: List<FundFlowSummary>,
     val source: String,
-    val stale: Boolean
+    val stale: Boolean,
+    /** 分钟资金流是否来自缓存；日级刷新成功不能把旧分钟流误标为实时。 */
+    val minuteStale: Boolean = stale,
+    val dailyStale: Boolean = stale
 )
 
 data class SectorFundFlowResult(

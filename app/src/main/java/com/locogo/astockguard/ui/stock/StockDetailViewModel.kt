@@ -189,7 +189,7 @@ class StockDetailViewModel(
     private fun minuteFlowFor(series: MarketRepository.MinuteSeries?): List<com.locogo.astockguard.data.fundflow.FundFlowPoint> {
         if (series == null || series.isHistorical || series.date != MarketRepository.marketDate()) return emptyList()
         val flow = fundFlow ?: return emptyList()
-        return if (flow.stale) emptyList() else flow.minute
+        return if (flow.minuteStale) emptyList() else flow.minute
     }
 
     private fun evaluate(candles: List<StockKLine>, period: ChartPeriod): StrategyScoreResult? {

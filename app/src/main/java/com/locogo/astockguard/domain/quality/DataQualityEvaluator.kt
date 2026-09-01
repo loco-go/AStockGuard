@@ -79,6 +79,11 @@ object DataQualityEvaluator {
                 usableForRealtime = false, requiredForRealtime = false,
                 message = "缓存资金流不参与实时确认"
             )
+            stockFundFlow.minuteStale -> DataQualityItem(
+                "个股资金流", stockFundFlow.source, DataQualityStatus.FRESH,
+                usableForRealtime = false, requiredForRealtime = false,
+                message = "日级资金流已更新，但分钟资金流为缓存，不参与盘中买卖确认"
+            )
             else -> DataQualityItem(
                 "个股资金流", stockFundFlow.source, DataQualityStatus.LIVE,
                 usableForRealtime = stockFundFlow.minute.isNotEmpty(), requiredForRealtime = false,

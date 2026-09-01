@@ -22,6 +22,7 @@ import com.locogo.astockguard.domain.signal.R2Scanner
 import com.locogo.astockguard.domain.trading.TTradePlanner
 import com.locogo.astockguard.domain.plan.AuctionPlanEngine
 import com.locogo.astockguard.domain.plan.PositionPlanEngine
+import com.locogo.astockguard.domain.plan.PortfolioExposureEngine
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -84,7 +85,12 @@ class MainViewModel(
                 auctionPlan = if (selectionChanged) null else it.auctionPlan,
                 positionPlans = current.snapshot?.let { snapshot ->
                     PositionPlanEngine.evaluate(positions, snapshot.quotes, snapshot.assessment.marketPhase, snapshot.dataHealth.isStale)
-                }.orEmpty()
+                }.orEmpty(),
+                exposurePlan = current.snapshot?.let { snapshot ->
+                    PortfolioExposureEngine.evaluate(
+                        positions, snapshot.quotes, snapshot.assessment, snapshot.positionRatio, snapshot.dataHealth.isStale
+                    )
+                } ?: it.exposurePlan
             )
         }
         nextCode?.takeIf { selectionChanged }?.let(::selectStock)
@@ -107,6 +113,9 @@ class MainViewModel(
                 selectedCode = selected,
                 positionPlans = PositionPlanEngine.evaluate(
                     positions, snapshot.quotes, snapshot.assessment.marketPhase, snapshot.dataHealth.isStale
+                ),
+                exposurePlan = PortfolioExposureEngine.evaluate(
+                    positions, snapshot.quotes, snapshot.assessment, snapshot.positionRatio, snapshot.dataHealth.isStale
                 ),
                 error = null
             )

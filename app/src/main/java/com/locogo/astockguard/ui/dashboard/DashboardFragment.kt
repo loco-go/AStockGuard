@@ -83,6 +83,16 @@ class DashboardFragment : Fragment(), DashboardHandlers {
         tvTodayPnl.text = "今日收益\n${account.todayPnl?.let(::signedMoney) ?: "--"}"
         tvCumulativePnl.text = "累计收益\n${account.cumulativePnl?.let(::signedMoney) ?: "--"}"
         tvPositionRatio.text = "当前仓位\n${percentValue(account.positionPct)}"
+        tvExposurePlan.text = with(state.exposurePlan) {
+            buildString {
+                append("$status  当前${percentValue(currentPositionPct)}  目标上限${percentValue(targetPositionPct)}")
+                append("\n$reason")
+                reductions.take(6).forEachIndexed { index, row ->
+                    append("\n${index + 1}. ${row.name.ifBlank { row.code }} ${row.category.label} 减${row.quantity}股")
+                    append(" · ${row.reason}")
+                }
+            }
+        }
         applyTone(tvTodayPnl, account.todayPnl)
         applyTone(tvCumulativePnl, account.cumulativePnl)
         tvMarketSummary.text = if (snapshot == null) {
@@ -107,7 +117,8 @@ class DashboardFragment : Fragment(), DashboardHandlers {
         tvTradePlan.text = state.tTradePlan?.let {
             "${it.code}  ${it.status}\n买入 ${price(it.buyZoneLow)}-${price(it.buyZoneHigh)}  " +
                 "卖出 ${price(it.sellZoneLow)}-${price(it.sellZoneHigh)}\n" +
-                "失效 ${price(it.invalidPrice)}  数量 ${it.suggestedQuantity}\n${it.reason}"
+                "失效 ${price(it.invalidPrice)}  数量 ${it.suggestedQuantity}\n" +
+                "资金 ${it.fundFlowStatus}  利润模式 ${it.profitMode}\n${it.reason}"
         } ?: "暂无计划"
         tvAuctionPlan.text = state.auctionPlan?.let { plan ->
             buildString {

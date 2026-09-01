@@ -21,6 +21,7 @@ import com.locogo.astockguard.domain.signal.R2ScanRow
 import com.locogo.astockguard.domain.trading.TTradePlan
 import com.locogo.astockguard.domain.plan.AuctionPlan
 import com.locogo.astockguard.domain.plan.PositionNextDayPlan
+import com.locogo.astockguard.domain.plan.ExposureControlPlan
 
 data class MainUiState(
     val loading: Boolean = false,
@@ -47,6 +48,7 @@ data class MainUiState(
     val tTradePlan: TTradePlan? = null,
     val auctionPlan: AuctionPlan? = null,
     val positionPlans: List<PositionNextDayPlan> = emptyList(),
+    val exposurePlan: ExposureControlPlan = ExposureControlPlan(),
     val manualBuyAnchor: Double? = null,
     val paperSummary: PaperSummary = PaperSummary(),
     val paperLoading: Boolean = false,

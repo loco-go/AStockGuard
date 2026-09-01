@@ -21,12 +21,15 @@ class FundFlowRepository(
         }
         val daily = if (dailyRemote.isNotEmpty()) dailyRemote else cacheDao.getFundFlow(code, "DAY").map { it.toModel() }
         val stale = minuteRemote.isEmpty() && dailyRemote.isEmpty()
+        val mixed = minuteRemote.isEmpty() != dailyRemote.isEmpty()
         return StockFundFlow(
             code = code,
             minute = minute,
             periods = listOf(1, 3, 5, 10).map { aggregate(daily, it) },
-            source = if (stale) "ROOM_CACHE" else "EASTMONEY",
-            stale = stale
+            source = when { stale -> "ROOM_CACHE"; mixed -> "EASTMONEY_MIXED"; else -> "EASTMONEY" },
+            stale = stale,
+            minuteStale = minuteRemote.isEmpty(),
+            dailyStale = dailyRemote.isEmpty()
         )
     }
 

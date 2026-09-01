@@ -3,9 +3,14 @@ package com.locogo.astockguard.domain.trading
 import com.locogo.astockguard.MinuteBar
 import com.locogo.astockguard.Position
 import com.locogo.astockguard.Quote
+import com.locogo.astockguard.data.fundflow.FundFlowPoint
+import com.locogo.astockguard.data.fundflow.StockFundFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
 
 class TTradePlannerTest {
     private val position = Position("000001.SZ", "测试股票", 900, 98.0, "CORE")
@@ -99,6 +104,44 @@ class TTradePlannerTest {
         assertEquals(300, longPlan.suggestedQuantity)
         assertEquals(1000, attackPlan.suggestedQuantity)
         assertTrue(attackPlan.suggestedQuantity > longPlan.suggestedQuantity)
+    }
+
+    @Test
+    fun sustainedFreshInflowExtendsProfitTarget() {
+        val now = LocalDate.of(2026, 9, 1).atTime(LocalTime.of(10, 20))
+            .atZone(ZoneId.of("Asia/Shanghai")).toInstant().toEpochMilli()
+        val flow = StockFundFlow(
+            code = position.code,
+            minute = listOf(0.0, 100.0, 220.0, 360.0, 520.0).mapIndexed { index, net ->
+                FundFlowPoint("10:${(16 + index).toString().padStart(2, '0')}", net, 0.0, 0.0, 0.0, 0.0)
+            },
+            periods = emptyList(), source = "EASTMONEY", stale = false,
+            minuteStale = false, dailyStale = false
+        )
+        val baseline = TTradePlanner.plan(quote, position, volatileBars(), null, "M2", false, 99.0, now)
+        val enhanced = TTradePlanner.plan(quote, position, volatileBars(), flow, "M2", false, 99.0, now)
+
+        assertEquals("SUSTAINED_INFLOW", enhanced.fundFlowStatus)
+        assertEquals("EXTEND_PROFIT", enhanced.profitMode)
+        assertTrue(enhanced.expectedEdgePct > baseline.expectedEdgePct)
+    }
+
+    @Test
+    fun expiredMinuteFlowNeverParticipatesInLiveTPlan() {
+        val now = LocalDate.of(2026, 9, 1).atTime(LocalTime.of(14, 0))
+            .atZone(ZoneId.of("Asia/Shanghai")).toInstant().toEpochMilli()
+        val flow = StockFundFlow(
+            code = position.code,
+            minute = listOf(0.0, 100.0, 200.0, 300.0).mapIndexed { index, net ->
+                FundFlowPoint("10:0$index", net, 0.0, 0.0, 0.0, 0.0)
+            },
+            periods = emptyList(), source = "EASTMONEY", stale = false,
+            minuteStale = false, dailyStale = false
+        )
+
+        val plan = TTradePlanner.plan(quote, position, volatileBars(), flow, "M2", false, 99.0, now)
+
+        assertEquals("UNAVAILABLE", plan.fundFlowStatus)
     }
 
     private fun volatileBars(): List<MinuteBar> {

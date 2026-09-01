@@ -4,6 +4,7 @@ import com.locogo.astockguard.DailyBar
 import com.locogo.astockguard.MarketRepository
 import com.locogo.astockguard.Position
 import com.locogo.astockguard.Quote
+import com.locogo.astockguard.MarketAssessment
 import com.locogo.astockguard.data.ifind.IFindAuctionTick
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -53,5 +54,38 @@ class TradingPreparationEngineTest {
 
         assertEquals("NO_DATA", plan.status)
         assertEquals("无权限", plan.reason)
+    }
+
+    @Test
+    fun `仓位超限时短期套利仓优先减而保护趋势利润仓`() {
+        val positions = listOf(
+            Position("000001.SZ", "短线", 1000, 9.0, "ATTACK"),
+            Position("000002.SZ", "利润仓", 1000, 8.0, "PROFIT")
+        )
+        val quotes = listOf(
+            Quote("000001.SZ", latest = 10.0, changeRatio = -3.0, ma5 = 10.2, ma10 = 10.3),
+            Quote("000002.SZ", latest = 10.0, changeRatio = 2.0, ma5 = 9.8, ma10 = 9.5)
+        )
+        val assessment = MarketAssessment("E2", "M1", 0.5, -3.0, 0.8, 0.2, "防守", emptyList())
+
+        val plan = PortfolioExposureEngine.evaluate(positions, quotes, assessment, 90.0, false)
+
+        assertEquals("REDUCE_EXPOSURE", plan.status)
+        assertEquals("000001.SZ", plan.reductions.first().code)
+        assertTrue(plan.actionable)
+    }
+
+    @Test
+    fun `主升且仓位有空间时只给分批利润扩展计划`() {
+        val assessment = MarketAssessment("E0", "M3", 0.85, 2.5, 0.2, 0.0, "主升", emptyList())
+        val plan = PortfolioExposureEngine.evaluate(
+            listOf(Position("000001.SZ", "趋势", 1000, 8.0, "PROFIT")),
+            listOf(Quote("000001.SZ", latest = 10.0, ma5 = 9.8, ma10 = 9.5)),
+            assessment, 60.0, false
+        )
+
+        assertEquals("PROFIT_EXPANSION", plan.status)
+        assertTrue(plan.reductions.isEmpty())
+        assertTrue(!plan.actionable)
     }
 }

@@ -7,6 +7,8 @@ import com.locogo.astockguard.data.fundflow.StockFundFlow
 import com.locogo.astockguard.domain.plan.PositionCategory
 import kotlin.math.max
 import kotlin.math.min
+import java.time.Instant
+import java.time.ZoneId
 
 /**
  * Intraday T-trade planner for an existing A-share position.
@@ -26,6 +28,8 @@ data class TTradePlan(
     val invalidPrice: Double = 0.0,
     val expectedEdgePct: Double = 0.0,
     val suggestedQuantity: Int = 0,
+    val fundFlowStatus: String = "UNAVAILABLE",
+    val profitMode: String = "NORMAL",
     val manualAnchorPrice: Double? = null,
     val reason: String = "",
     val generatedAt: Long = 0L
@@ -57,6 +61,7 @@ object TTradePlanner {
         val sessionLow = bars.minOf { min(it.low, it.price) }
         val vwap = bars.lastOrNull()?.avgPrice?.takeIf { it > 0.0 } ?: quote?.vwap?.takeIf { it > 0.0 } ?: latest
         val rangePct = ((sessionHigh - sessionLow) / latest).coerceAtLeast(0.0)
+        val flowMomentum = analyzeFundFlow(fundFlow, now)
 
         // Too little intraday amplitude usually cannot cover fees/slippage/decision error.
         if (rangePct < 0.009) {
@@ -69,9 +74,15 @@ object TTradePlanner {
 
         val dynamicBand = (rangePct * 0.24).coerceIn(0.0035, 0.012)
         val anchor = manualAnchorPrice?.takeIf { it.isFinite() && it > 0.0 }
-        val buyCenter = anchor ?: max(sessionLow * 1.002, vwap * (1.0 - dynamicBand))
-        val minEdge = max(0.0065, dynamicBand * 1.45)
-        val sellCenter = min(sessionHigh * 0.998, buyCenter * (1.0 + max(minEdge, rangePct * 0.38)))
+        val flowBandMultiplier = when (flowMomentum.status) {
+            "SUSTAINED_INFLOW" -> 1.18
+            "SUSTAINED_OUTFLOW" -> 0.90
+            else -> 1.0
+        }
+        val buyDiscountMultiplier = if (flowMomentum.status == "SUSTAINED_OUTFLOW") 1.25 else 1.0
+        val buyCenter = anchor ?: max(sessionLow * 1.002, vwap * (1.0 - dynamicBand * buyDiscountMultiplier))
+        val minEdge = max(0.0065, dynamicBand * 1.45) * flowBandMultiplier
+        val sellCenter = min(sessionHigh * 0.998, buyCenter * (1.0 + max(minEdge, rangePct * 0.38 * flowBandMultiplier)))
 
         if (sellCenter <= buyCenter * 1.0045) {
             return TTradePlan(
@@ -88,28 +99,23 @@ object TTradePlanner {
         val sellHigh = sellCenter * (1.0 + zoneHalfWidth)
         val invalid = min(sessionLow * 0.994, buyLow * 0.994)
 
-        val flowImproving = fundFlow?.minute?.takeLast(2)?.let { points ->
-            points.size >= 2 && points.last().mainNet >= points.first().mainNet
-        }
-        val flowWeakening = fundFlow?.minute?.takeLast(2)?.let { points ->
-            points.size >= 2 && points.last().mainNet < points.first().mainNet
-        }
-
         val riskPhase = marketPhase?.uppercase() in setOf("M0", "M1")
         val status = when {
             latest <= invalid -> "INVALIDATED"
-            latest in buyLow..buyHigh && flowWeakening != true && !riskPhase -> "BUY_ZONE"
-            latest in sellLow..sellHigh || latest > sellHigh -> "SELL_ZONE"
+            latest in buyLow..buyHigh && flowMomentum.status != "SUSTAINED_OUTFLOW" && !riskPhase -> "BUY_ZONE"
+            latest in sellLow..sellHigh || latest > sellHigh ||
+                (flowMomentum.status == "SUSTAINED_OUTFLOW" && latest >= vwap * 0.998) -> "SELL_ZONE"
             latest < buyLow -> "WAIT_RECLAIM"
             else -> "WAIT"
         }
 
         val qty = lotQuantity(position).let { if (riskPhase) min(it, 100) else it }
         val expectedEdge = (sellCenter / buyCenter - 1.0) * 100.0
-        val flowText = when {
-            flowImproving == true -> "主力分钟流向改善"
-            flowWeakening == true -> "主力分钟流向转弱"
-            else -> "资金流暂无明确加速度"
+        val flowText = when (flowMomentum.status) {
+            "SUSTAINED_INFLOW" -> "主力连续净流入，利润目标适度扩展"
+            "SUSTAINED_OUTFLOW" -> "主力连续净流出，禁止低吸并提前防守"
+            "NEUTRAL" -> "主力资金动量中性"
+            else -> "分钟资金流不可用，仅以量能确认"
         }
         val reason = buildString {
             append("近60分钟振幅${"%.2f".format(rangePct * 100)}%，VWAP=${"%.2f".format(vwap)}，$flowText。")
@@ -129,6 +135,8 @@ object TTradePlanner {
             invalidPrice = invalid,
             expectedEdgePct = expectedEdge,
             suggestedQuantity = qty,
+            fundFlowStatus = flowMomentum.status,
+            profitMode = if (flowMomentum.status == "SUSTAINED_INFLOW") "EXTEND_PROFIT" else "NORMAL",
             manualAnchorPrice = anchor,
             reason = reason,
             generatedAt = now
@@ -140,4 +148,32 @@ object TTradePlanner {
         val maxT = (position.shares * categoryPct / 100 / 100) * 100
         return maxT.coerceAtLeast(100).coerceAtMost(position.shares - (position.shares % 100))
     }
+
+    private data class FlowMomentum(val status: String)
+
+    /** 资金流字段是累计值，因此先计算相邻增量，再判断最近三段是否同向。 */
+    private fun analyzeFundFlow(flow: StockFundFlow?, now: Long): FlowMomentum {
+        if (flow == null || flow.minuteStale || flow.minute.size < 4 || !isFreshMinute(flow.minute.last().time, now)) {
+            return FlowMomentum("UNAVAILABLE")
+        }
+        val deltas = flow.minute.takeLast(5).zipWithNext { first, second -> second.mainNet - first.mainNet }
+        val recent = deltas.takeLast(3)
+        return FlowMomentum(
+            when {
+                recent.size == 3 && recent.count { it > 0.0 } >= 2 && recent.sum() > 0.0 -> "SUSTAINED_INFLOW"
+                recent.size == 3 && recent.count { it < 0.0 } >= 2 && recent.sum() < 0.0 -> "SUSTAINED_OUTFLOW"
+                else -> "NEUTRAL"
+            }
+        )
+    }
+
+    private fun isFreshMinute(value: String, now: Long): Boolean {
+        val match = Regex("(\\d{2}):(\\d{2})").find(value) ?: return false
+        val pointMinutes = (match.groupValues[1].toIntOrNull() ?: return false) * 60 +
+            (match.groupValues[2].toIntOrNull() ?: return false)
+        val current = Instant.ofEpochMilli(now).atZone(CHINA_ZONE).toLocalTime()
+        return current.hour * 60 + current.minute - pointMinutes in 0..15
+    }
+
+    private val CHINA_ZONE: ZoneId = ZoneId.of("Asia/Shanghai")
 }

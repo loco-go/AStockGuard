@@ -6,6 +6,8 @@ import com.locogo.astockguard.MonitorSnapshot
 import com.locogo.astockguard.Quote
 import com.locogo.astockguard.data.level2.Level2Snapshot
 import com.locogo.astockguard.data.news.NewsRiskAssessment
+import com.locogo.astockguard.data.fundflow.FundFlowSummary
+import com.locogo.astockguard.data.fundflow.StockFundFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -45,9 +47,23 @@ class DataQualityEvaluatorTest {
         assertEquals("TENCENT_FALLBACK", report.items.first { it.name == "当日分时" }.source)
     }
 
+    @Test
+    fun `日级资金刷新不能把缓存分钟资金误标为实时`() {
+        val flow = StockFundFlow(
+            "000001.SZ", emptyList(), listOf(FundFlowSummary(1, 1.0, 0.0, 0.0, 0.0, 0.0)),
+            "EASTMONEY_MIXED", stale = false, minuteStale = true, dailyStale = false
+        )
+        val report = evaluate(minuteFromCache = false, stockFundFlow = flow)
+
+        val item = report.items.first { it.name == "个股资金流" }
+        assertFalse(item.usableForRealtime)
+        assertTrue(item.message.contains("分钟资金流为缓存"))
+    }
+
     private fun evaluate(
         minuteFromCache: Boolean,
         minuteSource: String = "TENCENT",
+        stockFundFlow: StockFundFlow? = null,
         level2: Level2Snapshot? = null
     ) = DataQualityEvaluator.evaluate(
         snapshot = snapshot(stale = false),
@@ -55,7 +71,7 @@ class DataQualityEvaluatorTest {
         minuteFromCache = minuteFromCache,
         minuteHistorical = false,
         minuteSource = minuteSource,
-        stockFundFlow = null,
+        stockFundFlow = stockFundFlow,
         level2 = level2,
         news = NewsRiskAssessment()
     )
