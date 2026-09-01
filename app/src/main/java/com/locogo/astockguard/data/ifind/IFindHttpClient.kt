@@ -354,7 +354,8 @@ internal object IFindResponseParser {
             source = "IFIND_HTTP_LEVEL2",
             simulated = false,
             stale = false,
-            updatedAt = parseMarketTimestamp(tradeTime, receivedAt),
+            updatedAt = parseMarketTimestamp(tradeTime)
+                ?: error("iFinD十档盘口缺少有效tradeTime，禁止标记为实时数据"),
             receivedAt = receivedAt,
             message = "iFinD官方十档盘口正常；逐笔成交尚未接入"
         )
@@ -392,14 +393,14 @@ internal object IFindResponseParser {
         return match?.groupValues?.get(1) ?: this
     }
 
-    private fun parseMarketTimestamp(value: String, fallback: Long): Long {
-        if (value.isBlank()) return fallback
+    private fun parseMarketTimestamp(value: String): Long? {
+        if (value.isBlank()) return null
         val zone = ZoneId.of("Asia/Shanghai")
         val dateTime = runCatching {
             LocalDateTime.parse(value.take(19), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
         }.getOrNull()
         if (dateTime != null) return dateTime.atZone(zone).toInstant().toEpochMilli()
         val time = runCatching { LocalTime.parse(value.takeLast(8), DateTimeFormatter.ofPattern("HH:mm:ss")) }.getOrNull()
-        return time?.let { LocalDate.now(zone).atTime(it).atZone(zone).toInstant().toEpochMilli() } ?: fallback
+        return time?.let { LocalDate.now(zone).atTime(it).atZone(zone).toInstant().toEpochMilli() }
     }
 }

@@ -4,6 +4,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.locogo.astockguard.SettingsRepository
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -24,8 +25,8 @@ class IFindLevel2LiveSmokeTest {
 
         val snapshot = IFindHttpClient(settings).fetchLevel2Snapshot(code)
 
-        assertTrue("iFinD未返回买盘", snapshot.bids.isNotEmpty())
-        assertTrue("iFinD未返回卖盘", snapshot.asks.isNotEmpty())
+        assertEquals("iFinD买盘不是完整十档", 10, snapshot.bids.size)
+        assertEquals("iFinD卖盘不是完整十档", 10, snapshot.asks.size)
         assertTrue("盘口来源标记错误", snapshot.source == "IFIND_HTTP_LEVEL2")
         assertTrue("服务端盘口时间无效", snapshot.updatedAt > 0L)
     }
