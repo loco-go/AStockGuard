@@ -177,7 +177,8 @@ class SettingsActivity : AppCompatActivity() {
             runCatching { appContainer.level2Repository.testConnection(code) }
                 .onSuccess { s ->
                     binding.tvTestResult.text = buildString {
-                        append("Level2 OK · ${s.source}")
+                        append(if (s.source == "IFIND_HTTP_DEPTH_LIMITED") "Level2深度受限" else "Level2 OK")
+                        append(" · ${s.source}")
                         if (s.simulated) append(" · MOCK模拟") else append(" · 真实Provider")
                         if (s.stale) append(" · STALE缓存")
                         append("\n$code 买档=${s.bids.size} 卖档=${s.asks.size} 成交=${s.trades.size}")

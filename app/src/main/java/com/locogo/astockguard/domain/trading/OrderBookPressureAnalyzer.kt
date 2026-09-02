@@ -92,6 +92,9 @@ object OrderBookPressureAnalyzer {
         if (snapshot.simulated || snapshot.source.equals("MOCK", ignoreCase = true)) {
             return unavailable("模拟盘口不参与策略")
         }
+        if (snapshot.source == "IFIND_HTTP_DEPTH_LIMITED") {
+            return unavailable("iFinD仅返回五档，未通过真实十档Level-2校验")
+        }
         if (snapshot.stale) return unavailable("缓存盘口不参与策略")
         if (!sameSecurity(snapshot.code, expectedCode)) return unavailable("盘口证券代码不匹配")
         if (snapshot.updatedAt <= 0L || now - snapshot.updatedAt !in -MAX_FUTURE_SKEW_MS..maxAgeMs) {

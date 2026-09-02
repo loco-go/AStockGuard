@@ -41,6 +41,10 @@ class OrderBookPressureAnalyzerTest {
         assertEquals(OrderBookPressure.UNAVAILABLE, OrderBookPressureAnalyzer.analyze(base.copy(simulated = true), "000001.SZ", now).status)
         assertEquals(OrderBookPressure.UNAVAILABLE, OrderBookPressureAnalyzer.analyze(base.copy(stale = true), "000001.SZ", now).status)
         assertEquals(OrderBookPressure.UNAVAILABLE, OrderBookPressureAnalyzer.analyze(base.copy(updatedAt = now - 20_001L), "000001.SZ", now).status)
+        assertEquals(
+            OrderBookPressure.UNAVAILABLE,
+            OrderBookPressureAnalyzer.analyze(base.copy(source = "IFIND_HTTP_DEPTH_LIMITED"), "000001.SZ", now).status
+        )
     }
 
     @Test

@@ -118,7 +118,7 @@ class IFindResponseParserTest {
 
         val snapshot = IFindResponseParser.parseLevel2Snapshot(root, "000001.SZ", 1_788_229_201_000L)
 
-        assertEquals("IFIND_HTTP_LEVEL2", snapshot.source)
+        assertEquals("IFIND_HTTP_DEPTH_LIMITED", snapshot.source)
         assertEquals(2, snapshot.bids.size)
         assertEquals(12_000L, snapshot.bids.first().volume)
         assertEquals(2, snapshot.asks.size)

@@ -25,7 +25,8 @@ class Level2Repository(
             // 模拟和缓存盘口不能进入真实连续性样本，避免开发数据污染实盘策略。
             val providerTimeFresh = normalized.updatedAt > 0L &&
                 capturedAt - normalized.updatedAt in -MAX_PROVIDER_FUTURE_SKEW_MS..STRATEGY_HISTORY_WINDOW_MS
-            if (!normalized.simulated && !normalized.stale && providerTimeFresh) {
+            val fullIFindDepth = normalized.source != "IFIND_HTTP_DEPTH_LIMITED"
+            if (!normalized.simulated && !normalized.stale && providerTimeFresh && fullIFindDepth) {
                 cacheDao.insertLevel2History(
                     Level2SnapshotHistoryEntity(
                         code = code,

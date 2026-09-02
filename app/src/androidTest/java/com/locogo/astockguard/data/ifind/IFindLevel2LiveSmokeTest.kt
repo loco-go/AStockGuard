@@ -25,8 +25,11 @@ class IFindLevel2LiveSmokeTest {
 
         val snapshot = IFindHttpClient(settings).fetchLevel2Snapshot(code)
 
-        assertEquals("iFinD买盘不是完整十档", 10, snapshot.bids.size)
-        assertEquals("iFinD卖盘不是完整十档", 10, snapshot.asks.size)
+        assertEquals(
+            "iFinD盘口不是完整十档：买${snapshot.bids.size}档/卖${snapshot.asks.size}档",
+            10 to 10,
+            snapshot.bids.size to snapshot.asks.size
+        )
         assertTrue("盘口来源标记错误", snapshot.source == "IFIND_HTTP_LEVEL2")
         assertTrue("服务端盘口时间无效", snapshot.updatedAt > 0L)
     }

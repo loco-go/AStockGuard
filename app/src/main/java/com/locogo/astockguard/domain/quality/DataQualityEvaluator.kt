@@ -97,6 +97,11 @@ object DataQualityEvaluator {
                 usableForRealtime = false, requiredForRealtime = false,
                 updatedAt = level2.updatedAt, message = "模拟盘口仅用于界面和回放"
             )
+            level2.source == "IFIND_HTTP_DEPTH_LIMITED" -> DataQualityItem(
+                "Level-2盘口", level2.source, DataQualityStatus.FRESH,
+                usableForRealtime = false, requiredForRealtime = false,
+                updatedAt = level2.updatedAt, message = level2.message
+            )
             level2.stale -> DataQualityItem(
                 "Level-2盘口", level2.source, DataQualityStatus.CACHED,
                 usableForRealtime = false, requiredForRealtime = false,

@@ -41,6 +41,22 @@ class DataQualityEvaluatorTest {
     }
 
     @Test
+    fun `iFinD五档不能冒充Level2实盘证据`() {
+        val report = evaluate(
+            minuteFromCache = false,
+            level2 = Level2Snapshot(
+                code = "000001.SZ",
+                source = "IFIND_HTTP_DEPTH_LIMITED",
+                message = "iFinD仅返回买5档/卖5档"
+            )
+        )
+
+        val item = report.items.first { it.name.contains("Level-2") }
+        assertFalse(item.usableForRealtime)
+        assertEquals(DataQualityStatus.FRESH, item.status)
+    }
+
+    @Test
     fun `数据质量中心展示分时实际来源`() {
         val report = evaluate(minuteFromCache = false, minuteSource = "TENCENT_FALLBACK")
 

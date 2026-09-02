@@ -346,18 +346,23 @@ internal object IFindResponseParser {
             error("iFinD返回成功但没有十档盘口字段，请检查Level-2权限或用SuperCommand确认指标")
         }
         val tradeTime = table.firstString("tradeTime")
+        val fullDepth = bids.size >= 10 && asks.size >= 10
         return Level2Snapshot(
             code = SettingsRepository.normalizeCode(row.optString("thscode", requestedCode)),
             bids = bids,
             asks = asks,
             trades = emptyList(),
-            source = "IFIND_HTTP_LEVEL2",
+            source = if (fullDepth) "IFIND_HTTP_LEVEL2" else "IFIND_HTTP_DEPTH_LIMITED",
             simulated = false,
             stale = false,
             updatedAt = parseMarketTimestamp(tradeTime)
                 ?: error("iFinD十档盘口缺少有效tradeTime，禁止标记为实时数据"),
             receivedAt = receivedAt,
-            message = "iFinD官方十档盘口正常；逐笔成交尚未接入"
+            message = if (fullDepth) {
+                "iFinD官方十档盘口正常；逐笔成交尚未接入"
+            } else {
+                "iFinD仅返回买${bids.size}档/卖${asks.size}档，不作为Level-2实盘策略证据"
+            }
         )
     }
 
