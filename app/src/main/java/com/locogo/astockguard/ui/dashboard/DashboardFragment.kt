@@ -83,7 +83,11 @@ class DashboardFragment : Fragment(), DashboardHandlers {
         tvTurnover.text = "两市成交额\n${market.turnover?.let(::money) ?: "--"}"
         tvMarketBreadth.text = "涨/跌/平（${market.breadthScope}）\n${market.risingCount}/${market.fallingCount}/${market.flatCount}"
         tvTotalAssets.text = "总资产\n${account.totalAssets?.let(::money) ?: "未配置现金"}"
-        tvTodayPnl.text = "今日收益\n${account.todayPnl?.let(::signedMoney) ?: "--"}"
+        tvTodayPnl.text = "今日收益\n" + when (account.todayPnlState) {
+            "PREOPEN" -> "待开盘"
+            "INCOMPLETE" -> "待行情"
+            else -> account.todayPnl?.let(::signedMoney) ?: "--"
+        }
         tvCumulativePnl.text = "累计收益\n${account.cumulativePnl?.let(::signedMoney) ?: "--"}"
         tvPositionRatio.text = "当前仓位\n${percentValue(account.positionPct)}"
         tvExposurePlan.text = with(state.exposurePlan) {
@@ -142,6 +146,7 @@ class DashboardFragment : Fragment(), DashboardHandlers {
                 "失效 ${price(it.invalidPrice)}  数量 ${it.suggestedQuantity}\n" +
                 "资金 ${it.fundFlowStatus}  盘口 ${it.orderBookStatus}\n" +
                 "盘口时序 $bookSequence（${it.orderBookSampleCount}帧）\n" +
+                "盘口证据 ${if (it.orderBookEvidenceGrade == "SUPPORTING") "五档辅助" else it.orderBookEvidenceGrade}\n" +
                 "利润模式 ${it.profitMode}  盘口失衡 ${it.orderBookImbalance?.let(::percentValue) ?: "--"}\n${it.reason}"
         } ?: "暂无计划"
         tvAuctionPlan.text = state.auctionPlan?.let { plan ->

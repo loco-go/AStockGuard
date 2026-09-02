@@ -52,7 +52,8 @@ class TencentMarketClient(
             wireSymbol.startsWith("sz") -> "$digits.SZ"
             else -> SettingsRepository.normalizeCode(digits)
         }
-        val latest = a.getOrNull(3)?.toDoubleOrNull()
+        // 腾讯盘前可能以0占位；统一转为null，避免市值和今日收益被瞬间清零。
+        val latest = a.getOrNull(3)?.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 }
         val volume = a.getOrNull(6)?.toDoubleOrNull()
         val amountWan = a.getOrNull(37)?.toDoubleOrNull()
         val amountYuan = a.getOrNull(35)?.split('/')?.getOrNull(2)?.toDoubleOrNull()
@@ -61,12 +62,12 @@ class TencentMarketClient(
             code = code,
             name = a.getOrNull(1).orEmpty(),
             time = a.getOrNull(30).orEmpty(),
-            open = a.getOrNull(5)?.toDoubleOrNull(),
-            high = a.getOrNull(33)?.toDoubleOrNull(),
-            low = a.getOrNull(34)?.toDoubleOrNull(),
+            open = a.getOrNull(5)?.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 },
+            high = a.getOrNull(33)?.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 },
+            low = a.getOrNull(34)?.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 },
             latest = latest,
-            previousClose = a.getOrNull(4)?.toDoubleOrNull(),
-            changeRatio = a.getOrNull(32)?.toDoubleOrNull(),
+            previousClose = a.getOrNull(4)?.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 },
+            changeRatio = a.getOrNull(32)?.toDoubleOrNull()?.takeIf { latest != null && it.isFinite() },
             volume = volume,
             amount = amountYuan,
             vwap = inferVwap(latest, volume, amountYuan)

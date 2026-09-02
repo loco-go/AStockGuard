@@ -240,16 +240,18 @@ internal object IFindResponseParser {
                 val table = row.optJSONObject("table") ?: row
                 val code = row.optString("thscode", row.optString("code")).trim()
                 if (code.isBlank()) continue
+                // 盘前部分品种会返回0或--占位，不能把它们当成真实现价写入收益计算。
+                val latest = table.firstDouble("latest").validPrice()
                 add(
                     Quote(
                         code = SettingsRepository.normalizeCode(code),
                         time = table.firstString("tradeTime"),
-                        open = table.firstDouble("open"),
-                        high = table.firstDouble("high"),
-                        low = table.firstDouble("low"),
-                        latest = table.firstDouble("latest"),
-                        previousClose = table.firstDouble("preClose"),
-                        changeRatio = table.firstDouble("changeRatio"),
+                        open = table.firstDouble("open").validPrice(),
+                        high = table.firstDouble("high").validPrice(),
+                        low = table.firstDouble("low").validPrice(),
+                        latest = latest,
+                        previousClose = table.firstDouble("preClose").validPrice(),
+                        changeRatio = table.firstDouble("changeRatio").takeIf { latest != null && it?.isFinite() == true },
                         volume = table.firstDouble("volume"),
                         amount = table.firstDouble("amount"),
                         vwap = table.firstDouble("avgPrice")
@@ -392,6 +394,8 @@ internal object IFindResponseParser {
         val raw = if (value is JSONArray) value.opt(index) else value
         return raw?.toString()?.takeUnless { it.isBlank() || it.equals("null", true) || it == "--" }?.toDoubleOrNull()
     }
+
+    private fun Double?.validPrice(): Double? = this?.takeIf { it.isFinite() && it > 0.0 }
 
     private fun String.toMarketTime(): String {
         val match = Regex("(\\d{2}:\\d{2})(?::\\d{2})?").find(this)

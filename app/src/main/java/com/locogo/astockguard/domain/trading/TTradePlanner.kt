@@ -33,6 +33,7 @@ data class TTradePlan(
     val orderBookStatus: String = "UNAVAILABLE",
     val orderBookPersistence: String = "UNAVAILABLE",
     val orderBookSampleCount: Int = 0,
+    val orderBookEvidenceGrade: String = "NONE",
     val orderBookImbalance: Double? = null,
     val profitMode: String = "NORMAL",
     val manualAnchorPrice: Double? = null,
@@ -70,6 +71,13 @@ object TTradePlanner {
         val rangePct = ((sessionHigh - sessionLow) / latest).coerceAtLeast(0.0)
         val flowMomentum = analyzeFundFlow(fundFlow, now)
         val bookPressure = OrderBookPressureAnalyzer.analyze(level2, code, now, level2History)
+        // iFinD五档只能与分钟资金流同向时提供低权重确认，不能单独制造买卖动作。
+        val effectiveBookStatus = when {
+            bookPressure.evidenceGrade != "SUPPORTING" -> bookPressure.status
+            bookPressure.status == OrderBookPressure.BID_DOMINANT && flowMomentum.status == "SUSTAINED_INFLOW" -> bookPressure.status
+            bookPressure.status == OrderBookPressure.ASK_DOMINANT && flowMomentum.status == "SUSTAINED_OUTFLOW" -> bookPressure.status
+            else -> OrderBookPressure.NEUTRAL
+        }
 
         // Too little intraday amplitude usually cannot cover fees/slippage/decision error.
         if (rangePct < 0.009) {
@@ -83,9 +91,9 @@ object TTradePlanner {
         val dynamicBand = (rangePct * 0.24).coerceIn(0.0035, 0.012)
         val anchor = manualAnchorPrice?.takeIf { it.isFinite() && it > 0.0 }
         val flowBandMultiplier = when {
-            flowMomentum.status == "SUSTAINED_INFLOW" && bookPressure.status == OrderBookPressure.BID_DOMINANT -> 1.25
+            flowMomentum.status == "SUSTAINED_INFLOW" && effectiveBookStatus == OrderBookPressure.BID_DOMINANT -> 1.25
             flowMomentum.status == "SUSTAINED_INFLOW" -> 1.18
-            bookPressure.status == OrderBookPressure.BID_DOMINANT -> 1.08
+            effectiveBookStatus == OrderBookPressure.BID_DOMINANT -> 1.08
             flowMomentum.status == "SUSTAINED_OUTFLOW" -> 0.90
             else -> 1.0
         }
@@ -113,10 +121,10 @@ object TTradePlanner {
         val status = when {
             latest <= invalid -> "INVALIDATED"
             latest in buyLow..buyHigh && flowMomentum.status != "SUSTAINED_OUTFLOW" &&
-                bookPressure.status != OrderBookPressure.ASK_DOMINANT && !riskPhase -> "BUY_ZONE"
+                effectiveBookStatus != OrderBookPressure.ASK_DOMINANT && !riskPhase -> "BUY_ZONE"
             latest in sellLow..sellHigh || latest > sellHigh ||
                 (flowMomentum.status == "SUSTAINED_OUTFLOW" && latest >= vwap * 0.998) ||
-                (bookPressure.status == OrderBookPressure.ASK_DOMINANT && latest >= vwap * 0.998) -> "SELL_ZONE"
+                (effectiveBookStatus == OrderBookPressure.ASK_DOMINANT && latest >= vwap * 0.998) -> "SELL_ZONE"
             latest < buyLow -> "WAIT_RECLAIM"
             else -> "WAIT"
         }
@@ -152,8 +160,9 @@ object TTradePlanner {
             orderBookStatus = bookPressure.status,
             orderBookPersistence = bookPressure.persistence,
             orderBookSampleCount = bookPressure.sampleCount,
+            orderBookEvidenceGrade = bookPressure.evidenceGrade,
             orderBookImbalance = bookPressure.imbalance,
-            profitMode = if (flowMomentum.status == "SUSTAINED_INFLOW" || bookPressure.status == OrderBookPressure.BID_DOMINANT) "EXTEND_PROFIT" else "NORMAL",
+            profitMode = if (flowMomentum.status == "SUSTAINED_INFLOW" || effectiveBookStatus == OrderBookPressure.BID_DOMINANT) "EXTEND_PROFIT" else "NORMAL",
             manualAnchorPrice = anchor,
             reason = reason,
             generatedAt = now

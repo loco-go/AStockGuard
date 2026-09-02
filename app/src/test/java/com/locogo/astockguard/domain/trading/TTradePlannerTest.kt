@@ -172,6 +172,43 @@ class TTradePlannerTest {
         assertEquals("SELL_ZONE", plan.status)
     }
 
+    @Test
+    fun limitedFiveLevelBookNeedsSameDirectionFundFlow() {
+        val now = LocalDate.of(2026, 9, 1).atTime(LocalTime.of(10, 20))
+            .atZone(ZoneId.of("Asia/Shanghai")).toInstant().toEpochMilli()
+        val limitedAsk = Level2Snapshot(
+            code = position.code,
+            bids = List(5) { Level2Level(99.99 - it * 0.01, 1_000) },
+            asks = List(5) { Level2Level(100.01 + it * 0.01, 4_000) },
+            trades = listOf(Level2Trade("10:20:00", 99.99, 900, "SELL")),
+            source = "IFIND_HTTP_DEPTH_LIMITED",
+            updatedAt = now
+        )
+        val outflow = StockFundFlow(
+            code = position.code,
+            minute = listOf(500.0, 380.0, 250.0, 120.0, 0.0).mapIndexed { index, net ->
+                FundFlowPoint("10:${(16 + index).toString().padStart(2, '0')}", net, 0.0, 0.0, 0.0, 0.0)
+            },
+            periods = emptyList(), source = "EASTMONEY", stale = false,
+            minuteStale = false, dailyStale = false
+        )
+
+        val bookOnly = TTradePlanner.plan(
+            quote, position, volatileBars(), null, "M2", false,
+            manualAnchorPrice = 100.0, now = now, level2 = limitedAsk
+        )
+        val confirmed = TTradePlanner.plan(
+            quote, position, volatileBars(), outflow, "M2", false,
+            manualAnchorPrice = 100.0, now = now, level2 = limitedAsk
+        )
+
+        assertEquals("ASK_DOMINANT", bookOnly.orderBookStatus)
+        assertEquals("SUPPORTING", bookOnly.orderBookEvidenceGrade)
+        assertTrue(bookOnly.status != "SELL_ZONE")
+        assertEquals("SUSTAINED_OUTFLOW", confirmed.fundFlowStatus)
+        assertEquals("SELL_ZONE", confirmed.status)
+    }
+
     private fun volatileBars(): List<MinuteBar> {
         val prices = listOf(99.2, 98.8, 98.5, 98.9, 99.4, 99.8, 100.1, 100.4, 100.8, 101.2, 101.5, 100.9)
         return prices.mapIndexed { index, price ->

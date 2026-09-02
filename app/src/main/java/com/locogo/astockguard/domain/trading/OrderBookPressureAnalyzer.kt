@@ -15,6 +15,8 @@ data class OrderBookPressure(
     val activeBuyRatio: Double? = null,
     val persistence: String = "UNAVAILABLE",
     val sampleCount: Int = 0,
+    /** FULL可独立参与确认，SUPPORTING必须与资金流或量价信号同向。 */
+    val evidenceGrade: String = "NONE",
     val reason: String = "无可用真实盘口"
 ) {
     companion object {
@@ -38,6 +40,14 @@ object OrderBookPressureAnalyzer {
     ): OrderBookPressure {
         val current = analyzeSingle(snapshot, expectedCode, now, MAX_AGE_MS)
         if (current.status == OrderBookPressure.UNAVAILABLE) return current
+        if (snapshot?.source == "IFIND_HTTP_DEPTH_LIMITED") {
+            return current.copy(
+                persistence = "LIMITED_5",
+                sampleCount = 1,
+                evidenceGrade = "SUPPORTING",
+                reason = "${current.reason}；仅五档，必须与分钟资金流同向才参与做T确认"
+            )
+        }
 
         // 收集期不足时沿用单帧结论；达到两个跨20秒样本后，方向必须连续才保留强信号。
         val sequence = (history + listOfNotNull(snapshot))
@@ -92,9 +102,6 @@ object OrderBookPressureAnalyzer {
         if (snapshot.simulated || snapshot.source.equals("MOCK", ignoreCase = true)) {
             return unavailable("模拟盘口不参与策略")
         }
-        if (snapshot.source == "IFIND_HTTP_DEPTH_LIMITED") {
-            return unavailable("iFinD仅返回五档，未通过真实十档Level-2校验")
-        }
         if (snapshot.stale) return unavailable("缓存盘口不参与策略")
         if (!sameSecurity(snapshot.code, expectedCode)) return unavailable("盘口证券代码不匹配")
         if (snapshot.updatedAt <= 0L || now - snapshot.updatedAt !in -MAX_FUTURE_SKEW_MS..maxAgeMs) {
@@ -134,6 +141,7 @@ object OrderBookPressureAnalyzer {
             activeBuyRatio = activeBuyRatio,
             persistence = "SINGLE",
             sampleCount = 1,
+            evidenceGrade = "FULL",
             reason = "$direction，五档失衡${signedPercent(imbalance)}$tradeText"
         )
     }

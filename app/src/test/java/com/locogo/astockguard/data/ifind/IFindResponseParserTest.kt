@@ -45,6 +45,19 @@ class IFindResponseParserTest {
     }
 
     @Test
+    fun preOpenZeroPriceDoesNotBecomeRealQuoteOrChange() {
+        val root = JSONObject(
+            """{"tables":[{"thscode":"000001.SZ","table":{"latest":[0],"preClose":[10.5],"changeRatio":[0]}}]}"""
+        )
+
+        val quote = IFindResponseParser.parseQuotes(root).single()
+
+        assertNull(quote.latest)
+        assertNull(quote.changeRatio)
+        assertEquals(10.5, quote.previousClose ?: 0.0, 0.0001)
+    }
+
+    @Test
     fun parsesMinuteBarsWithOuterTimeArray() {
         val root = JSONObject(
             """{
