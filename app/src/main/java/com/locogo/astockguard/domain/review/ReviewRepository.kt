@@ -1,5 +1,11 @@
 package com.locogo.astockguard.domain.review
 
+/*
+ * 文件职责：统一读写真实成交、信号结果和复盘统计；真实账本、模拟盘和回放结果必须物理及语义隔离。
+ * 架构边界：领域层不直接访问 Android View；需要网络或 Room 的输入由 Repository 在调用前准备。
+ * 风险说明：本应用只提供交易研究和决策辅助，不保证收益，也不会自动提交真实账户委托。
+ */
+
 import com.locogo.astockguard.MarketRepository
 import com.locogo.astockguard.Position
 import com.locogo.astockguard.Quote

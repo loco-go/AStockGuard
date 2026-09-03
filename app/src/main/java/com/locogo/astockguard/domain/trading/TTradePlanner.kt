@@ -1,5 +1,11 @@
 package com.locogo.astockguard.domain.trading
 
+/*
+ * 文件职责：基于底仓、分钟振幅、VWAP、资金流、盘口和市场阶段生成做 T 计划；它仅辅助决策，不提交委托。
+ * 架构边界：领域层不直接访问 Android View；需要网络或 Room 的输入由 Repository 在调用前准备。
+ * 风险说明：本应用只提供交易研究和决策辅助，不保证收益，也不会自动提交真实账户委托。
+ */
+
 import com.locogo.astockguard.MinuteBar
 import com.locogo.astockguard.Position
 import com.locogo.astockguard.Quote

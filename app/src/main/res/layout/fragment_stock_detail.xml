@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  文件职责：个股详情布局，容纳周期图表、策略、资金流和盘口信息。图表交互属于研究辅助，不提供真实下单控件。
+  维护约束：资源名称属于代码契约，重命名时同步修改绑定代码并检查无障碍与深浅色效果。
+-->
 <layout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 

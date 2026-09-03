@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  文件职责：设置页布局，承载数据源、AI、持仓和敏感凭据配置。密码类输入不得以普通明文方式长期显示。
+  维护约束：资源名称属于代码契约，重命名时同步修改绑定代码并检查无障碍与深浅色效果。
+-->
 <layout>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"

@@ -1,5 +1,11 @@
 package com.locogo.astockguard.data.fundflow
 
+/*
+ * 文件职责：管理资金流远端读取、缓存回退和新鲜度；UI 仅观察 Repository 输出。
+ * 架构边界：外部字段缺失、过期或异常时返回不可用，不能以默认零值伪造有效数据。
+ * 风险说明：本应用只提供交易研究和决策辅助，不保证收益，也不会自动提交真实账户委托。
+ */
+
 import com.locogo.astockguard.data.local.CacheDao
 import com.locogo.astockguard.data.local.FundFlowCacheEntity
 import com.locogo.astockguard.data.local.FundFlowEntity

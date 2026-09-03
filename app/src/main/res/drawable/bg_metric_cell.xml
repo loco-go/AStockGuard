@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  文件职责：金融终端卡片背景资源，集中定义填充、描边与圆角；只承担视觉层职责，不表达策略结论。
+  维护约束：资源名称属于代码契约，重命名时同步修改绑定代码并检查无障碍与深浅色效果。
+-->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
     <solid android:color="@color/astock_surface_alt" />
     <corners android:radius="12dp" />

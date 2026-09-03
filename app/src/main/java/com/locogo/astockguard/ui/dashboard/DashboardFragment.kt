@@ -1,5 +1,11 @@
 package com.locogo.astockguard.ui.dashboard
 
+/*
+ * 文件职责：把 MainUiState 渲染为交易驾驶舱并转发用户操作；这里只负责展示和事件绑定，不承担行情选择或交易决策。
+ * 架构边界：生命周期内只收集可观察状态；耗时任务、持久化和网络请求交给 ViewModel/Repository。
+ * 风险说明：本应用提供交易研究与决策辅助，不执行真实账户自动委托；任何历史统计或提示都不构成收益保证。
+ */
+
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View

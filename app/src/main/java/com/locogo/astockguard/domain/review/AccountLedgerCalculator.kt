@@ -1,5 +1,11 @@
 package com.locogo.astockguard.domain.review
 
+/*
+ * 文件职责：按可追溯账户流水计算累计投入、资产和盈亏；缺失估值不得通过猜测补齐。
+ * 架构边界：领域层不直接访问 Android View；需要网络或 Room 的输入由 Repository 在调用前准备。
+ * 风险说明：本应用只提供交易研究和决策辅助，不保证收益，也不会自动提交真实账户委托。
+ */
+
 import com.locogo.astockguard.Position
 import com.locogo.astockguard.Quote
 import com.locogo.astockguard.data.local.AccountLedgerEntity

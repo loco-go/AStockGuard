@@ -1,5 +1,11 @@
 package com.locogo.astockguard.domain.replay
 
+/*
+ * 文件职责：验证 ReplayEngine 的正常、拒绝、边界与历史回归场景。
+ * 架构边界：固定时间、证券代码和单位，避免测试依赖运行当天；业务口径有意变化时同步说明预期。
+ * 维护说明：断言优先保护公开业务语义，而不是私有实现步骤。
+ */
+
 import com.locogo.astockguard.MinuteBar
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

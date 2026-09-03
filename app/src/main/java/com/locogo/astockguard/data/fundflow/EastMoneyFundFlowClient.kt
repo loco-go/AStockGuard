@@ -1,5 +1,11 @@
 package com.locogo.astockguard.data.fundflow
 
+/*
+ * 文件职责：解析东方财富个股与板块资金流响应；网络异常和字段漂移必须显式失败。
+ * 架构边界：外部字段缺失、过期或异常时返回不可用，不能以默认零值伪造有效数据。
+ * 风险说明：本应用只提供交易研究和决策辅助，不保证收益，也不会自动提交真实账户委托。
+ */
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl

@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  文件职责：配置同花顺只读识别服务可观察的事件类型和反馈方式。该配置只允许读取用户主动打开的页面，不应扩展为自动点击、手势或真实委托能力。
+  维护约束：资源名称属于代码契约，重命名时同步修改绑定代码并检查无障碍与深浅色效果。
+-->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled"
     android:accessibilityFeedbackType="feedbackGeneric"

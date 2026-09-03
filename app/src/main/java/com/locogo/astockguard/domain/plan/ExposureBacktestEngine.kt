@@ -1,5 +1,11 @@
 package com.locogo.astockguard.domain.plan
 
+/*
+ * 文件职责：用无前视日线回放动态仓位并与基准比较收益、回撤；仓位变化必须扣除摩擦成本。
+ * 架构边界：领域层不直接访问 Android View；需要网络或 Room 的输入由 Repository 在调用前准备。
+ * 风险说明：本应用只提供交易研究和决策辅助，不保证收益，也不会自动提交真实账户委托。
+ */
+
 import com.locogo.astockguard.DailyBar
 import com.locogo.astockguard.Position
 import kotlin.math.abs

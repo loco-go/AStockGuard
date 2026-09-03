@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  文件职责：应用兼容层颜色资源；交易涨跌色、警告色和中性色应保持语义一致，不在页面中散落硬编码颜色。
+  维护约束：资源名称属于代码契约，重命名时同步修改绑定代码并检查无障碍与深浅色效果。
+-->
 <resources>
     <color name="black">#FF111111</color>
     <color name="white">#FFFFFFFF</color>

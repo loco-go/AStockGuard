@@ -1,5 +1,11 @@
 package com.locogo.astockguard.ui.main
 
+/*
+ * 文件职责：将本地与 AI 动作、置信度、冲突和数据新鲜度整理为可展示模型。
+ * 架构边界：生命周期内只收集可观察状态；耗时任务、持久化和网络请求交给 ViewModel/Repository。
+ * 风险说明：本应用提供交易研究与决策辅助，不执行真实账户自动委托；任何历史统计或提示都不构成收益保证。
+ */
+
 import com.locogo.astockguard.MonitorSnapshot
 import com.locogo.astockguard.Position
 import com.locogo.astockguard.data.ai.AiStrategy

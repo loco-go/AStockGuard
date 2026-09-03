@@ -1,5 +1,11 @@
 package com.locogo.astockguard
 
+/*
+ * 文件职责：集中保存非结构化偏好、持仓配置和加密凭据；规范化证券代码并为旧版本配置提供兼容默认值。
+ * 架构边界：修改时保持单向依赖和既有安全边界；敏感信息不得进入日志、备份或通知内容。
+ * 风险说明：本应用提供交易研究与决策辅助，不执行真实账户自动委托；任何历史统计或提示都不构成收益保证。
+ */
+
 import android.content.Context
 import com.locogo.astockguard.data.news.NewsSource
 import java.util.Locale

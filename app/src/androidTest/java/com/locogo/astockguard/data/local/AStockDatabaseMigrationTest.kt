@@ -1,5 +1,11 @@
 package com.locogo.astockguard.data.local
 
+/*
+ * 文件职责：在设备数据库上逐版本验证 Room Migration，确保历史安装升级后表、索引和既有数据仍然可读。
+ * 测试边界：使用 app/schemas 中导出的真实 schema 创建旧库；禁止只测试新建数据库而遗漏升级路径。
+ * 维护说明：每次数据库版本提升都必须增加对应迁移场景，并验证非敏感用户数据不会丢失或被错误重算。
+ */
+
 import androidx.room.testing.MigrationTestHelper
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.ext.junit.runners.AndroidJUnit4

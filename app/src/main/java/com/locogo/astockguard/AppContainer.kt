@@ -1,5 +1,11 @@
 package com.locogo.astockguard
 
+/*
+ * 文件职责：在应用进程内组装数据库、Repository 和领域依赖；集中创建共享单例，避免界面层重复实例化。
+ * 架构边界：修改时保持单向依赖和既有安全边界；敏感信息不得进入日志、备份或通知内容。
+ * 风险说明：本应用提供交易研究与决策辅助，不执行真实账户自动委托；任何历史统计或提示都不构成收益保证。
+ */
+
 import android.app.Application
 import com.locogo.astockguard.backup.BackupManager
 import com.locogo.astockguard.data.fundflow.FundFlowRepository

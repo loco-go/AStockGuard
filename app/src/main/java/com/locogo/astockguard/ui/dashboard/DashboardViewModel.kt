@@ -1,5 +1,11 @@
 package com.locogo.astockguard.ui.dashboard
 
+/*
+ * 文件职责：提供驾驶舱市场与账户摘要映射；盘前、缺价和缓存状态必须显式呈现，避免生成看似精确的虚假收益。
+ * 架构边界：生命周期内只收集可观察状态；耗时任务、持久化和网络请求交给 ViewModel/Repository。
+ * 风险说明：本应用提供交易研究与决策辅助，不执行真实账户自动委托；任何历史统计或提示都不构成收益保证。
+ */
+
 import com.locogo.astockguard.MonitorSnapshot
 import com.locogo.astockguard.Position
 import com.locogo.astockguard.Quote

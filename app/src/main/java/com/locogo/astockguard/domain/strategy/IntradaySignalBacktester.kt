@@ -1,5 +1,11 @@
 package com.locogo.astockguard.domain.strategy
 
+/*
+ * 文件职责：使用历史分钟序列验证盘中信号，并计入佣金、税费和滑点；结果不代表未来收益。
+ * 架构边界：领域层不直接访问 Android View；需要网络或 Room 的输入由 Repository 在调用前准备。
+ * 风险说明：本应用只提供交易研究和决策辅助，不保证收益，也不会自动提交真实账户委托。
+ */
+
 import com.locogo.astockguard.chart.MinuteCandle
 import kotlin.math.max
 

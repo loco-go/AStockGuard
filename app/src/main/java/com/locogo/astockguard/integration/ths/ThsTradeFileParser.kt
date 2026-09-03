@@ -1,5 +1,11 @@
 package com.locogo.astockguard.integration.ths
 
+/*
+ * 文件职责：解析 CSV、TSV、TXT 交割单并兼容常见中英文表头；输入文件只在用户授权的读取周期内处理。
+ * 架构边界：集成层只读取用户授权的数据，不保存整页原文，不执行真实交易。
+ * 风险说明：本应用只提供交易研究和决策辅助，不保证收益，也不会自动提交真实账户委托。
+ */
+
 import com.locogo.astockguard.SettingsRepository
 import java.time.LocalDate
 import java.time.LocalDateTime

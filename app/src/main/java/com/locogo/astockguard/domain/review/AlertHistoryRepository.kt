@@ -1,5 +1,11 @@
 package com.locogo.astockguard.domain.review
 
+/*
+ * 文件职责：固化进入系统通知栏的提醒、策略版本和证据，并在获得足够后续 K 线后评价；禁止提前制造胜负结论。
+ * 架构边界：领域层不直接访问 Android View；需要网络或 Room 的输入由 Repository 在调用前准备。
+ * 风险说明：本应用只提供交易研究和决策辅助，不保证收益，也不会自动提交真实账户委托。
+ */
+
 import com.locogo.astockguard.chart.MinuteCandle
 import com.locogo.astockguard.data.local.AlertRecordEntity
 import com.locogo.astockguard.data.local.CacheDao

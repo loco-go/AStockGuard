@@ -1,5 +1,11 @@
 package com.locogo.astockguard.domain.quality
 
+/*
+ * 文件职责：把行情、分时、资金流、盘口与新闻的实时性汇总为统一报告；必需数据非实时即阻断 actionable 状态。
+ * 架构边界：领域层不直接访问 Android View；需要网络或 Room 的输入由 Repository 在调用前准备。
+ * 风险说明：本应用只提供交易研究和决策辅助，不保证收益，也不会自动提交真实账户委托。
+ */
+
 import com.locogo.astockguard.MonitorSnapshot
 import com.locogo.astockguard.data.fundflow.StockFundFlow
 import com.locogo.astockguard.data.level2.Level2Snapshot

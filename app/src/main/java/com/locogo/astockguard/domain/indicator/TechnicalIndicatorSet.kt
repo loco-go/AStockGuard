@@ -1,5 +1,11 @@
 package com.locogo.astockguard.domain.indicator
 
+/*
+ * 文件职责：计算 MA、MACD、RSI、VWAP 等策略指标；样本不足的前导区保持不可用，避免零值污染评分。
+ * 架构边界：领域层不直接访问 Android View；需要网络或 Room 的输入由 Repository 在调用前准备。
+ * 风险说明：本应用只提供交易研究和决策辅助，不保证收益，也不会自动提交真实账户委托。
+ */
+
 import com.locogo.astockguard.chart.StockKLine
 import kotlin.math.abs
 

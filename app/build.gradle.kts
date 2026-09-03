@@ -1,3 +1,7 @@
+/*
+ * 文件职责：配置 Android 应用模块、Kotlin/KAPT、Room schema 导出、依赖和测试运行器。
+ * 维护约束：Room 实体变化必须同步提高数据库版本、提供 Migration 并保留 app/schemas；发布前执行 test、lint、assembleDebug。
+ */
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")

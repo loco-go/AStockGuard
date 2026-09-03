@@ -1,5 +1,11 @@
 package com.locogo.astockguard.domain.replay
 
+/*
+ * 文件职责：按照历史分钟序列模拟成交、费用、滑点、T+1 和涨跌停约束；任何时点不得读取未来数据。
+ * 架构边界：领域层不直接访问 Android View；需要网络或 Room 的输入由 Repository 在调用前准备。
+ * 风险说明：本应用只提供交易研究和决策辅助，不保证收益，也不会自动提交真实账户委托。
+ */
+
 import com.locogo.astockguard.MinuteBar
 import kotlin.math.max
 

@@ -1,5 +1,11 @@
 package com.locogo.astockguard.data.local
 
+/*
+ * 文件职责：将盘口快照序列化保存到 Room；反序列化失败应降级为不可用而非构造盘口。
+ * 架构边界：修改实体或字段前先设计 Room 版本迁移、导出 schema，并验证旧库升级。
+ * 风险说明：本应用提供交易研究与决策辅助，不执行真实账户自动委托；任何历史统计或提示都不构成收益保证。
+ */
+
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey

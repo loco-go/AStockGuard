@@ -1,5 +1,11 @@
 package com.locogo.astockguard.data.fundflow
 
+/*
+ * 文件职责：定义个股分钟累计流、周期汇总和板块排行；订单规模分类只是数据商统计口径。
+ * 架构边界：外部字段缺失、过期或异常时返回不可用，不能以默认零值伪造有效数据。
+ * 风险说明：本应用只提供交易研究和决策辅助，不保证收益，也不会自动提交真实账户委托。
+ */
+
 data class FundFlowPoint(
     val time: String,
     val mainNet: Double,

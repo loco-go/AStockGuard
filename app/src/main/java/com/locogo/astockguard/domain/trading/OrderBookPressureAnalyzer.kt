@@ -1,5 +1,11 @@
 package com.locogo.astockguard.domain.trading
 
+/*
+ * 文件职责：分析真实盘口委托失衡、主动成交与跨帧持续性；模拟、缓存、过期及错码快照全部拒绝。
+ * 架构边界：领域层不直接访问 Android View；需要网络或 Room 的输入由 Repository 在调用前准备。
+ * 风险说明：本应用只提供交易研究和决策辅助，不保证收益，也不会自动提交真实账户委托。
+ */
+
 import com.locogo.astockguard.data.level2.Level2Snapshot
 import kotlin.math.abs
 

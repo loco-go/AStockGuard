@@ -1,5 +1,11 @@
 package com.locogo.astockguard
 
+/*
+ * 文件职责：承载主导航、Fragment 与一次性界面效果；业务状态由 ViewModel 管理，Activity 不直接调用行情客户端。
+ * 架构边界：修改时保持单向依赖和既有安全边界；敏感信息不得进入日志、备份或通知内容。
+ * 风险说明：本应用提供交易研究与决策辅助，不执行真实账户自动委托；任何历史统计或提示都不构成收益保证。
+ */
+
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager

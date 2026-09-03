@@ -1,5 +1,11 @@
 package com.locogo.astockguard.data.ifind
 
+/*
+ * 文件职责：封装 iFinD 请求和 JSON 解析，校验证券代码、价格、时间、十档完整性及来源；不完整盘口只能降级使用。
+ * 架构边界：外部字段缺失、过期或异常时返回不可用，不能以默认零值伪造有效数据。
+ * 风险说明：本应用只提供交易研究和决策辅助，不保证收益，也不会自动提交真实账户委托。
+ */
+
 import com.locogo.astockguard.Quote
 import com.locogo.astockguard.MinuteBar
 import com.locogo.astockguard.DailyBar

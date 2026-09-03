@@ -1,5 +1,11 @@
 package com.locogo.astockguard
 
+/*
+ * 文件职责：提供 ChatGPT Web 登录、验证和 DOM 恢复界面；自动化只填充研究提示词，不访问券商或执行交易。
+ * 架构边界：修改时保持单向依赖和既有安全边界；敏感信息不得进入日志、备份或通知内容。
+ * 风险说明：本应用提供交易研究与决策辅助，不执行真实账户自动委托；任何历史统计或提示都不构成收益保证。
+ */
+
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.ClipData

@@ -1,5 +1,11 @@
 package com.locogo.astockguard.domain.signal
 
+/*
+ * 文件职责：定义并推进信号生命周期；合法迁移、冷却和终态规则用于避免重复提醒及旧信号复活。
+ * 架构边界：领域层不直接访问 Android View；需要网络或 Room 的输入由 Repository 在调用前准备。
+ * 风险说明：本应用只提供交易研究和决策辅助，不保证收益，也不会自动提交真实账户委托。
+ */
+
 import com.locogo.astockguard.MonitorSnapshot
 import com.locogo.astockguard.Quote
 import com.locogo.astockguard.StockSignal

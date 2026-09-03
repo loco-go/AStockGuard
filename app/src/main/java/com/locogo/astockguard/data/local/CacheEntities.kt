@@ -1,5 +1,11 @@
 package com.locogo.astockguard.data.local
 
+/*
+ * 文件职责：定义行情、持仓及通用缓存实体和映射；持久化单位、主键和时间戳必须保持向后兼容。
+ * 架构边界：修改实体或字段前先设计 Room 版本迁移、导出 schema，并验证旧库升级。
+ * 风险说明：本应用提供交易研究与决策辅助，不执行真实账户自动委托；任何历史统计或提示都不构成收益保证。
+ */
+
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.locogo.astockguard.DailyBar

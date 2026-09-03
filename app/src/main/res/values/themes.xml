@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  文件职责：定义应用主题、系统栏和基础控件外观；颜色及尺寸优先复用设计系统资源。
+  维护约束：资源名称属于代码契约，重命名时同步修改绑定代码并检查无障碍与深浅色效果。
+-->
 <resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.AStockGuard" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">@color/astock_primary</item>

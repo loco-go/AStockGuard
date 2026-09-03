@@ -1,5 +1,11 @@
 package com.locogo.astockguard.ui.main
 
+/*
+ * 文件职责：聚合行情、计划、复盘、模拟盘和 AI 状态并向界面暴露单一 StateFlow；一次性操作由明确方法触发，不让 UI 直接访问网络客户端。
+ * 架构边界：生命周期内只收集可观察状态；耗时任务、持久化和网络请求交给 ViewModel/Repository。
+ * 风险说明：本应用提供交易研究与决策辅助，不执行真实账户自动委托；任何历史统计或提示都不构成收益保证。
+ */
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope

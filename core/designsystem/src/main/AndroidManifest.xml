@@ -1,1 +1,5 @@
+<!--
+  文件职责：设计系统资源库的最小 Manifest；该模块不声明 Activity、Service、权限或可导出组件。
+  维护约束：保持最小权限和最小组件集合，资源模块不应扩大主应用攻击面。
+-->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" />

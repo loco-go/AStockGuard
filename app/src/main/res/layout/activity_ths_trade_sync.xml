@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  文件职责：同花顺成交同步状态与文件导入入口；所有操作由用户主动触发，不包含自动券商操作。
+  维护约束：资源名称属于代码契约，重命名时同步修改绑定代码并检查无障碍与深浅色效果。
+-->
 <layout xmlns:android="http://schemas.android.com/apk/res/android">
     <ScrollView android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="18dp">

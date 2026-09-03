@@ -1,5 +1,11 @@
 package com.locogo.astockguard
 
+/*
+ * 文件职责：从用户粘贴内容中提取允许的 Provider 配置；不得持久化无关 Cookie、页面文本或日志中的秘密。
+ * 架构边界：修改时保持单向依赖和既有安全边界；敏感信息不得进入日志、备份或通知内容。
+ * 风险说明：本应用提供交易研究与决策辅助，不执行真实账户自动委托；任何历史统计或提示都不构成收益保证。
+ */
+
 import org.json.JSONArray
 import org.json.JSONObject
 

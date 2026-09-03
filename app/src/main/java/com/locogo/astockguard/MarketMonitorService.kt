@@ -1,5 +1,11 @@
 package com.locogo.astockguard
 
+/*
+ * 文件职责：执行交易时段后台轮询、策略评价和通知去重；任何可操作提醒都必须通过交易时段、实时数据与状态变化三重门禁。
+ * 架构边界：修改时保持单向依赖和既有安全边界；敏感信息不得进入日志、备份或通知内容。
+ * 风险说明：本应用提供交易研究与决策辅助，不执行真实账户自动委托；任何历史统计或提示都不构成收益保证。
+ */
+
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder

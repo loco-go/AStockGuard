@@ -1,5 +1,11 @@
 package com.locogo.astockguard.integration.ths
 
+/*
+ * 文件职责：把同花顺持仓页的可访问节点解析为持仓；针对多种表格布局设置严格边界，避免把资讯股票误当持仓。
+ * 架构边界：集成层只读取用户授权的数据，不保存整页原文，不执行真实交易。
+ * 风险说明：本应用只提供交易研究和决策辅助，不保证收益，也不会自动提交真实账户委托。
+ */
+
 import com.locogo.astockguard.Position
 import com.locogo.astockguard.SettingsRepository
 

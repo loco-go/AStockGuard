@@ -1,5 +1,11 @@
 package com.locogo.astockguard.ui.stock
 
+/*
+ * 文件职责：渲染个股详情页并将交互交给 ViewModel；图表点击只设置研究锚点，不代表真实委托。
+ * 架构边界：生命周期内只收集可观察状态；耗时任务、持久化和网络请求交给 ViewModel/Repository。
+ * 风险说明：本应用提供交易研究与决策辅助，不执行真实账户自动委托；任何历史统计或提示都不构成收益保证。
+ */
+
 import android.os.Bundle
 import android.app.DatePickerDialog
 import android.view.LayoutInflater

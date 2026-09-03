@@ -1,5 +1,11 @@
 package com.locogo.astockguard.data.ai
 
+/*
+ * 文件职责：从 AI 原文中提取 ASTOCK_STRATEGY JSON 并严格校验；解析失败保留原文但不得覆盖本地策略。
+ * 架构边界：外部字段缺失、过期或异常时返回不可用，不能以默认零值伪造有效数据。
+ * 风险说明：本应用只提供交易研究和决策辅助，不保证收益，也不会自动提交真实账户委托。
+ */
+
 import org.json.JSONObject
 
 data class AiStockStrategy(

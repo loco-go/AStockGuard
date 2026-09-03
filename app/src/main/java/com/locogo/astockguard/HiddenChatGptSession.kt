@@ -1,5 +1,11 @@
 package com.locogo.astockguard
 
+/*
+ * 文件职责：维护隐藏 WebView 的 ChatGPT 可选自动化会话；正常路径不可打扰用户，登录、验证或 DOM 失效才转到可见恢复页。
+ * 架构边界：修改时保持单向依赖和既有安全边界；敏感信息不得进入日志、备份或通知内容。
+ * 风险说明：本应用提供交易研究与决策辅助，不执行真实账户自动委托；任何历史统计或提示都不构成收益保证。
+ */
+
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.graphics.Bitmap

@@ -1,5 +1,11 @@
 package com.locogo.astockguard.domain.strategy
 
+/*
+ * 文件职责：以确定性规则分析盘中趋势、VWAP 与量能；相同输入产生相同结果，缓存数据不可触发实时动作。
+ * 架构边界：领域层不直接访问 Android View；需要网络或 Room 的输入由 Repository 在调用前准备。
+ * 风险说明：本应用只提供交易研究和决策辅助，不保证收益，也不会自动提交真实账户委托。
+ */
+
 import com.locogo.astockguard.chart.MinuteCandle
 import com.locogo.astockguard.data.fundflow.FundFlowPoint
 import kotlin.math.abs

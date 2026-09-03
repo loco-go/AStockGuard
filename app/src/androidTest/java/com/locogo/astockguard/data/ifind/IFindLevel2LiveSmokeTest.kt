@@ -1,5 +1,11 @@
 package com.locogo.astockguard.data.ifind
 
+/*
+ * 文件职责：在真实 Android 环境中按显式配置执行 iFinD Level-2 冒烟验证，确认代码、十档深度和时间字段符合契约。
+ * 运行边界：测试依赖用户主动提供的有效 Token；缺少凭据时应跳过，凭据不得写入源码、日志或测试报告。
+ * 风险说明：网络冒烟只验证数据接入，不证明盘口信号能够盈利，也不应成为普通 CI 的硬依赖。
+ */
+
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.locogo.astockguard.SettingsRepository

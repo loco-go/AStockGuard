@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  文件职责：声明应用组件、网络与前台服务权限，以及同花顺只读无障碍服务入口。组件导出属性属于安全边界，新增 Activity、Service 或权限前需评估最小暴露面。
+  维护约束：资源名称属于代码契约，重命名时同步修改绑定代码并检查无障碍与深浅色效果。
+-->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />

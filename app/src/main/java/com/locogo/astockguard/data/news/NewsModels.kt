@@ -1,5 +1,11 @@
 package com.locogo.astockguard.data.news
 
+/*
+ * 文件职责：定义新闻条目、来源与风险评估结果；风险等级必须附带可展示的证据标题。
+ * 架构边界：解析失败、超时和字段缺失要显式返回失败或不可用状态，不能用零值伪造有效行情。
+ * 风险说明：本应用提供交易研究与决策辅助，不执行真实账户自动委托；任何历史统计或提示都不构成收益保证。
+ */
+
 data class NewsSource(val name: String, val url: String)
 
 data class NewsItem(
