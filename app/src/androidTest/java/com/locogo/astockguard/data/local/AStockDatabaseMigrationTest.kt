@@ -89,6 +89,17 @@ class AStockDatabaseMigrationTest {
         database.close()
     }
 
+    /** 验证15到16升级会保留旧提醒并创建雷达冷却、多周期评价字段和表。 */
+    @Test
+    fun migrate15To16CreatesVolumeRadarHistory() {
+        helper.createDatabase(TEST_DB_15_16, 15).close()
+        val database = helper.runMigrationsAndValidate(TEST_DB_15_16, 16, true, AStockDatabase.MIGRATION_15_16)
+        database.query("SELECT signalType, confidence FROM alert_record").close()
+        database.query("SELECT code, signalType, action, lastNotifiedAt FROM volume_radar_state").close()
+        database.query("SELECT alertId, horizonMinutes, returnPct, effective FROM volume_signal_outcome").close()
+        database.close()
+    }
+
     private companion object {
         const val TEST_DB = "migration-8-9"
         const val TEST_DB_9_10 = "migration-9-10"
@@ -97,5 +108,6 @@ class AStockDatabaseMigrationTest {
         const val TEST_DB_12_13 = "migration-12-13"
         const val TEST_DB_13_14 = "migration-13-14"
         const val TEST_DB_14_15 = "migration-14-15"
+        const val TEST_DB_15_16 = "migration-15-16"
     }
 }

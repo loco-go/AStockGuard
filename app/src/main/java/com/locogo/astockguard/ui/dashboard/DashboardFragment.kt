@@ -27,6 +27,7 @@ import com.locogo.astockguard.chart.ChartPeriod
 import com.locogo.astockguard.databinding.FragmentDashboardBinding
 import com.locogo.astockguard.domain.quality.DataQualityEvaluator
 import com.locogo.astockguard.domain.review.AccountLedgerType
+import com.locogo.astockguard.domain.replay.VolumeReplayMetrics
 import com.locogo.astockguard.domain.strategy.ChartSignalAction
 import com.locogo.astockguard.domain.strategy.IntradayChartSignal
 import com.locogo.astockguard.ui.chart.ChartDataMapper
@@ -215,14 +216,20 @@ class DashboardFragment : Fragment(), DashboardHandlers {
             buildString {
                 append("全部真实提醒 $evaluated/$total  待评价 $pending  胜率 ${percentValue(winRatePct)}  平均净优势 ${percentValue(averageNetEdgePct)}")
                 append("\n做T提醒 $tEvaluated/$tTotal  待评价 $tPending  胜率 ${percentValue(tWinRatePct)}  平均净优势 ${percentValue(tAverageNetEdgePct)}")
+                append("\n量能雷达 $radarSignals 条  多周期评价 $radarEvaluations 条  有效 $radarEffective 条  命中率 ${percentValue(radarAccuracyPct)}")
                 append("\n生命周期信号 ${state.signalReviewStats.evaluated}/${state.signalReviewStats.total}  " +
                     "真实成交 ${state.tradeReviewStats.trades}  已闭合 ${state.tradeReviewStats.closedTrades}  " +
                     "实现盈亏 ${money(state.tradeReviewStats.realizedPnl)}")
                 recent.take(8).forEach { alert ->
-                    val result = when (alert.status) { "WIN" -> "成功"; "LOSS" -> "失败"; else -> "待评价" }
+                    val result = when (alert.status) { "WIN" -> "成功"; "LOSS" -> "失败"; "TRACKING" -> "多周期跟踪"; else -> "待评价" }
                     append("\n${alert.signalDate} ${alert.signalTime} ${alert.name} ${alert.action} $result")
                     if (alert.status != "PENDING") append(" ${percentValue(alert.netEdgePct)}")
-                    append(" · ${if (alert.alertType == "T_PLAN") "做T" else "分时"} · ${alert.strategyVersion}")
+                    val alertLabel = when (alert.alertType) {
+                        "T_PLAN" -> "做T"
+                        "VOLUME_RADAR" -> "量能雷达 ${alert.signalType} C${alert.confidence}"
+                        else -> "分时"
+                    }
+                    append(" · $alertLabel · ${alert.strategyVersion}")
                 }
             }
         }
@@ -244,17 +251,47 @@ class DashboardFragment : Fragment(), DashboardHandlers {
             "权益 ${money(equity)}  现金 ${money(cash)}  市值 ${money(marketValue)}  收益 ${pct(returnPct / 100.0)}\n" +
                 positions.take(6).joinToString("  ") { "${it.code} ${it.quantity}股" }
         }
-        tvReplay.text = state.replayReport?.let {
-            "${it.strategy}  收益 ${pct(it.returnPct / 100.0)}  基准 ${pct(it.benchmarkReturnPct / 100.0)}  " +
-                "超额 ${signedMoney(it.excessPnl)}\n最大回撤 ${pct(it.maxDrawdownPct / 100.0)}  " +
-                "闭合 ${it.closedTrades}  胜率 ${pct(it.winRatePct / 100.0)}  PF ${String.format(Locale.CHINA, "%.2f", it.profitFactor)}\n" +
-                "费用 ${money(it.totalFees)}  印花税 ${money(it.totalTax)}  滑点 ${money(it.slippageCost)}  " +
-                "未闭合 ${it.unclosedQuantity}股  拒绝 ${it.rejectedTrades}次\n${it.rulesDescription}"
-        } ?: "进度 ${state.replayIndex + 1}/${state.minuteBars.size}${if (state.replayRunning) "  ·  播放中" else ""}"
+        tvReplay.text = renderReplaySummary(state)
         updateStateButtons(state)
         renderReplayChart(state)
         executePendingBindings()
     }
+
+    /**
+     * 把原有VWAP回放与新增四组策略对比合并为一个可读摘要。
+     * 数据覆盖说明始终随结果展示，避免用户把缺少板块、资金流或历史风控的降级回放误认为完整实盘验证。
+     */
+    private fun renderReplaySummary(state: MainUiState): String {
+        val legacy = state.replayReport?.let {
+            "原回放 ${it.strategy}  收益 ${pct(it.returnPct / 100.0)}  最大回撤 ${pct(it.maxDrawdownPct / 100.0)}\n" +
+                "闭合 ${it.closedTrades}  胜率 ${pct(it.winRatePct / 100.0)}  PF ${formatFactor(it.profitFactor)}  " +
+                "费用 ${money(it.totalFees + it.totalTax + it.slippageCost)}"
+        }
+        val comparison = state.volumeReplayComparison?.let { result ->
+            listOf(
+                result.buyAndHold,
+                result.fixedWidthT,
+                result.dynamicVolumeT,
+                result.riskControlledDynamicT
+            ).joinToString("\n", postfix = "\n${result.dataCoverage}") { renderVolumeReplayRow(it) }
+        }
+        return listOfNotNull(legacy, comparison).joinToString("\n\n").ifBlank {
+            "进度 ${state.replayIndex + 1}/${state.minuteBars.size}${if (state.replayRunning) "  ·  播放中" else ""}"
+        }
+    }
+
+    /** 将一组量能策略压缩成收益/回撤、T净贡献、胜率、PF、次数和全成本行。 */
+    private fun renderVolumeReplayRow(metrics: VolumeReplayMetrics): String =
+        "${metrics.strategy}  收益 ${percentValue(metrics.totalReturnPct)}  回撤 ${percentValue(metrics.maxDrawdownPct)}  " +
+            "收益回撤比 ${String.format(Locale.CHINA, "%.2f", metrics.returnDrawdownRatio)}\n" +
+            "T净贡献 ${signedMoney(metrics.tNetContribution)}  胜率 ${percentValue(metrics.winRatePct)}  " +
+            "PF ${formatFactor(metrics.profitFactor)}  交易 ${metrics.transactionCount}次  " +
+            "全成本 ${money(metrics.fees + metrics.taxes + metrics.slippage)}  " +
+            "卖飞/错补 ${money(metrics.soldAwayLoss)}/${money(metrics.wrongBuybackLoss)}"
+
+    /** 无限Profit Factor显示为∞，有限值保留两位，避免直接渲染Infinity破坏中文摘要。 */
+    private fun formatFactor(value: Double): String =
+        if (value.isInfinite()) "∞" else String.format(Locale.CHINA, "%.2f", value)
 
     /**
      * 统一维护互斥操作按钮的颜色和可用状态。

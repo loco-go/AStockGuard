@@ -39,6 +39,27 @@ interface CacheDao {
     suspend fun getAlertRecords(limit: Int = 100): List<AlertRecordEntity>
     @Query("UPDATE alert_record SET status = :status, evaluatedAt = :evaluatedAt, exitPrice = :exitPrice, netEdgePct = :netEdgePct, maxFavorablePct = :maxFavorablePct, maxAdversePct = :maxAdversePct WHERE id = :id AND status = 'PENDING'")
     suspend fun evaluateAlertRecord(id: Long, status: String, evaluatedAt: Long, exitPrice: Double, netEdgePct: Double, maxFavorablePct: Double, maxAdversePct: Double): Int
+    /** 读取某证券最后一次雷达提醒状态，供跨进程十分钟冷却和状态迁移判断。 */
+    @Query("SELECT * FROM volume_radar_state WHERE code = :code LIMIT 1")
+    suspend fun getVolumeRadarState(code: String): VolumeRadarStateEntity?
+    /** 原子覆盖某证券雷达状态；只有真正发送通知后才能调用。 */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertVolumeRadarState(item: VolumeRadarStateEntity)
+    /** 写入一个观察周期的评价，重复执行使用REPLACE保证任务幂等。 */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertVolumeSignalOutcome(item: VolumeSignalOutcomeEntity)
+    /** 查询提醒已经完成的观察周期，避免轮询重复计算已经稳定的结果。 */
+    @Query("SELECT * FROM volume_signal_outcome WHERE alertId = :alertId ORDER BY horizonMinutes")
+    suspend fun getVolumeSignalOutcomes(alertId: Long): List<VolumeSignalOutcomeEntity>
+    /** 导出备份时读取全部雷达状态，按代码排序保证JSON输出稳定。 */
+    @Query("SELECT * FROM volume_radar_state ORDER BY code")
+    suspend fun getAllVolumeRadarStates(): List<VolumeRadarStateEntity>
+    /** 导出备份时读取全部多周期评价，按提醒和周期排序保证审计顺序稳定。 */
+    @Query("SELECT * FROM volume_signal_outcome ORDER BY alertId, horizonMinutes")
+    suspend fun getAllVolumeSignalOutcomes(): List<VolumeSignalOutcomeEntity>
+    /** 查询指定证券仍需要多周期评价的雷达提醒。 */
+    @Query("SELECT * FROM alert_record WHERE code = :code AND alertType = 'VOLUME_RADAR' ORDER BY signalAt DESC LIMIT :limit")
+    suspend fun getVolumeRadarAlerts(code: String, limit: Int = 50): List<AlertRecordEntity>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertSignalState(item: SignalStateEntity)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsertSignalStates(items: List<SignalStateEntity>)
     @Query("SELECT * FROM signal_state WHERE code = :code LIMIT 1") suspend fun getSignalState(code: String): SignalStateEntity?
@@ -91,5 +112,8 @@ interface CacheDao {
     @Query("DELETE FROM trade_record") suspend fun clearTradeRecords()
     @Query("DELETE FROM account_ledger") suspend fun clearAccountLedgers()
     @Query("DELETE FROM alert_record") suspend fun clearAlertRecords()
+    /** 清理雷达冷却和多周期结果；仅由明确的恢复/重置流程调用。 */
+    @Query("DELETE FROM volume_radar_state") suspend fun clearVolumeRadarStates()
+    @Query("DELETE FROM volume_signal_outcome") suspend fun clearVolumeSignalOutcomes()
     @Query("DELETE FROM ai_analysis") suspend fun clearAiAnalysis()
 }

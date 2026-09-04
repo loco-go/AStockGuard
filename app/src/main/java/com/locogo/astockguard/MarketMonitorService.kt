@@ -20,6 +20,9 @@ import com.locogo.astockguard.domain.review.AlertHistoryRepository
 import com.locogo.astockguard.domain.trading.TTradePlanner
 import com.locogo.astockguard.domain.plan.AuctionPlanEngine
 import com.locogo.astockguard.domain.plan.PortfolioExposureEngine
+import com.locogo.astockguard.domain.trading.DynamicTAction
+import com.locogo.astockguard.domain.volume.IntradayVolumeCoordinator
+import com.locogo.astockguard.domain.volume.VolumeSignalType
 import kotlinx.coroutines.*
 import java.time.DayOfWeek
 import java.time.Instant
@@ -35,6 +38,7 @@ class MarketMonitorService : Service() {
     private lateinit var fundFlowRepository: FundFlowRepository
     private lateinit var level2Repository: Level2Repository
     private lateinit var alertHistoryRepository: AlertHistoryRepository
+    private lateinit var intradayVolumeCoordinator: IntradayVolumeCoordinator
     private var lastRisk = ""
     private var lastNewsRisk = "E0"
     private var lastNewsRefreshAt = 0L
@@ -56,6 +60,7 @@ class MarketMonitorService : Service() {
         fundFlowRepository = appContainer.fundFlowRepository
         level2Repository = appContainer.level2Repository
         alertHistoryRepository = appContainer.alertHistoryRepository
+        intradayVolumeCoordinator = appContainer.intradayVolumeCoordinator
         signalLifecycle = appContainer.signalLifecycle
     }
 
@@ -80,7 +85,7 @@ class MarketMonitorService : Service() {
                     emitExposureAlert(s)
                     refreshNewsIfDue()
                     scanAuctionPlansIfDue(s)
-                    scanTPlansIfDue(s)
+                    scanVolumeRadarIfDue(s)
                     scanIntradaySignalsIfDue(s)
                     val source = if (s.dataHealth.isStale) "缓存" else "实时"
                     val text = "$source ${s.assessment.eventRisk}/${s.assessment.marketPhase} 仓位${"%.1f".format(s.positionRatio)}% 上限${"%.0f".format(s.assessment.maxPositionRatio * 100)}%"
@@ -111,6 +116,93 @@ class MarketMonitorService : Service() {
         lastNewsRisk = news.level
     }
 
+    /**
+     * 使用统一量价协调器扫描真实持仓，并仅在重要状态变化或十分钟冷却结束后发送提醒。
+     * 当前方法替代旧固定区间扫描的实时入口；旧规划器暂时保留给Phase 5的Replay基线比较。
+     */
+    private suspend fun scanVolumeRadarIfDue(snapshot: MonitorSnapshot) {
+        if (snapshot.dataHealth.isStale) return
+        val now = System.currentTimeMillis()
+        if (now - lastTScanAt < T_SCAN_INTERVAL_MS || !isAshareTradingTime(now)) return
+        lastTScanAt = now
+        val positions = settings.positions()
+        val exposureStatus = PortfolioExposureEngine.evaluate(
+            positions, snapshot.quotes, snapshot.assessment, snapshot.positionRatio, snapshot.dataHealth.isStale
+        ).status
+        positions.asSequence().filter { it.shares >= 100 }.take(MAX_T_SCAN_POSITIONS).forEach { position ->
+            runCatching {
+                val radar = intradayVolumeCoordinator.load(
+                    code = position.code,
+                    position = position,
+                    assessment = snapshot.assessment,
+                    exposureStatus = exposureStatus,
+                    marketDataStale = snapshot.dataHealth.isStale,
+                    now = System.currentTimeMillis()
+                )
+                val signal = radar.analysis.signal
+                val plan = radar.plan
+                val notificationNow = System.currentTimeMillis()
+                // 每轮先补齐已走完的5/15/30/60分钟结果；窗口不足时评价器会保持等待而不是提前判胜负。
+                alertHistoryRepository.evaluateVolumeRadar(
+                    position.code, radar.minuteSeries.bars, radar.minuteSeries.intervalMinutes, notificationNow
+                )
+                // Room中的状态和唯一键同时负责跨进程冷却；只有成功落库的提醒才允许进入系统通知栏。
+                if (!alertHistoryRepository.recordVolumeRadarAlert(position.name, radar, notificationNow)) return@runCatching
+                NotificationHelper.alert(
+                    this,
+                    tNotificationId(position.code, radarNotificationType(plan.action)),
+                    "${position.name} · ${radarSignalLabel(signal.type)}",
+                    buildString {
+                        append("量能").append(signal.volumeScore)
+                        append("，买盘").append(signal.buyPressureScore)
+                        append("，板块").append(signal.boardSyncScore ?: "不可用")
+                        append("，诱多风险").append(signal.bullTrapRisk)
+                        append("。建议").append(radarActionLabel(plan.action))
+                        if (plan.suggestedQuantity > 0) append(plan.suggestedQuantity).append("股")
+                        append("。").append(plan.reasons.firstOrNull().orEmpty())
+                        append("。仅作辅助提醒，不自动下单。")
+                    }
+                )
+            }.onFailure { error ->
+                Log.w("MarketMonitor", "量能雷达扫描失败 ${position.code}: ${error.message}")
+            }
+        }
+    }
+
+    /** 把动态动作映射为稳定通知编号尾数，使同一证券不同类型提醒不会相互覆盖。 */
+    private fun radarNotificationType(action: DynamicTAction): Int = when (action) {
+        DynamicTAction.HOLD -> 1
+        DynamicTAction.SELL_T -> 2
+        DynamicTAction.REDUCE -> 3
+        DynamicTAction.WAIT_BUYBACK -> 4
+        DynamicTAction.WAIT, DynamicTAction.NO_T -> 5
+    }
+
+    /** 将量价分类映射为简短中文通知标题，完整证据仍保留在详情页和后续Room记录中。 */
+    private fun radarSignalLabel(type: VolumeSignalType): String = when (type) {
+        VolumeSignalType.REAL_BREAKOUT -> "真实资金攻击"
+        VolumeSignalType.WEAK_BREAKOUT -> "弱突破"
+        VolumeSignalType.BULL_TRAP -> "疑似诱多"
+        VolumeSignalType.EXHAUSTION -> "放量滞涨"
+        VolumeSignalType.NORMAL -> "普通震荡"
+        VolumeSignalType.NO_SIGNAL -> "无实时信号"
+    }
+
+    /** 将领域动作映射为通知中的中文动词，避免把WAIT_BUYBACK误写成无条件买入。 */
+    private fun radarActionLabel(action: DynamicTAction): String = when (action) {
+        DynamicTAction.HOLD -> "继续持有、暂缓T出"
+        DynamicTAction.SELL_T -> "反T卖出交易仓"
+        DynamicTAction.REDUCE -> "降低交易仓"
+        DynamicTAction.WAIT -> "继续等待"
+        DynamicTAction.WAIT_BUYBACK -> "等待回补条件"
+        DynamicTAction.NO_T -> "不做T"
+    }
+
+    /**
+     * 旧固定宽度规划器只保留给后续Replay的B组基线，实时循环不再调用本方法。
+     * 保留代码可以让Phase 5在相同历史数据上比较固定T与动态量能T，避免提前删除基准。
+     */
+    @Suppress("unused")
     private suspend fun scanTPlansIfDue(snapshot: MonitorSnapshot) {
         if (snapshot.dataHealth.isStale) return
         val now = System.currentTimeMillis()

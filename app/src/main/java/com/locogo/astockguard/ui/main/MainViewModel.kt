@@ -21,6 +21,7 @@ import com.locogo.astockguard.data.local.CacheDao
 import com.locogo.astockguard.data.news.NewsRepository
 import com.locogo.astockguard.domain.paper.PaperTradingRepository
 import com.locogo.astockguard.domain.replay.ReplayEngine
+import com.locogo.astockguard.domain.replay.VolumeStrategyReplayEngine
 import com.locogo.astockguard.domain.review.ReviewRepository
 import com.locogo.astockguard.domain.review.AccountLedgerType
 import com.locogo.astockguard.domain.review.AlertHistoryRepository
@@ -186,7 +187,8 @@ class MainViewModel(
                 tTradePlan = if (changed) null else it.tTradePlan,
                 auctionPlan = if (changed) null else it.auctionPlan,
                 replayIndex = if (changed) -1 else it.replayIndex,
-                replayReport = if (changed) null else it.replayReport
+                replayReport = if (changed) null else it.replayReport,
+                volumeReplayComparison = if (changed) null else it.volumeReplayComparison
             )
         }
         viewModelScope.launch {
@@ -311,7 +313,7 @@ class MainViewModel(
     fun resetReplay() {
         pauseReplay()
         val first = if (_uiState.value.minuteBars.isEmpty()) -1 else 0
-        _uiState.update { it.copy(replayIndex = first, replayReport = null) }
+        _uiState.update { it.copy(replayIndex = first, replayReport = null, volumeReplayComparison = null) }
     }
 
     fun stepReplay() {
@@ -345,11 +347,21 @@ class MainViewModel(
         _uiState.update { it.copy(replayRunning = false) }
     }
 
+    /**
+     * 在同一份分钟数据上同时执行原有VWAP回放和A/B/C/D量能策略对照。
+     * 原报告继续服务图表成交标记；新报告专门比较净收益、回撤、费用与机会损失，二者不会写入真实账户。
+     */
     fun runReplayBacktest() {
         val bars = _uiState.value.minuteBars
         if (bars.isEmpty()) { _uiState.update { it.copy(error = "没有分钟数据可做策略回放") }; return }
         val report = replayEngine.runVwapReclaim(bars)
-        _uiState.update { it.copy(replayReport = report, replayIndex = bars.lastIndex) }
+        val comparison = VolumeStrategyReplayEngine.compare(
+            code = _uiState.value.selectedCode ?: "UNKNOWN",
+            bars = bars
+        )
+        _uiState.update {
+            it.copy(replayReport = report, volumeReplayComparison = comparison, replayIndex = bars.lastIndex)
+        }
     }
 
     fun refreshSectorFlow(type: String) {

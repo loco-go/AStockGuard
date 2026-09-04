@@ -13,6 +13,13 @@ import com.locogo.astockguard.domain.strategy.ChartSignalAction
 import com.locogo.astockguard.domain.strategy.IntradayChartSignal
 import com.locogo.astockguard.domain.strategy.StrategyVersions
 import com.locogo.astockguard.domain.trading.TTradePlan
+import com.locogo.astockguard.MinuteBar
+import com.locogo.astockguard.data.local.VolumeRadarStateEntity
+import com.locogo.astockguard.domain.volume.IntradayRadarSnapshot
+import com.locogo.astockguard.domain.volume.RadarNotificationPolicy
+import com.locogo.astockguard.domain.volume.RadarNotificationState
+import org.json.JSONArray
+import org.json.JSONObject
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
@@ -31,6 +38,10 @@ data class AlertHistoryStats(
     val tWins: Int = 0,
     val tWinRatePct: Double = 0.0,
     val tAverageNetEdgePct: Double = 0.0,
+    val radarSignals: Int = 0,
+    val radarEvaluations: Int = 0,
+    val radarEffective: Int = 0,
+    val radarAccuracyPct: Double = 0.0,
     val recent: List<AlertRecordEntity> = emptyList()
 )
 
@@ -47,6 +58,93 @@ data class AlertEvaluation(
  * 唯一键由股票、交易日、信号时间、方向和策略版本组成，服务重启不会重复计数。
  */
 class AlertHistoryRepository(private val dao: CacheDao) {
+    /**
+     * 持久化真正准备发送到系统通知栏的量能雷达提醒，并使用Room状态实施跨进程冷却。
+     * 只有唯一提醒写入成功后才更新冷却状态，防止数据库失败却永久吞掉后续提醒。
+     */
+    suspend fun recordVolumeRadarAlert(
+        name: String,
+        radar: IntradayRadarSnapshot,
+        now: Long
+    ): Boolean {
+        val signal = radar.analysis.signal
+        val plan = radar.plan
+        val previousEntity = dao.getVolumeRadarState(plan.code)
+        val previous = previousEntity?.let {
+            val type = runCatching { com.locogo.astockguard.domain.volume.VolumeSignalType.valueOf(it.signalType) }.getOrNull()
+            val action = runCatching { com.locogo.astockguard.domain.trading.DynamicTAction.valueOf(it.action) }.getOrNull()
+            if (type != null && action != null) RadarNotificationState(type, action, it.lastNotifiedAt) else null
+        }
+        if (!RadarNotificationPolicy.shouldNotify(previous, signal.type, plan.action, now)) return false
+        val point = java.time.Instant.ofEpochMilli(now).atZone(CHINA_ZONE)
+        val signalTime = radar.minuteSeries.bars.lastOrNull()?.time?.let(::normalizeMinuteTime) ?: return false
+        val alertKey = listOf(plan.code, point.toLocalDate(), signalTime, signal.type, plan.action, VOLUME_RADAR_VERSION).joinToString("|")
+        val evidence = JSONObject().apply {
+            put("volumeScore", signal.volumeScore)
+            put("buyPressureScore", signal.buyPressureScore)
+            put("priceEfficiency", signal.priceEfficiency)
+            put("boardSyncScore", signal.boardSyncScore ?: JSONObject.NULL)
+            put("trendScore", signal.trendScore)
+            put("bullTrapRisk", signal.bullTrapRisk)
+            put("confidence", signal.confidence)
+            put("expectedPullbackPercent", plan.expectedPullbackPercent)
+            put("buybackLow", plan.suggestedBuybackLow)
+            put("buybackHigh", plan.suggestedBuybackHigh)
+            put("quantity", plan.suggestedQuantity)
+            put("estimatedCosts", plan.estimatedCosts)
+            put("estimatedNetProfit", plan.estimatedNetProfit)
+            put("reasonCodes", JSONArray(signal.reasonCodes))
+            put("explanations", JSONArray(signal.explanations.take(12)))
+        }.toString()
+        val id = dao.insertAlertRecord(
+            AlertRecordEntity(
+                alertKey = alertKey,
+                code = plan.code,
+                name = name.ifBlank { plan.code },
+                signalAt = now,
+                signalDate = point.toLocalDate().toString(),
+                signalTime = signalTime,
+                action = plan.action.name,
+                price = plan.referencePrice,
+                score = signal.volumeScore,
+                strategyVersion = VOLUME_RADAR_VERSION,
+                source = "VOLUME_RADAR_NOTIFICATION",
+                dataSource = radar.dataSource,
+                reason = plan.reasons.joinToString("；"),
+                alertType = "VOLUME_RADAR",
+                targetPrice = plan.expectedPullbackPrice,
+                evidenceJson = evidence,
+                signalType = signal.type.name,
+                confidence = signal.confidence,
+                status = "TRACKING",
+                horizonBars = 12
+            )
+        )
+        if (id == -1L) return false
+        dao.upsertVolumeRadarState(
+            VolumeRadarStateEntity(plan.code, signal.type.name, plan.action.name, now, plan.referencePrice, VOLUME_RADAR_VERSION)
+        )
+        return true
+    }
+
+    /**
+     * 为指定证券的雷达提醒补齐5/15/30/60分钟评价。
+     * 已有周期直接跳过，尚未走完观察窗口的周期保持待评价，重复轮询不会产生重复样本。
+     */
+    suspend fun evaluateVolumeRadar(
+        code: String,
+        bars: List<MinuteBar>,
+        intervalMinutes: Int,
+        now: Long
+    ) {
+        dao.getVolumeRadarAlerts(code).forEach { record ->
+            val completed = dao.getVolumeSignalOutcomes(record.id).map { it.horizonMinutes }.toSet()
+            VOLUME_HORIZONS.filterNot(completed::contains).forEach { horizon ->
+                IntradayVolumeSignalEvaluator.evaluate(record, bars, intervalMinutes, horizon, now)
+                    ?.let { dao.upsertVolumeSignalOutcome(it) }
+            }
+        }
+    }
     suspend fun recordLiveAlert(
         code: String,
         name: String,
@@ -150,6 +248,7 @@ class AlertHistoryRepository(private val dao: CacheDao) {
     suspend fun evaluatePending(code: String, date: LocalDate, candles: List<MinuteCandle>, now: Long) {
         dao.getPendingAlertRecords(code)
             .filter { it.signalDate == date.toString() }
+            .filter { it.alertType != "VOLUME_RADAR" }
             .forEach { record ->
                 val result = AlertOutcomeEvaluator.evaluate(record, candles) ?: return@forEach
                 dao.evaluateAlertRecord(
@@ -171,6 +270,10 @@ class AlertHistoryRepository(private val dao: CacheDao) {
         val tRecords = records.filter { it.alertType == "T_PLAN" }
         val tEvaluated = tRecords.filter { it.status == "WIN" || it.status == "LOSS" }
         val tWins = tEvaluated.count { it.status == "WIN" }
+        val radarRecords = records.filter { it.alertType == "VOLUME_RADAR" }
+        val visibleRadarIds = radarRecords.map { it.id }.toSet()
+        val radarOutcomes = dao.getAllVolumeSignalOutcomes().filter { it.alertId in visibleRadarIds }
+        val radarEffective = radarOutcomes.count { it.effective }
         return AlertHistoryStats(
             total = records.size,
             pending = records.count { it.status == "PENDING" },
@@ -184,6 +287,10 @@ class AlertHistoryRepository(private val dao: CacheDao) {
             tWins = tWins,
             tWinRatePct = if (tEvaluated.isEmpty()) 0.0 else tWins * 100.0 / tEvaluated.size,
             tAverageNetEdgePct = if (tEvaluated.isEmpty()) 0.0 else tEvaluated.map { it.netEdgePct }.average(),
+            radarSignals = radarRecords.size,
+            radarEvaluations = radarOutcomes.size,
+            radarEffective = radarEffective,
+            radarAccuracyPct = if (radarOutcomes.isEmpty()) 0.0 else radarEffective * 100.0 / radarOutcomes.size,
             recent = records.take(20)
         )
     }
@@ -192,6 +299,9 @@ class AlertHistoryRepository(private val dao: CacheDao) {
         runCatching { LocalTime.of(match.groupValues[1].toInt(), match.groupValues[2].toInt()) }.getOrNull()
     }
 
+    /** 从带日期或秒的供应商时间中提取HH:mm，用作分钟级提醒唯一键和后续评价对齐键。 */
+    private fun normalizeMinuteTime(value: String): String = TIME_REGEX.find(value)?.value ?: value.trim()
+
     private companion object {
         val CHINA_ZONE: ZoneId = ZoneId.of("Asia/Shanghai")
         val TIME_REGEX = Regex("(\\d{2}):(\\d{2})")
@@ -199,6 +309,8 @@ class AlertHistoryRepository(private val dao: CacheDao) {
         const val T_PLAN_VERSION = "T_PLAN_V4_FIVE_LEVEL_CONFIRM"
         const val T_HORIZON_BARS = 6
         const val T_SELL_STOP_RATIO = 0.0035
+        const val VOLUME_RADAR_VERSION = "VOLUME_RADAR_V1"
+        val VOLUME_HORIZONS = listOf(5, 15, 30, 60)
     }
 }
 

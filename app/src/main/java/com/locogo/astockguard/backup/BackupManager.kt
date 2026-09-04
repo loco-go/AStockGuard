@@ -18,6 +18,8 @@ import com.locogo.astockguard.data.local.PaperPositionEntity
 import com.locogo.astockguard.data.local.SignalEventEntity
 import com.locogo.astockguard.data.local.SignalStateEntity
 import com.locogo.astockguard.data.local.TradeRecordEntity
+import com.locogo.astockguard.data.local.VolumeRadarStateEntity
+import com.locogo.astockguard.data.local.VolumeSignalOutcomeEntity
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -56,6 +58,8 @@ class BackupManager(
         root.put("tradeRecords", JSONArray().apply { dao.getTradeRecords().forEach { put(it.toJson()) } })
         root.put("accountLedgers", JSONArray().apply { dao.getAccountLedgers().forEach { put(it.toJson()) } })
         root.put("alertRecords", JSONArray().apply { dao.getAlertRecords(10_000).forEach { put(it.toJson()) } })
+        root.put("volumeRadarStates", JSONArray().apply { dao.getAllVolumeRadarStates().forEach { put(it.toJson()) } })
+        root.put("volumeSignalOutcomes", JSONArray().apply { dao.getAllVolumeSignalOutcomes().forEach { put(it.toJson()) } })
         root.put("aiAnalysis", JSONArray().apply { dao.latestAiAnalysis(5_000).forEach { put(it.toJson()) } })
         root.put("paperAccount", dao.getPaperAccount()?.toJson() ?: JSONObject.NULL)
         root.put("paperPositions", JSONArray().apply { dao.getPaperPositions().forEach { put(it.toJson()) } })
@@ -82,6 +86,8 @@ class BackupManager(
         val trades = root.optJSONArray("tradeRecords").toTradeRecords()
         val ledgers = root.optJSONArray("accountLedgers").toAccountLedgers()
         val alerts = root.optJSONArray("alertRecords").toAlertRecords()
+        val radarStates = root.optJSONArray("volumeRadarStates").toVolumeRadarStates()
+        val radarOutcomes = root.optJSONArray("volumeSignalOutcomes").toVolumeSignalOutcomes()
         val ai = root.optJSONArray("aiAnalysis").toAiAnalysis()
         val paperAccount = root.optJSONObject("paperAccount")?.toPaperAccount()
         val paperPositions = root.optJSONArray("paperPositions").toPaperPositions()
@@ -102,6 +108,12 @@ class BackupManager(
             if (root.has("alertRecords")) {
                 dao.clearAlertRecords()
                 if (alerts.isNotEmpty()) dao.insertAlertRecords(alerts)
+            }
+            // 雷达状态与结果引用提醒ID，只有新格式备份同时包含相关数组时才整体替换。
+            if (root.has("volumeRadarStates") || root.has("volumeSignalOutcomes")) {
+                dao.clearVolumeRadarStates(); dao.clearVolumeSignalOutcomes()
+                radarStates.forEach { dao.upsertVolumeRadarState(it) }
+                radarOutcomes.forEach { dao.upsertVolumeSignalOutcome(it) }
             }
             if (ai.isNotEmpty()) dao.insertAiAnalyses(ai)
             if (root.has("paperAccount") || root.has("paperPositions") || root.has("paperOrders")) {
@@ -153,13 +165,25 @@ class BackupManager(
         put("source", source); put("note", note)
     }
     private fun AlertRecordEntity.toJson() = JSONObject().apply {
-        put("alertKey", alertKey); put("code", code); put("name", name); put("signalAt", signalAt)
+        put("id", id); put("alertKey", alertKey); put("code", code); put("name", name); put("signalAt", signalAt)
         put("signalDate", signalDate); put("signalTime", signalTime); put("action", action); put("price", price)
         put("score", score); put("strategyVersion", strategyVersion); put("source", source); put("dataSource", dataSource)
         put("reason", reason); put("status", status); put("evaluatedAt", evaluatedAt); put("exitPrice", exitPrice)
         put("netEdgePct", netEdgePct); put("maxFavorablePct", maxFavorablePct); put("maxAdversePct", maxAdversePct)
         put("horizonBars", horizonBars); put("alertType", alertType); put("targetPrice", targetPrice)
         put("stopPrice", stopPrice); put("evidenceJson", evidenceJson)
+        put("signalType", signalType); put("confidence", confidence)
+    }
+    /** 将跨进程雷达冷却状态转换为不含敏感信息的结构化JSON。 */
+    private fun VolumeRadarStateEntity.toJson() = JSONObject().apply {
+        put("code", code); put("signalType", signalType); put("action", action)
+        put("lastNotifiedAt", lastNotifiedAt); put("referencePrice", referencePrice); put("strategyVersion", strategyVersion)
+    }
+    /** 将一个观察周期的价格表现和有效性转换为备份JSON。 */
+    private fun VolumeSignalOutcomeEntity.toJson() = JSONObject().apply {
+        put("alertId", alertId); put("horizonMinutes", horizonMinutes); put("evaluatedAt", evaluatedAt)
+        put("futurePrice", futurePrice); put("returnPct", returnPct); put("maxFavorablePct", maxFavorablePct)
+        put("maxAdversePct", maxAdversePct); put("effective", effective)
     }
     private fun AiAnalysisEntity.toJson() = JSONObject().apply {
         put("createdAt", createdAt); put("prompt", prompt); put("rawAnswer", rawAnswer); put("marketAction", marketAction)
@@ -191,7 +215,7 @@ class BackupManager(
         code = o.optString("code"), source = o.optString("source", "RESTORE"), note = o.optString("note")
     ) }.filter { it.type.isNotBlank() && it.amount > 0.0 }
     private fun JSONArray?.toAlertRecords() = objects().map { o -> AlertRecordEntity(
-        alertKey = o.optString("alertKey"), code = o.optString("code"), name = o.optString("name"),
+        id = o.optLong("id"), alertKey = o.optString("alertKey"), code = o.optString("code"), name = o.optString("name"),
         signalAt = o.optLong("signalAt"), signalDate = o.optString("signalDate"), signalTime = o.optString("signalTime"),
         action = o.optString("action"), price = o.optDouble("price"), score = o.optInt("score"),
         strategyVersion = o.optString("strategyVersion", "LEGACY"), source = o.optString("source", "RESTORE"),
@@ -201,8 +225,22 @@ class BackupManager(
         status = o.optString("status", "PENDING"), evaluatedAt = o.optLong("evaluatedAt"),
         exitPrice = o.optDouble("exitPrice"), netEdgePct = o.optDouble("netEdgePct"),
         maxFavorablePct = o.optDouble("maxFavorablePct"), maxAdversePct = o.optDouble("maxAdversePct"),
-        horizonBars = o.optInt("horizonBars", 6)
+        horizonBars = o.optInt("horizonBars", 6), signalType = o.optString("signalType"),
+        confidence = o.optInt("confidence")
     ) }.filter { it.alertKey.isNotBlank() && it.code.isNotBlank() && it.price > 0.0 }
+    /** 解析雷达状态备份；枚举有效性在领域层读取时再次校验，导入层只拒绝空代码。 */
+    private fun JSONArray?.toVolumeRadarStates() = objects().map { o -> VolumeRadarStateEntity(
+        code = o.optString("code"), signalType = o.optString("signalType"), action = o.optString("action"),
+        lastNotifiedAt = o.optLong("lastNotifiedAt"), referencePrice = o.optDouble("referencePrice"),
+        strategyVersion = o.optString("strategyVersion", "VOLUME_RADAR_V1")
+    ) }.filter { it.code.isNotBlank() }
+    /** 解析多周期评价备份；只接收合法提醒ID和正观察周期，避免无效行污染统计。 */
+    private fun JSONArray?.toVolumeSignalOutcomes() = objects().map { o -> VolumeSignalOutcomeEntity(
+        alertId = o.optLong("alertId"), horizonMinutes = o.optInt("horizonMinutes"),
+        evaluatedAt = o.optLong("evaluatedAt"), futurePrice = o.optDouble("futurePrice"),
+        returnPct = o.optDouble("returnPct"), maxFavorablePct = o.optDouble("maxFavorablePct"),
+        maxAdversePct = o.optDouble("maxAdversePct"), effective = o.optBoolean("effective")
+    ) }.filter { it.alertId > 0L && it.horizonMinutes > 0 }
     private fun JSONArray?.toAiAnalysis() = objects().map { o -> AiAnalysisEntity(
         createdAt = o.optLong("createdAt"), prompt = o.optString("prompt"), rawAnswer = o.optString("rawAnswer"),
         marketAction = o.optString("marketAction"), confidence = o.optInt("confidence"), targetPositionPct = o.optInt("targetPositionPct"),

@@ -42,6 +42,10 @@ data class AlertRecordEntity(
     val stopPrice: Double = 0.0,
     /** 仅保存结构化策略证据，不保存Token或接口原始响应。 */
     val evidenceJson: String = "{}",
+    /** 量能雷达分类；旧提醒为空字符串，以保持历史记录语义不变。 */
+    val signalType: String = "",
+    /** 信号置信度0..100；旧提醒默认0代表该版本尚未记录置信度。 */
+    val confidence: Int = 0,
     val status: String = "PENDING",
     val evaluatedAt: Long = 0,
     val exitPrice: Double = 0.0,

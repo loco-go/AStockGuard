@@ -27,6 +27,8 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.Instant
 import java.time.format.DateTimeFormatter
+import com.locogo.astockguard.domain.trading.DynamicTAction
+import com.locogo.astockguard.domain.volume.VolumeSignalType
 
 class StockDetailFragment : Fragment() {
     private var _binding: FragmentStockDetailBinding? = null
@@ -35,8 +37,9 @@ class StockDetailFragment : Fragment() {
         val container = requireContext().appContainer
         StockDetailViewModel.Factory(
             container.marketRepository,
-            container.fundFlowRepository,
-            container.strategySignalRepository
+            container.strategySignalRepository,
+            container.settings,
+            container.intradayVolumeCoordinator
         )
     }
     private val code: String get() = requireArguments().getString(ARG_CODE).orEmpty()
@@ -122,6 +125,7 @@ class StockDetailFragment : Fragment() {
                                 )
                             }
                         }
+                        renderVolumeRadar(state)
                         binding.klineView.render(
                             state.period,
                             state.candles,
@@ -137,7 +141,12 @@ class StockDetailFragment : Fragment() {
                 }
                 launch {
                     (requireActivity() as MainActivity).dashboardViewModel.uiState.collect { mainState ->
-                        viewModel.updateQuote(mainState.snapshot?.quotes?.firstOrNull { it.code == code })
+                        viewModel.updateMarketContext(
+                            quote = mainState.snapshot?.quotes?.firstOrNull { it.code == code },
+                            assessment = mainState.snapshot?.assessment,
+                            exposureStatus = mainState.exposurePlan.status,
+                            marketDataStale = mainState.snapshot?.dataHealth?.isStale != false
+                        )
                     }
                 }
             }
@@ -150,6 +159,64 @@ class StockDetailFragment : Fragment() {
         binding.btnDay.isChecked = period == ChartPeriod.DAY
         binding.btnWeek.isChecked = period == ChartPeriod.WEEK
         binding.btnMonth.isChecked = period == ChartPeriod.MONTH
+    }
+
+    /**
+     * 将领域层量能分类、动态T计划和证据渲染为详情页雷达卡片。
+     * 本方法只做中文映射和格式化，不重新计算阈值，确保UI不会绕过风险与数据质量门禁。
+     */
+    private fun renderVolumeRadar(state: StockDetailUiState) = with(binding) {
+        val analysis = state.volumeAnalysis
+        val features = analysis?.features
+        val signal = analysis?.signal
+        val plan = state.dynamicTPlan
+        tvRadarStatus.text = signal?.let {
+            "${signalLabel(it.type)} · 置信度${it.confidence}"
+        } ?: if (state.selectedMinuteDate == com.locogo.astockguard.MarketRepository.marketDate()) {
+            "等待实时量价数据"
+        } else {
+            "历史回看暂不生成实时雷达"
+        }
+        tvRadarMetrics.text = if (signal == null) {
+            "量能真实性 --  主动买盘 --\n板块共振 --  趋势强度 --  诱多风险 --"
+        } else {
+            val board = signal.boardSyncScore?.toString() ?: "不可用"
+            "量能真实性 ${signal.volumeScore}  主动买盘 ${signal.buyPressureScore}\n" +
+                "板块共振 $board  趋势强度 ${signal.trendScore}  诱多风险 ${signal.bullTrapRisk}"
+        }
+        tvRadarAction.text = plan?.let { dynamicPlanText(it) } ?: "建议：等待"
+        val evidence = (signal?.explanations.orEmpty() + features?.evidence.orEmpty())
+            .distinct().take(8)
+        tvRadarEvidence.text = evidence.joinToString("\n") { item -> "• $item" }
+            .ifBlank { "当前没有足够证据；缺失数据不会按0分参与判断。" }
+        tvRadarDataSource.text = "数据源：${state.radarDataSource}"
+    }
+
+    /** 将稳定英文分类转换为面向用户的中文名称，避免持久化枚举随展示文案变化。 */
+    private fun signalLabel(type: VolumeSignalType): String = when (type) {
+        VolumeSignalType.REAL_BREAKOUT -> "真实资金攻击"
+        VolumeSignalType.WEAK_BREAKOUT -> "弱突破"
+        VolumeSignalType.BULL_TRAP -> "疑似诱多"
+        VolumeSignalType.EXHAUSTION -> "放量滞涨"
+        VolumeSignalType.NORMAL -> "普通震荡"
+        VolumeSignalType.NO_SIGNAL -> "无实时信号"
+    }
+
+    /**
+     * 格式化动态T建议，SELL_T/REDUCE展示数量和回补观察区，其他状态只展示安全原因。
+     * WAIT_BUYBACK即使eligible=true也明确要求人工确认，不使用“立即买入”等误导性文案。
+     */
+    private fun dynamicPlanText(plan: com.locogo.astockguard.domain.trading.DynamicTPlan): String = when (plan.action) {
+        DynamicTAction.HOLD -> "建议：继续持有，暂缓T出"
+        DynamicTAction.SELL_T -> "建议：反T卖出${plan.suggestedQuantity}股；回补观察 ${price(plan.suggestedBuybackLow)}～${price(plan.suggestedBuybackHigh)}"
+        DynamicTAction.REDUCE -> "建议：降低交易仓${plan.suggestedQuantity}股；风险状态下不承诺回补"
+        DynamicTAction.WAIT -> "建议：等待，不追涨也不急于卖出核心仓"
+        DynamicTAction.WAIT_BUYBACK -> if (plan.buybackEligible) {
+            "建议：回补条件改善（${plan.buybackConditionsMet}项），仍需人工确认"
+        } else {
+            "建议：等待回补，当前满足${plan.buybackConditionsMet}项条件"
+        }
+        DynamicTAction.NO_T -> "建议：NO_T · ${plan.reasons.firstOrNull().orEmpty()}"
     }
 
     private fun showMinuteDatePicker() {

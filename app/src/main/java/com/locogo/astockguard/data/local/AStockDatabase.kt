@@ -20,8 +20,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         Level2SnapshotEntity::class, Level2SnapshotHistoryEntity::class,
         PaperAccountEntity::class, PaperPositionEntity::class,
         PaperOrderEntity::class, PaperEquityEntity::class, StrategySignalEntity::class,
-        FundFlowEntity::class, AccountLedgerEntity::class, AlertRecordEntity::class],
-    version = 15,
+        FundFlowEntity::class, AccountLedgerEntity::class, AlertRecordEntity::class,
+        VolumeRadarStateEntity::class, VolumeSignalOutcomeEntity::class],
+    version = 16,
     exportSchema = true
 )
 abstract class AStockDatabase : RoomDatabase() {
@@ -168,6 +169,33 @@ abstract class AStockDatabase : RoomDatabase() {
                 PRIMARY KEY(code, capturedAt))""".trimIndent())
             db.execSQL("CREATE INDEX IF NOT EXISTS index_level2_snapshot_history_capturedAt ON level2_snapshot_history(capturedAt)")
         } }
+        /**
+         * 15到16版本增加雷达分类、置信度、跨进程冷却状态和多周期评价表。
+         * 所有新增列都有非空默认值，因此历史提醒无需重算即可安全升级。
+         */
+        val MIGRATION_15_16 = object : Migration(15, 16) { override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE alert_record ADD COLUMN signalType TEXT NOT NULL DEFAULT ''")
+            db.execSQL("ALTER TABLE alert_record ADD COLUMN confidence INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("""CREATE TABLE IF NOT EXISTS volume_radar_state (
+                code TEXT NOT NULL,
+                signalType TEXT NOT NULL,
+                action TEXT NOT NULL,
+                lastNotifiedAt INTEGER NOT NULL,
+                referencePrice REAL NOT NULL,
+                strategyVersion TEXT NOT NULL,
+                PRIMARY KEY(code))""".trimIndent())
+            db.execSQL("""CREATE TABLE IF NOT EXISTS volume_signal_outcome (
+                alertId INTEGER NOT NULL,
+                horizonMinutes INTEGER NOT NULL,
+                evaluatedAt INTEGER NOT NULL,
+                futurePrice REAL NOT NULL,
+                returnPct REAL NOT NULL,
+                maxFavorablePct REAL NOT NULL,
+                maxAdversePct REAL NOT NULL,
+                effective INTEGER NOT NULL,
+                PRIMARY KEY(alertId, horizonMinutes))""".trimIndent())
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_volume_signal_outcome_evaluatedAt ON volume_signal_outcome(evaluatedAt)")
+        } }
 
         @Volatile private var instance: AStockDatabase? = null
         fun get(context: Context): AStockDatabase = instance ?: synchronized(this) {
@@ -176,7 +204,7 @@ abstract class AStockDatabase : RoomDatabase() {
                     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
                     MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
                     MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
-                    MIGRATION_14_15
+                    MIGRATION_14_15, MIGRATION_15_16
                 )
                 .build().also { instance = it }
         }

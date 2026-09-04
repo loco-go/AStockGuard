@@ -90,9 +90,22 @@ class SettingsRepository(context: Context) {
 
     fun applyImported(c: AiProviderConfig) { primaryType = c.type; primaryBaseUrl = c.baseUrl; primaryApiKey = c.apiKey; primarySessionToken = c.sessionToken; primaryCookie = c.cookie; primaryModel = c.model.ifBlank { "auto" } }
 
+    /**
+     * 读取持仓文本并兼容历史五列格式与新八列格式。
+     * 历史记录没有可卖数量时保留 null，不能为方便策略计算而擅自使用总持仓填充。
+     */
     fun positions(): List<Position> = positionsText.lineSequence().map { it.trim() }.filter { it.isNotBlank() && !it.startsWith("#") }.mapNotNull { line ->
         val p = line.split(',').map { it.trim() }; if (p.size < 5) return@mapNotNull null
-        Position(normalizeCode(p[0]), p[1], p[2].toIntOrNull() ?: return@mapNotNull null, p[3].toDoubleOrNull() ?: return@mapNotNull null, p[4].uppercase())
+        Position(
+            code = normalizeCode(p[0]),
+            name = p[1],
+            shares = p[2].toIntOrNull() ?: return@mapNotNull null,
+            cost = p[3].toDoubleOrNull() ?: return@mapNotNull null,
+            role = p[4].uppercase(),
+            availableShares = p.getOrNull(5)?.toIntOrNull(),
+            coreShares = p.getOrNull(6)?.toIntOrNull()?.coerceAtLeast(0) ?: 0,
+            tradingStyle = p.getOrNull(7)?.uppercase()?.ifBlank { "TREND" } ?: "TREND"
+        )
     }.toList()
 
     /** 原子写入结构化持仓，统一使用应用原有的五列配置格式。 */
@@ -103,7 +116,10 @@ class SettingsRepository(context: Context) {
                 position.name.replace(',', ' '),
                 position.shares.toString(),
                 String.format(Locale.US, "%.4f", position.cost).trimEnd('0').trimEnd('.'),
-                position.role
+                position.role,
+                position.availableShares?.toString().orEmpty(),
+                position.coreShares.coerceIn(0, position.shares.coerceAtLeast(0)).toString(),
+                position.tradingStyle.uppercase()
             ).joinToString(",")
         }
     }

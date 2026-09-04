@@ -24,6 +24,8 @@ class ThsPositionParserTest {
         assertEquals("000001.SZ", result.single().code)
         assertEquals("平安银行", result.single().name)
         assertEquals(1200, result.single().shares)
+        // 可用数量是动态T卖出上限，必须从券商页面原值读取，不能等于总持仓的默认值。
+        assertEquals(1000, result.single().availableShares)
         assertEquals(10.25, result.single().cost, 0.0001)
     }
 
@@ -39,6 +41,8 @@ class ThsPositionParserTest {
 
         assertEquals(2, result.size)
         assertEquals(1200, result.first { it.code == "000001.SZ" }.shares)
+        assertEquals(1000, result.first { it.code == "000001.SZ" }.availableShares)
+        assertEquals(0, result.first { it.code == "600519.SH" }.availableShares)
         assertEquals(1600.50, result.first { it.code == "600519.SH" }.cost, 0.0001)
     }
 
@@ -65,6 +69,7 @@ class ThsPositionParserTest {
 
         assertEquals(1, result.size)
         assertEquals(1200, result.single().shares)
+        assertEquals(1000, result.single().availableShares)
         assertEquals(10.25, result.single().cost, 0.0001)
     }
 
@@ -81,6 +86,7 @@ class ThsPositionParserTest {
         assertEquals(1, result.size)
         assertEquals("000001.SZ", result.single().code)
         assertEquals(1200, result.single().shares)
+        assertEquals(1000, result.single().availableShares)
         assertEquals(10.25, result.single().cost, 0.0001)
         assertEquals(12_720.0, result.single().marketValue!!, 0.0001)
         assertEquals(10.60, result.single().latest!!, 0.0001)
@@ -99,6 +105,7 @@ class ThsPositionParserTest {
         assertEquals(1, replacement.size)
         assertEquals("ATTACK", replacement.single().role)
         assertEquals(1200, replacement.single().shares)
+        assertEquals(null, replacement.single().availableShares)
     }
 
     @Test

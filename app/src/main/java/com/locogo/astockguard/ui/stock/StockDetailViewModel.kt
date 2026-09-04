@@ -11,11 +11,12 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.locogo.astockguard.DailyBar
 import com.locogo.astockguard.MarketRepository
+import com.locogo.astockguard.MarketAssessment
 import com.locogo.astockguard.Quote
+import com.locogo.astockguard.SettingsRepository
 import com.locogo.astockguard.chart.ChartPeriod
 import com.locogo.astockguard.chart.MinuteCandle
 import com.locogo.astockguard.chart.StockKLine
-import com.locogo.astockguard.data.fundflow.FundFlowRepository
 import com.locogo.astockguard.data.fundflow.StockFundFlow
 import com.locogo.astockguard.data.repository.StrategySignalRepository
 import com.locogo.astockguard.domain.strategy.ChartSignal
@@ -25,6 +26,9 @@ import com.locogo.astockguard.domain.strategy.IntradaySignalEngine
 import com.locogo.astockguard.domain.strategy.IntradaySignalBacktester
 import com.locogo.astockguard.domain.strategy.StrategyScoreResult
 import com.locogo.astockguard.domain.strategy.V4StrategyScorer
+import com.locogo.astockguard.domain.trading.DynamicTPlan
+import com.locogo.astockguard.domain.volume.IntradayVolumeAnalysis
+import com.locogo.astockguard.domain.volume.IntradayVolumeCoordinator
 import com.locogo.astockguard.ui.chart.ChartDataMapper
 import kotlinx.coroutines.async
 import kotlinx.coroutines.Job
@@ -49,6 +53,12 @@ data class StockDetailUiState(
     val minuteSignals: List<IntradayChartSignal> = emptyList(),
     val minuteBacktest: IntradayBacktestStats = IntradayBacktestStats(),
     val minuteFundFlowAvailable: Boolean = false,
+    /** 当前交易日的量能雷达结果；历史回看阶段暂不冒充实时雷达。 */
+    val volumeAnalysis: IntradayVolumeAnalysis? = null,
+    /** 已通过风险、持仓和全成本门禁的动态T计划。 */
+    val dynamicTPlan: DynamicTPlan? = null,
+    /** 雷达输入的数据源组合，用于向用户披露缺失或降级的数据能力。 */
+    val radarDataSource: String = "NONE",
     val selectedMinuteDate: LocalDate = MarketRepository.marketDate(),
     val minuteDataFromCache: Boolean = false,
     val minuteDataIsHistorical: Boolean = false,
@@ -61,25 +71,42 @@ data class StockDetailUiState(
 
 class StockDetailViewModel(
     private val marketRepository: MarketRepository,
-    private val fundFlowRepository: FundFlowRepository,
-    private val strategySignalRepository: StrategySignalRepository
+    private val strategySignalRepository: StrategySignalRepository,
+    private val settings: SettingsRepository,
+    private val intradayVolumeCoordinator: IntradayVolumeCoordinator
 ) : ViewModel() {
     private val _state = MutableStateFlow(StockDetailUiState())
     val state: StateFlow<StockDetailUiState> = _state.asStateFlow()
     private var dailySource = emptyList<DailyBar>()
     private var fundFlow: StockFundFlow? = null
     private var minuteLoadJob: Job? = null
+    private var radarLoadJob: Job? = null
+    private var lastRadarRefreshAt: Long = 0L
+    private var latestAssessment: MarketAssessment? = null
+    private var latestExposureStatus: String? = null
+    private var latestMarketDataStale: Boolean = true
 
     fun load(code: String) {
         if (code.isBlank() || (_state.value.code == code && dailySource.isNotEmpty())) return
         _state.value = StockDetailUiState(code = code, loading = true)
         viewModelScope.launch {
             val dailyRequest = async { runCatching { marketRepository.loadDailySeries(code, CHART_HISTORY_DAYS) } }
-            val minuteRequest = async { runCatching { marketRepository.loadMinuteSeries(code) } }
-            val flowRequest = async { runCatching { fundFlowRepository.stock(code) } }
+            val radarRequest = async {
+                runCatching {
+                    intradayVolumeCoordinator.load(
+                        code = code,
+                        position = settings.positions().firstOrNull { it.code == code },
+                        assessment = latestAssessment,
+                        exposureStatus = latestExposureStatus,
+                        marketDataStale = latestMarketDataStale
+                    )
+                }
+            }
             val dailyResult = dailyRequest.await()
-            val minuteResult = minuteRequest.await()
-            fundFlow = flowRequest.await().getOrNull()
+            val radarResult = radarRequest.await()
+            val radar = radarResult.getOrNull()
+            val minuteResult = radarResult.map { it.minuteSeries }
+            fundFlow = radar?.fundFlow
             val dailySeries = dailyResult.getOrNull()
             dailySource = dailySeries?.bars.orEmpty()
             var generatedSignal: ChartSignal? = null
@@ -103,6 +130,9 @@ class StockDetailViewModel(
                     minuteSignals = minuteEvaluation.first,
                     minuteBacktest = minuteEvaluation.second,
                     minuteFundFlowAvailable = minuteFlowFor(minuteSeries).isNotEmpty(),
+                    volumeAnalysis = radar?.analysis,
+                    dynamicTPlan = radar?.plan,
+                    radarDataSource = radar?.dataSource ?: "NONE",
                     selectedMinuteDate = minuteSeries?.date ?: current.selectedMinuteDate,
                     minuteDataFromCache = minuteSeries?.fromCache == true,
                     minuteDataIsHistorical = minuteSeries?.isHistorical == true,
@@ -140,6 +170,68 @@ class StockDetailViewModel(
                 signals = strategy?.signal?.let(::listOf).orEmpty()
             )
         }
+        refreshRadarIfDue()
+    }
+
+    /**
+     * 接收Dashboard已经获取的市场风险上下文，并触发节流后的雷达刷新。
+     * Fragment只转交ViewModel状态，不直接请求网络，保持UI层单向数据流约束。
+     */
+    fun updateMarketContext(
+        quote: Quote?,
+        assessment: MarketAssessment?,
+        exposureStatus: String?,
+        marketDataStale: Boolean
+    ) {
+        latestAssessment = assessment
+        latestExposureStatus = exposureStatus
+        latestMarketDataStale = marketDataStale
+        updateQuote(quote)
+        refreshRadarIfDue()
+    }
+
+    /**
+     * 最多每15秒重新组合一次分钟行情、资金流和Level2，防止每个报价刷新都触发多路网络请求。
+     * 旧请求完成前不会启动并发请求；证券切换时通过code复核阻止跨证券结果写入。
+     */
+    private fun refreshRadarIfDue() {
+        val code = _state.value.code
+        val now = System.currentTimeMillis()
+        if (code.isBlank() || _state.value.selectedMinuteDate != MarketRepository.marketDate()) return
+        if (radarLoadJob?.isActive == true || now - lastRadarRefreshAt < RADAR_REFRESH_INTERVAL_MS) return
+        lastRadarRefreshAt = now
+        radarLoadJob = viewModelScope.launch {
+            val result = runCatching {
+                intradayVolumeCoordinator.load(
+                    code = code,
+                    position = settings.positions().firstOrNull { it.code == code },
+                    assessment = latestAssessment,
+                    exposureStatus = latestExposureStatus,
+                    marketDataStale = latestMarketDataStale,
+                    now = System.currentTimeMillis()
+                )
+            }.getOrNull() ?: return@launch
+            if (_state.value.code != code || _state.value.selectedMinuteDate != MarketRepository.marketDate()) return@launch
+            fundFlow = result.fundFlow
+            val minuteCandles = ChartDataMapper.aggregateMinutes(
+                result.minuteSeries.bars,
+                sourceIntervalMinutes = result.minuteSeries.intervalMinutes
+            )
+            val minuteEvaluation = buildMinuteEvaluation(minuteCandles, result.minuteSeries)
+            _state.update {
+                it.copy(
+                    minuteCandles = minuteCandles,
+                    minuteSignals = minuteEvaluation.first,
+                    minuteBacktest = minuteEvaluation.second,
+                    minuteFundFlowAvailable = minuteFlowFor(result.minuteSeries).isNotEmpty(),
+                    minuteDataFromCache = result.minuteSeries.fromCache,
+                    minuteDataIsHistorical = result.minuteSeries.isHistorical,
+                    volumeAnalysis = result.analysis,
+                    dynamicTPlan = result.plan,
+                    radarDataSource = result.dataSource
+                )
+            }
+        }
     }
 
     fun selectPeriod(period: ChartPeriod) {
@@ -173,6 +265,9 @@ class StockDetailViewModel(
                 minuteSignals = emptyList(),
                 minuteBacktest = IntradayBacktestStats(),
                 minuteFundFlowAvailable = false,
+                volumeAnalysis = null,
+                dynamicTPlan = null,
+                radarDataSource = "HISTORICAL_VIEW",
                 minuteLoading = true,
                 error = null
             )
@@ -246,15 +341,17 @@ class StockDetailViewModel(
 
     class Factory(
         private val marketRepository: MarketRepository,
-        private val fundFlowRepository: FundFlowRepository,
-        private val strategySignalRepository: StrategySignalRepository
+        private val strategySignalRepository: StrategySignalRepository,
+        private val settings: SettingsRepository,
+        private val intradayVolumeCoordinator: IntradayVolumeCoordinator
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            StockDetailViewModel(marketRepository, fundFlowRepository, strategySignalRepository) as T
+            StockDetailViewModel(marketRepository, strategySignalRepository, settings, intradayVolumeCoordinator) as T
     }
 
     private companion object {
         const val CHART_HISTORY_DAYS = 1_600
+        const val RADAR_REFRESH_INTERVAL_MS = 15_000L
     }
 }

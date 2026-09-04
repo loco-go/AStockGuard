@@ -15,7 +15,9 @@ data class ParsedThsPosition(
     val shares: Int,
     val cost: Double,
     val marketValue: Double? = null,
-    val latest: Double? = null
+    val latest: Double? = null,
+    /** 券商页面明确展示的可用/可卖数量；未识别时保持null，禁止用总持仓猜测。 */
+    val availableShares: Int? = null
 )
 
 /**
@@ -30,7 +32,7 @@ object ThsPositionParser {
     private val pageMarkers = listOf("持仓", "股票余额", "股份余额", "持仓数量", "证券市值", "成本价")
     private val shareLabels = listOf("持仓数量", "持有数量", "股票余额", "股份余额", "证券数量", "实际数量", "总数量", "持仓")
     private val costLabels = listOf("持仓成本", "参考成本价", "成本价格", "成本价", "买入均价", "成本")
-    private val sharePairRegex = Regex("(?<![\\d.])(\\d{1,9})\\s*/\\s*\\d{1,9}(?![\\d.])")
+    private val sharePairRegex = Regex("(?<![\\d.])(\\d{1,9})\\s*/\\s*(\\d{1,9})(?![\\d.])")
     private val pricePairRegex = Regex("(?<![\\d.])(\\d+(?:\\.\\d+)?)\\s*/\\s*\\d+(?:\\.\\d+)?(?![\\d.])")
     private val ratioRegex = Regex("(?:当前)?仓位(?:比例)?\\s*[:：]?\\s*(\\d+(?:\\.\\d+)?)\\s*%")
     private val percentOnlyRegex = Regex("^(\\d+(?:\\.\\d+)?)\\s*%$")
@@ -67,12 +69,13 @@ object ThsPositionParser {
 
             val shares = findLabeledNumber(row, shareLabels)?.takeIf(::isShareCount)?.toInt()
                 ?: inferShares(row.drop(localCodeIndex + 1))
+            val availableShares = inferAvailableShares(row.drop(localCodeIndex + 1), shares)
             val cost = findLabeledNumber(row, costLabels)?.takeIf(::isCost)
                 ?: inferCost(row.drop(localCodeIndex + 1), shares)
             val name = inferName(row, localCodeIndex, rawCode)
             if (shares != null && cost != null && name != null) {
                 val code = SettingsRepository.normalizeCode(rawCode)
-                results[code] = ParsedThsPosition(code, name, shares, cost)
+                results[code] = ParsedThsPosition(code, name, shares, cost, availableShares = availableShares)
             }
         }
         parseNameOnlyRows(clean, knownCodeByName).forEach { parsed -> results.putIfAbsent(parsed.code, parsed) }
@@ -145,13 +148,31 @@ object ThsPositionParser {
             if (percentIndex < 0) return@mapNotNull null
             val valuesAfterPercent = row.drop(percentIndex + 1).flatMap(::numbers)
             val shares = valuesAfterPercent.getOrNull(0)?.takeIf(::isShareCount)?.toInt() ?: return@mapNotNull null
+            val availableShares = valuesAfterPercent.getOrNull(1)
+                ?.takeIf(::isNonNegativeInteger)?.toInt()?.coerceAtMost(shares)
             // 实际列顺序为持仓、可用、成本、现价，成本位于第三个数值。
             val cost = valuesAfterPercent.getOrNull(2)?.takeIf(::isCost) ?: return@mapNotNull null
             val latest = valuesAfterPercent.getOrNull(3)?.takeIf(::isCost)
             val marketValue = row.take(percentIndex).flatMap(::numbers).firstOrNull { it > 0.0 }
                 ?: latest?.times(shares)
-            ParsedThsPosition(code, clean[nameIndex], shares, cost, marketValue, latest)
+            ParsedThsPosition(code, clean[nameIndex], shares, cost, marketValue, latest, availableShares)
         }
+    }
+
+    /**
+     * 从“持仓/可用”成对字段或无标签表格的相邻数量列提取真实可卖数量。
+     * 返回值必须是非负整数且不超过总持仓；无法可靠识别时返回null，不做任何乐观填充。
+     */
+    private fun inferAvailableShares(afterCode: List<String>, shares: Int?): Int? {
+        if (shares == null) return null
+        afterCode.asSequence().mapNotNull { token ->
+            sharePairRegex.find(token)?.groupValues?.getOrNull(2)?.toIntOrNull()
+        }.firstOrNull { it in 0..shares }?.let { return it }
+        val values = afterCode.flatMap(::numbers)
+        val shareIndex = values.indexOfFirst { it.toInt() == shares && isShareCount(it) }
+        if (shareIndex < 0) return null
+        return values.getOrNull(shareIndex + 1)
+            ?.takeIf(::isNonNegativeInteger)?.toInt()?.takeIf { it in 0..shares }
     }
 
     /** 优先读取“持仓数量 1000”或标签后一个节点的明确值。 */
@@ -250,7 +271,10 @@ object ThsPositionMerger {
                 name = parsed.name.ifBlank { old?.name.orEmpty() },
                 shares = parsed.shares,
                 cost = parsed.cost,
-                role = old?.role ?: "CORE"
+                role = old?.role ?: "CORE",
+                availableShares = parsed.availableShares,
+                coreShares = old?.coreShares ?: 0,
+                tradingStyle = old?.tradingStyle ?: "TREND"
             )
         }
     }

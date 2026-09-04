@@ -19,6 +19,7 @@ import com.locogo.astockguard.data.local.TradeRecordEntity
 import com.locogo.astockguard.data.news.NewsRiskAssessment
 import com.locogo.astockguard.domain.paper.PaperSummary
 import com.locogo.astockguard.domain.replay.ReplayReport
+import com.locogo.astockguard.domain.replay.VolumeReplayComparison
 import com.locogo.astockguard.domain.review.SignalReviewStats
 import com.locogo.astockguard.domain.review.TradeReviewStats
 import com.locogo.astockguard.domain.review.AccountLedgerSummary
@@ -76,6 +77,8 @@ data class MainUiState(
     val paperLoading: Boolean = false,
     val replayIndex: Int = -1,
     val replayReport: ReplayReport? = null,
+    // 四组量能策略对比与原有回放成交明细并存：前者用于横向评价，后者继续给图表提供成交标记。
+    val volumeReplayComparison: VolumeReplayComparison? = null,
     val replayRunning: Boolean = false,
     // 信号生命周期、真实交易、账户流水和提醒评价共同组成复盘区，空样本不等于 0% 胜率。
     val r2ScanRows: List<R2ScanRow> = emptyList(),

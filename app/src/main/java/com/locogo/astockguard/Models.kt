@@ -20,7 +20,13 @@ data class Position(
     val name: String,
     val shares: Int,
     val cost: Double,
-    val role: String
+    val role: String,
+    /** 券商明确返回的当日可卖数量；null 表示未知，不能把总持仓直接当成可卖数量。 */
+    val availableShares: Int? = null,
+    /** 用户明确保护的核心仓数量；0表示交由交易风格的默认核心仓比例保护。 */
+    val coreShares: Int = 0,
+    /** 交易风格使用稳定英文枚举名保存；未知值由领域层安全降级为TREND。 */
+    val tradingStyle: String = "TREND"
 )
 
 /**
