@@ -23,6 +23,9 @@ import com.locogo.astockguard.domain.signal.SignalLifecycleManager
 import com.locogo.astockguard.domain.volume.IntradayVolumeCoordinator
 
 class AppContainer(application: Application) {
+    val thsPositionImportRepository by lazy {
+        com.locogo.astockguard.integration.ths.ThsPositionImportRepository(settings, database.cacheDao())
+    }
     val settings: SettingsRepository by lazy { SettingsRepository(application) }
     val database: AStockDatabase by lazy { AStockDatabase.get(application) }
     val ifindHttpClient: IFindHttpClient by lazy { IFindHttpClient(settings) }

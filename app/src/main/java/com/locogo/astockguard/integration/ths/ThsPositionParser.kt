@@ -84,15 +84,21 @@ object ThsPositionParser {
 
     /** 提取真实持仓表中的股票名称，供 Repository 用本地缓存或远端接口补全证券代码。 */
     fun findVisiblePositionNames(texts: List<String>): List<String> {
-        val clean = texts.map(String::trim).filter(String::isNotBlank).take(800)
-        val headerEnd = clean.indexOfFirst { it.contains("成本/现价") || it.contains("成本价/现价") }
+        val clean = texts.flatMap { it.split(Regex("[\\s|｜]+")) }
+            .map(String::trim).filter(String::isNotBlank).take(800)
+        val headerEnd = clean.indexOfFirst {
+            it.contains("成本/现价") || it.contains("成本价/现价") || it == "成本价"
+        }
         if (headerEnd < 0) return emptyList()
         val tableEnd = findHoldingTableEnd(clean, headerEnd)
-        return clean.subList(headerEnd + 1, tableEnd).mapIndexedNotNull { localIndex, token ->
-            if (token in ignoredNames || numberRegex.containsMatchIn(token)) return@mapIndexedNotNull null
-            val index = headerEnd + 1 + localIndex
-            val following = clean.subList(index + 1, minOf(tableEnd, index + 5))
-            token.takeIf { following.any { value -> value.contains('%') } && token.length in 2..16 }
+        return clean.subList(headerEnd + 1, tableEnd).mapNotNull { token ->
+            // 候选名称不依赖数量、成本或盈亏百分比解析成功；最终由用户核对。
+            val name = token.replace(Regex("[0368]\\d{5}(?:\\.(?:SH|SZ|BJ))?$"), "")
+            name.takeIf {
+                it !in ignoredNames && it.length in 2..16 &&
+                    Regex("[\\p{IsHan}A-Za-z*]+[0-9]*").matches(it) &&
+                    it.any { char -> char.code in 0x4E00..0x9FFF }
+            }
         }.distinct()
     }
 
@@ -262,6 +268,18 @@ object ThsPositionParser {
 
 /** 以完整同花顺快照替换应用持仓，同时保留仍在持仓中的股票角色。 */
 object ThsPositionMerger {
+    /** 仅合并用户确认的股票；屏幕漏行和取消勾选均不能删除本地持仓。 */
+    fun mergeSelected(existing: List<Position>, incoming: List<ParsedThsPosition>): List<Position> {
+        require(incoming.all {
+            Regex("[0368]\\d{5}\\.(SH|SZ|BJ)").matches(it.code) &&
+                it.shares > 0 && it.cost.isFinite() && it.cost > 0 &&
+                (it.availableShares == null || it.availableShares in 0..it.shares)
+        }) { "请核对股票代码、数量、成本和可卖数量" }
+        val replacements = replace(existing, incoming).associateBy { it.code }
+        return existing.map { replacements[it.code] ?: it } +
+            replacements.values.filter { updated -> existing.none { it.code == updated.code } }
+    }
+
     fun replace(existing: List<Position>, incoming: List<ParsedThsPosition>): List<Position> {
         val existingByCode = existing.associateBy(Position::code)
         return incoming.distinctBy(ParsedThsPosition::code).map { parsed ->

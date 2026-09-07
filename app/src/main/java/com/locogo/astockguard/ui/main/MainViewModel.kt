@@ -56,6 +56,13 @@ class MainViewModel(
         MainUiState(positions = settings.positions(), cashBalance = settings.cashBalance)
     )
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
+    init {
+        viewModelScope.launch {
+            reviewRepository.observeImportedAccountMetrics().collect { metrics ->
+                _uiState.update { it.copy(importedAccountMetrics = metrics) }
+            }
+        }
+    }
     private val _effects = MutableSharedFlow<MainEffect>(extraBufferCapacity = 1)
     val effects: SharedFlow<MainEffect> = _effects.asSharedFlow()
     private var lastNewsRefreshAt = 0L

@@ -22,6 +22,9 @@ import com.locogo.astockguard.data.local.VolumeRadarStateEntity
 import com.locogo.astockguard.data.local.VolumeSignalOutcomeEntity
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlinx.coroutines.flow.first
+import com.locogo.astockguard.data.local.ImportedAccountMetricEntity
+import com.locogo.astockguard.integration.ths.ThsAccountMetric
 
 class BackupManager(
     private val settings: SettingsRepository,
@@ -57,6 +60,14 @@ class BackupManager(
         root.put("signalEvents", JSONArray().apply { dao.getSignalEvents(10_000).forEach { put(it.toJson()) } })
         root.put("tradeRecords", JSONArray().apply { dao.getTradeRecords().forEach { put(it.toJson()) } })
         root.put("accountLedgers", JSONArray().apply { dao.getAccountLedgers().forEach { put(it.toJson()) } })
+        root.put("importedAccountMetrics", JSONArray().apply {
+            dao.observeImportedAccountMetrics().first().forEach { metric ->
+                put(JSONObject().apply {
+                    put("metric", metric.metric); put("value", metric.value)
+                    put("observedAt", metric.observedAt); put("importedAt", metric.importedAt); put("source", metric.source)
+                })
+            }
+        })
         root.put("alertRecords", JSONArray().apply { dao.getAlertRecords(10_000).forEach { put(it.toJson()) } })
         root.put("volumeRadarStates", JSONArray().apply { dao.getAllVolumeRadarStates().forEach { put(it.toJson()) } })
         root.put("volumeSignalOutcomes", JSONArray().apply { dao.getAllVolumeSignalOutcomes().forEach { put(it.toJson()) } })
@@ -85,6 +96,15 @@ class BackupManager(
         val events = root.optJSONArray("signalEvents").toSignalEvents()
         val trades = root.optJSONArray("tradeRecords").toTradeRecords()
         val ledgers = root.optJSONArray("accountLedgers").toAccountLedgers()
+        val accountMetrics = root.optJSONArray("importedAccountMetrics").objects().map { o ->
+            val metric = ThsAccountMetric.valueOf(o.getString("metric"))
+            val value = o.getDouble("value")
+            require(metric.valid(value)) { "备份账户数值无效" }
+            val observed = o.getLong("observedAt")
+            val imported = o.getLong("importedAt")
+            require(observed > 0 && imported > 0) { "备份账户时间无效" }
+            ImportedAccountMetricEntity(metric.name, value, observed, imported, o.getString("source"))
+        }
         val alerts = root.optJSONArray("alertRecords").toAlertRecords()
         val radarStates = root.optJSONArray("volumeRadarStates").toVolumeRadarStates()
         val radarOutcomes = root.optJSONArray("volumeSignalOutcomes").toVolumeSignalOutcomes()
@@ -95,6 +115,11 @@ class BackupManager(
 
         database.withTransaction {
             val dao = database.cacheDao()
+            // 老备份缺少账户快照时不移除本机值；新备份显式替换并保留原采集时间。
+            if (root.has("importedAccountMetrics")) {
+                dao.clearImportedAccountMetrics()
+                dao.upsertImportedAccountMetrics(accountMetrics)
+            }
             dao.clearSignalStates(); dao.clearSignalEvents(); dao.clearTradeRecords(); dao.clearAiAnalysis()
             if (states.isNotEmpty()) dao.upsertSignalStates(states)
             if (events.isNotEmpty()) dao.insertSignalEvents(events)
@@ -262,7 +287,7 @@ class BackupManager(
 
     companion object {
         private const val FORMAT = "ASTOCK_GUARD_BACKUP"
-        private const val VERSION = 3
+        private const val VERSION = 4
         private const val MAX_IMPORT_CHARS = 20_000_000
     }
 }

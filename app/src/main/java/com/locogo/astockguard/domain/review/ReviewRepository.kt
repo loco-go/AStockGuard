@@ -19,6 +19,8 @@ class ReviewRepository(
     private val dao: CacheDao,
     private val marketRepository: MarketRepository
 ) {
+    fun observeImportedAccountMetrics() = dao.observeImportedAccountMetrics()
+
     suspend fun recordAccountLedger(
         type: AccountLedgerType,
         amount: Double,

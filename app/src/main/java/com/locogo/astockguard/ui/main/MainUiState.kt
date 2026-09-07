@@ -39,6 +39,7 @@ data class MainUiState(
     val snapshot: MonitorSnapshot? = null,
     val positions: List<Position> = emptyList(),
     val cashBalance: Double? = null,
+    val importedAccountMetrics: List<com.locogo.astockguard.data.local.ImportedAccountMetricEntity> = emptyList(),
     // AI 是可选能力层；解析失败或不可用时，本地 E/M/R2 规则仍应独立工作。
     val aiLoading: Boolean = false,
     val aiText: String = "设置页可粘贴配置；AI不可用时本地 E/M/R2 仍独立运行。",

@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Locale
+
 import kotlin.math.abs
 
 /**
@@ -37,7 +37,7 @@ class ThsTradeAccessibilityService : AccessibilityService() {
     private var manualScanJob: Job? = null
     private var lastScanAt = 0L
     private var lastNameResolveAt = 0L
-    private var lastAccountPersistAt = 0L
+
     private val packageMatchCache = mutableMapOf<String, Boolean>()
     private val resolvedNameCodes = mutableMapOf<String, String>()
     private var lastNotificationStatus = ""
@@ -104,6 +104,8 @@ class ThsTradeAccessibilityService : AccessibilityService() {
         // 某些 WebView/自绘列表只在事件源节点暴露当前持仓行，补采并去重。
         if (texts.isEmpty() && eventSource != null) collectTexts(eventSource, texts, 0)
         val visibleTexts = texts.take(MAX_TEXT_NODES)
+        val accountValues = ThsAccountParser.parse(visibleTexts, System.currentTimeMillis())
+        appContainer.thsPositionImportRepository.collectAccount(accountValues)
         val settings = appContainer.settings
         val configuredPositions = settings.positions()
         val cachedQuotes = withContext(Dispatchers.IO) {
@@ -115,6 +117,10 @@ class ThsTradeAccessibilityService : AccessibilityService() {
             putAll(resolvedNameCodes)
         }
         val visibleNames = ThsPositionParser.findVisiblePositionNames(visibleTexts)
+        // 先显示名称候选，代码补全网络失败也不会吞掉已经读取到的股票。
+        appContainer.thsPositionImportRepository.collect(
+            visibleNames, ThsPositionParser.parse(visibleTexts, knownCodeByName), knownCodeByName
+        )
         val unresolvedNames = visibleNames.filterNot { name -> knownCodeByName.keys.any { it.equals(name, true) } }
         if (unresolvedNames.isNotEmpty() && System.currentTimeMillis() - lastNameResolveAt >= NAME_RESOLVE_INTERVAL_MS) {
             lastNameResolveAt = System.currentTimeMillis()
@@ -125,46 +131,9 @@ class ThsTradeAccessibilityService : AccessibilityService() {
         }
         val positions = ThsPositionParser.parse(visibleTexts, knownCodeByName + resolvedNameCodes)
         val trades = ThsTradeParser.parse(visibleTexts)
-        val isHoldingTable = ThsPositionParser.isHoldingTable(visibleTexts)
-        val isEmptyHoldingTable = ThsPositionParser.isEmptyHoldingTable(visibleTexts)
-        val completeHoldingSnapshot = isHoldingTable && (
-            isEmptyHoldingTable ||
-                (positions.isNotEmpty() && (visibleNames.isEmpty() || positions.size == visibleNames.distinct().size))
-            )
-        var positionChanged = false
-        var accountChanged = false
-        var removedPositionCount = 0
+        // 只积累候选，用户在同步页确认后才更新持仓；可见列表不能推断完整账户。
+        appContainer.thsPositionImportRepository.collect(visibleNames, positions, knownCodeByName + resolvedNameCodes)
         var insertedTrades = 0
-        var estimatedTotalAssets: Double? = null
-        val parsedPositionRatio = ThsPositionParser.parsePositionRatio(visibleTexts)
-
-        if (completeHoldingSnapshot) {
-            // 用户明确选择以同花顺为准；完整快照整体替换，缺失股票视为已卖出并从应用移除。
-            val replacement = ThsPositionMerger.replace(configuredPositions, positions)
-            removedPositionCount = configuredPositions.count { old -> replacement.none { it.code == old.code } }
-            if (replacement != configuredPositions) {
-                settings.savePositions(replacement)
-                positionChanged = true
-            }
-            parsedPositionRatio?.let { ratio ->
-                if (abs(settings.positionRatio - ratio) > 0.001) {
-                    settings.positionRatio = ratio
-                    accountChanged = true
-                }
-            }
-            ThsAccountCalculator.estimate(positions, parsedPositionRatio)?.let { estimate ->
-                estimatedTotalAssets = estimate.totalAssets
-                val now = System.currentTimeMillis()
-                // 市值实时跳动时通知可更新，但账户快照最多每 30 秒落盘一次，减少闪存写入。
-                if (settings.thsEstimatedTotalAssets == null || now - lastAccountPersistAt >= ACCOUNT_PERSIST_INTERVAL_MS) {
-                    if (settings.cashBalance == null || abs(settings.cashBalance!! - estimate.cashBalance) > 0.01) accountChanged = true
-                    settings.cashBalance = estimate.cashBalance
-                    settings.thsEstimatedTotalAssets = estimate.totalAssets
-                    lastAccountPersistAt = now
-                }
-            }
-        }
-
         if (trades.isNotEmpty()) {
             insertedTrades = withContext(Dispatchers.IO) {
                 val dao = appContainer.database.cacheDao()
@@ -201,28 +170,15 @@ class ThsTradeAccessibilityService : AccessibilityService() {
         val buyCount = trades.count { it.side == "BUY" }
         val sellCount = trades.count { it.side == "SELL" }
         val tradeSummary = "成交 ${trades.size} 条（买入 $buyCount / 卖出 $sellCount）"
-        val accountSummary = buildString {
-            parsedPositionRatio?.let { append("，仓位${String.format(Locale.CHINA, "%.2f", it)}%") }
-            estimatedTotalAssets?.let { append("，估算总资产${String.format(Locale.CHINA, "%.2f", it / 10_000.0)}万元") }
-        }
+        val candidateCount = appContainer.thsPositionImportRepository.candidates.value.size
         val message = when {
-            positions.isNotEmpty() && trades.isNotEmpty() -> "已识别持仓 ${positions.size} 只、$tradeSummary$accountSummary"
-            completeHoldingSnapshot && positions.isNotEmpty() -> buildString {
-                append("已按同花顺更新持仓 ${positions.size} 只")
-                when {
-                    removedPositionCount > 0 -> append("，已清理卖出 $removedPositionCount 只")
-                    positionChanged -> append("，配置已更新")
-                    else -> append("，数据无变化")
-                }
-                append(accountSummary)
-            }
-            completeHoldingSnapshot && isEmptyHoldingTable -> "同花顺当前为空仓，已清空应用持仓$accountSummary"
-            positions.isNotEmpty() -> "识别到持仓 ${positions.size} 只，但页面快照不完整，未覆盖应用持仓"
+            accountValues.isNotEmpty() -> "已识别账户 ${accountValues.size} 项、股票候选 $candidateCount 只；点击通知核对并导入"
+            positions.isNotEmpty() || visibleNames.isNotEmpty() -> "已识别股票，累计候选 $candidateCount 只；点击通知返回同步页勾选导入"
             trades.isNotEmpty() -> "已识别$tradeSummary，本次新增 $insertedTrades 条"
             visibleTexts.isEmpty() -> "已读取同花顺窗口（$packageName），但页面没有可访问文本"
             else -> "已读取同花顺窗口（$packageName），但未识别到持仓或成交字段（文本 ${visibleTexts.size} 项）"
         }
-        val recognized = positions.isNotEmpty() || trades.isNotEmpty()
+        val recognized = accountValues.isNotEmpty() || positions.isNotEmpty() || visibleNames.isNotEmpty() || trades.isNotEmpty()
         if (recognized) {
             lastSuccessfulStatus = message
             appContainer.settings.thsLastSuccessMessage = message
@@ -231,7 +187,7 @@ class ThsTradeAccessibilityService : AccessibilityService() {
             // 自动轮询经过同花顺首页、自选页时不覆盖最近一次成功结果；手动点击则明确反馈失败原因。
             publishStatus(message, forceNotification = userInitiated)
         }
-        if (positionChanged || accountChanged || insertedTrades > 0) ThsSyncBus.notifyDataChanged()
+        if (insertedTrades > 0) ThsSyncBus.notifyDataChanged()
         android.util.Log.d("ThsTradeSync", "同步扫描完成：$packageName，$message")
     }
 
@@ -361,6 +317,5 @@ class ThsTradeAccessibilityService : AccessibilityService() {
         private const val FOREGROUND_POLL_INTERVAL_MS = 2_000L
         private const val BACKGROUND_POLL_INTERVAL_MS = 6_000L
         private const val NAME_RESOLVE_INTERVAL_MS = 5 * 60_000L
-        private const val ACCOUNT_PERSIST_INTERVAL_MS = 30_000L
     }
 }

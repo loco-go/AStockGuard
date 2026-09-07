@@ -13,9 +13,52 @@ import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlinx.coroutines.flow.first
 
 @RunWith(AndroidJUnit4::class)
 class AStockDatabaseMigrationTest {
+    @Test
+    fun accountImportPersistsSelectedFieldsWithoutDeletingOthers() = kotlinx.coroutines.runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val database = androidx.room.Room.inMemoryDatabaseBuilder(context, AStockDatabase::class.java).build()
+        try {
+            val dao = database.cacheDao()
+            dao.upsertImportedAccountMetrics(listOf(
+                ImportedAccountMetricEntity("TOTAL_ASSETS", 10000.0, 1000, 2000, "THS_CONFIRMED"),
+                ImportedAccountMetricEntity("TODAY_PNL", -20.0, 1000, 2000, "THS_CONFIRMED")
+            ))
+            dao.upsertImportedAccountMetrics(listOf(ImportedAccountMetricEntity("TODAY_PNL", 30.0, 3000, 4000, "THS_MANUAL")))
+            val metrics = dao.observeImportedAccountMetrics().first()
+            org.junit.Assert.assertEquals(2, metrics.size)
+            org.junit.Assert.assertEquals(10000.0, metrics.first { it.metric == "TOTAL_ASSETS" }.value, 0.001)
+            org.junit.Assert.assertEquals(30.0, metrics.first { it.metric == "TODAY_PNL" }.value, 0.001)
+            dao.clearImportedAccountMetrics()
+            org.junit.Assert.assertTrue(dao.observeImportedAccountMetrics().first().isEmpty())
+        } finally { database.close() }
+    }
+
+    @Test
+    fun migrate16To17PreservesLedgerAndCreatesAccountImports() {
+        val name = "migration_16_17_account_import"
+        helper.createDatabase(name, 16).apply {
+            execSQL("INSERT INTO account_ledger (id, occurredAt, type, amount, code, source, note) VALUES (1, 1000, 'DEPOSIT', 500, '', 'USER', '')")
+            close()
+        }
+        helper.runMigrationsAndValidate(name, 17, true, AStockDatabase.MIGRATION_16_17).apply {
+            query("SELECT amount FROM account_ledger WHERE id = 1").use {
+                org.junit.Assert.assertTrue(it.moveToFirst())
+                org.junit.Assert.assertEquals(500.0, it.getDouble(0), 0.001)
+            }
+            query("SELECT * FROM imported_account_metric").use { org.junit.Assert.assertEquals(0, it.count) }
+            execSQL("INSERT INTO imported_account_metric VALUES ('TODAY_PNL', -25.5, 1000, 2000, 'THS_CONFIRMED')")
+            query("SELECT value FROM imported_account_metric").use {
+                org.junit.Assert.assertTrue(it.moveToFirst())
+                org.junit.Assert.assertEquals(-25.5, it.getDouble(0), 0.001)
+            }
+            close()
+        }
+    }
+
     @get:Rule
     val helper = MigrationTestHelper(
         InstrumentationRegistry.getInstrumentation(),

@@ -120,6 +120,22 @@ class DashboardFragment : Fragment(), DashboardHandlers {
         }
         applyTone(tvTodayPnl, account.todayPnl)
         applyTone(tvCumulativePnl, account.cumulativePnl)
+        val importedAt = System.currentTimeMillis()
+        com.locogo.astockguard.integration.ths.ThsAccountMetric.entries.forEach { metric ->
+            ImportedAccountPresenter.text(metric, state.importedAccountMetrics, importedAt)?.let { text ->
+                val view = when (metric) {
+                    com.locogo.astockguard.integration.ths.ThsAccountMetric.TODAY_PNL -> tvTodayPnl
+                    com.locogo.astockguard.integration.ths.ThsAccountMetric.CUMULATIVE_PNL -> tvCumulativePnl
+                    com.locogo.astockguard.integration.ths.ThsAccountMetric.POSITION_PCT -> tvPositionRatio
+                    com.locogo.astockguard.integration.ths.ThsAccountMetric.TOTAL_ASSETS -> tvTotalAssets
+                }
+                view.text = text
+                if (metric == com.locogo.astockguard.integration.ths.ThsAccountMetric.TODAY_PNL ||
+                    metric == com.locogo.astockguard.integration.ths.ThsAccountMetric.CUMULATIVE_PNL) {
+                    applyTone(view, state.importedAccountMetrics.find { it.metric == metric.name }?.value)
+                }
+            }
+        }
         tvMarketSummary.text = if (snapshot == null) {
             "暂无行情"
         } else {

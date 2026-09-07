@@ -71,6 +71,13 @@ interface CacheDao {
     @Insert suspend fun insertTradeRecord(item: TradeRecordEntity): Long
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertTradeRecords(items: List<TradeRecordEntity>)
     @Query("SELECT * FROM trade_record ORDER BY tradeAt ASC") suspend fun getTradeRecords(): List<TradeRecordEntity>
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertImportedAccountMetrics(items: List<ImportedAccountMetricEntity>)
+    @Query("SELECT * FROM imported_account_metric")
+    fun observeImportedAccountMetrics(): kotlinx.coroutines.flow.Flow<List<ImportedAccountMetricEntity>>
+    @Query("DELETE FROM imported_account_metric")
+    suspend fun clearImportedAccountMetrics()
+
     @Insert suspend fun insertAccountLedger(item: AccountLedgerEntity): Long
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertAccountLedgers(items: List<AccountLedgerEntity>)
     @Query("SELECT * FROM account_ledger ORDER BY occurredAt DESC, id DESC") suspend fun getAccountLedgers(): List<AccountLedgerEntity>
