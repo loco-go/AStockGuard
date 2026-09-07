@@ -18,6 +18,7 @@ import com.locogo.astockguard.chart.ChartPeriod
 import com.locogo.astockguard.chart.MinuteCandle
 import com.locogo.astockguard.chart.StockKLine
 import com.locogo.astockguard.data.fundflow.StockFundFlow
+import com.locogo.astockguard.data.level2.Level2Snapshot
 import com.locogo.astockguard.data.repository.StrategySignalRepository
 import com.locogo.astockguard.domain.strategy.ChartSignal
 import com.locogo.astockguard.domain.strategy.IntradayChartSignal
@@ -43,7 +44,7 @@ import kotlin.math.abs
 data class StockDetailUiState(
     val code: String = "",
     val quote: Quote? = null,
-    val period: ChartPeriod = ChartPeriod.DAY,
+    val period: ChartPeriod = ChartPeriod.MINUTE,
     val candles: List<StockKLine> = emptyList(),
     val dailySource: String = "UNKNOWN",
     val dailyFromCache: Boolean = true,
@@ -53,6 +54,8 @@ data class StockDetailUiState(
     val minuteSignals: List<IntradayChartSignal> = emptyList(),
     val minuteBacktest: IntradayBacktestStats = IntradayBacktestStats(),
     val minuteFundFlowAvailable: Boolean = false,
+    /** 与当前分时数据一同取得的最新盘口，仅负责展示；模拟或过期标记必须原样暴露给UI。 */
+    val level2: Level2Snapshot? = null,
     /** 当前交易日的量能雷达结果；历史回看阶段暂不冒充实时雷达。 */
     val volumeAnalysis: IntradayVolumeAnalysis? = null,
     /** 已通过风险、持仓和全成本门禁的动态T计划。 */
@@ -116,8 +119,10 @@ class StockDetailViewModel(
                     minuteSeries?.bars.orEmpty(),
                     sourceIntervalMinutes = minuteSeries?.intervalMinutes ?: 1
                 )
-                val candles = ChartDataMapper.aggregate(dailySource, current.period)
-                val strategy = evaluate(candles, current.period)
+                val candles = if (current.period == ChartPeriod.MINUTE) emptyList() else {
+                    ChartDataMapper.aggregate(dailySource, current.period)
+                }
+                val strategy = if (current.period == ChartPeriod.MINUTE) null else evaluate(candles, current.period)
                 val minuteEvaluation = buildMinuteEvaluation(minuteCandles, minuteSeries)
                 generatedSignal = strategy?.signal
                 current.copy(
@@ -130,6 +135,7 @@ class StockDetailViewModel(
                     minuteSignals = minuteEvaluation.first,
                     minuteBacktest = minuteEvaluation.second,
                     minuteFundFlowAvailable = minuteFlowFor(minuteSeries).isNotEmpty(),
+                    level2 = radar?.level2,
                     volumeAnalysis = radar?.analysis,
                     dynamicTPlan = radar?.plan,
                     radarDataSource = radar?.dataSource ?: "NONE",
@@ -224,6 +230,7 @@ class StockDetailViewModel(
                     minuteSignals = minuteEvaluation.first,
                     minuteBacktest = minuteEvaluation.second,
                     minuteFundFlowAvailable = minuteFlowFor(result.minuteSeries).isNotEmpty(),
+                    level2 = result.level2,
                     minuteDataFromCache = result.minuteSeries.fromCache,
                     minuteDataIsHistorical = result.minuteSeries.isHistorical,
                     volumeAnalysis = result.analysis,
@@ -237,8 +244,8 @@ class StockDetailViewModel(
     fun selectPeriod(period: ChartPeriod) {
         if (_state.value.period == period) return
         _state.update {
-            val candles = ChartDataMapper.aggregate(dailySource, period)
-            val strategy = evaluate(candles, period)
+            val candles = if (period == ChartPeriod.MINUTE) emptyList() else ChartDataMapper.aggregate(dailySource, period)
+            val strategy = if (period == ChartPeriod.MINUTE) null else evaluate(candles, period)
             it.copy(
                 period = period,
                 candles = candles,
@@ -265,6 +272,7 @@ class StockDetailViewModel(
                 minuteSignals = emptyList(),
                 minuteBacktest = IntradayBacktestStats(),
                 minuteFundFlowAvailable = false,
+                level2 = null,
                 volumeAnalysis = null,
                 dynamicTPlan = null,
                 radarDataSource = "HISTORICAL_VIEW",

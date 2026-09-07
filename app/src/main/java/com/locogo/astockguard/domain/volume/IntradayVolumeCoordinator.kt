@@ -6,6 +6,7 @@ import com.locogo.astockguard.Position
 import com.locogo.astockguard.data.fundflow.FundFlowRepository
 import com.locogo.astockguard.data.fundflow.StockFundFlow
 import com.locogo.astockguard.data.level2.Level2Repository
+import com.locogo.astockguard.data.level2.Level2Snapshot
 import com.locogo.astockguard.domain.trading.DynamicTPlan
 import com.locogo.astockguard.domain.trading.DynamicTPlanner
 import com.locogo.astockguard.domain.trading.TradingRiskContext
@@ -20,6 +21,8 @@ import com.locogo.astockguard.domain.trading.TradingRiskLevel
 data class IntradayRadarSnapshot(
     val minuteSeries: MarketRepository.MinuteSeries,
     val fundFlow: StockFundFlow?,
+    /** 当前最新盘口快照，供详情页展示；策略仍使用多帧snapshots完成时序判断。 */
+    val level2: Level2Snapshot?,
     val analysis: IntradayVolumeAnalysis,
     val plan: DynamicTPlan,
     val dataSource: String
@@ -71,6 +74,7 @@ class IntradayVolumeCoordinator(
         return IntradayRadarSnapshot(
             minuteSeries = minuteSeries,
             fundFlow = fundFlow,
+            level2 = currentLevel2,
             analysis = analysis,
             plan = plan,
             dataSource = buildString {

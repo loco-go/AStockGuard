@@ -87,6 +87,10 @@ else{
         ChartPeriod.MINUTE -> "minute"
     }
 
+    /**
+     * 构建分钟K、均价线、成交量和策略标记的离线HTML。
+     * 窄屏中只给最后两个信号显示完整文案，较早信号保留方向三角，避免盘口并排后文字覆盖价格走势。
+     */
     fun buildMinute(
         bars: List<MinuteCandle>,
         signals: List<IntradayChartSignal> = emptyList()
@@ -121,7 +125,8 @@ function draw(){
  const maxVol=Math.max(...rows.map(r=>r.volume),1);
  rows.forEach((r,i)=>{const xx=x(i),color=r.close>r.open?'#d92d20':(r.close<r.open?'#039855':'#8a8f98');c.strokeStyle=color;c.fillStyle=color;c.beginPath();c.moveTo(xx,y(r.high));c.lineTo(xx,y(r.low));c.stroke();const top=Math.min(y(r.open),y(r.close)),height=Math.max(1,Math.abs(y(r.open)-y(r.close)));c.fillRect(xx-body/2,top,body,height);const vh=r.volume/maxVol*volumeH;c.globalAlpha=.35;c.fillRect(xx-body/2,volumeTop+volumeH-vh,body,vh);c.globalAlpha=1;});
  c.strokeStyle='#d99020';c.lineWidth=1.4;c.beginPath();rows.forEach((r,i)=>{i?c.lineTo(x(i),y(r.average)):c.moveTo(x(i),y(r.average))});c.stroke();
- signals.forEach(s=>{const i=rows.findIndex(r=>r.time===s.time);if(i<0)return;const buy=s.action==='BUY',rawX=x(i),rawY=y(s.price)+(buy?14:-14);c.fillStyle=buy?'#d92d20':'#039855';c.font='bold 11px sans-serif';c.textAlign='center';const label=(s.recommended?(buy?'▲ 推荐买':'▼ 推荐卖'):(buy?'▲ 买':'▼ 卖'))+' '+s.price.toFixed(2),textW=c.measureText(label).width,xx=Math.max(pad.l+textW/2,Math.min(w-pad.r-textW/2,rawX)),yy=Math.max(24,Math.min(volumeTop-4,rawY));c.fillText(label,xx,yy);});
+ const verboseStart=Math.max(0,signals.length-2);
+ signals.forEach((s,si)=>{const i=rows.findIndex(r=>r.time===s.time);if(i<0)return;const buy=s.action==='BUY',rawX=x(i),rawY=y(s.price)+(buy?14:-14);c.fillStyle=buy?'#d92d20':'#039855';c.textAlign='center';if(si<verboseStart){c.font='bold 12px sans-serif';c.fillText(buy?'▲':'▼',rawX,Math.max(24,Math.min(volumeTop-4,rawY)));return;}c.font='bold 10px sans-serif';const label=(buy?'▲买':'▼卖')+s.price.toFixed(2),textW=c.measureText(label).width,xx=Math.max(pad.l+textW/2,Math.min(w-pad.r-textW/2,rawX)),yy=Math.max(24,Math.min(volumeTop-4,rawY+(si-verboseStart)*11));c.fillText(label,xx,yy);});
  c.textAlign='left';c.fillStyle='#667085';c.font='11px sans-serif';c.fillText('5分钟K  ·  均价线',pad.l,14);c.fillText(rows[0].time,pad.l,h-6);const last=rows[rows.length-1].time;c.fillText(last,w-pad.r-c.measureText(last).width,h-6);
 }
 window.addEventListener('resize',draw);draw();

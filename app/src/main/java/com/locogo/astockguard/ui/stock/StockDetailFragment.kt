@@ -29,6 +29,7 @@ import java.time.Instant
 import java.time.format.DateTimeFormatter
 import com.locogo.astockguard.domain.trading.DynamicTAction
 import com.locogo.astockguard.domain.volume.VolumeSignalType
+import com.locogo.astockguard.data.level2.Level2Snapshot
 
 class StockDetailFragment : Fragment() {
     private var _binding: FragmentStockDetailBinding? = null
@@ -59,6 +60,10 @@ class StockDetailFragment : Fragment() {
         binding.btnPreviousDate.setOnClickListener { viewModel.shiftMinuteDate(-1) }
         binding.btnNextDate.setOnClickListener { viewModel.shiftMinuteDate(1) }
         binding.btnMinuteDate.setOnClickListener { showMinuteDatePicker() }
+        binding.btnRadarTab.setOnClickListener { showDetailPanel(DetailPanel.RADAR) }
+        binding.btnStrategyTab.setOnClickListener { showDetailPanel(DetailPanel.STRATEGY) }
+        binding.btnBacktestTab.setOnClickListener { showDetailPanel(DetailPanel.BACKTEST) }
+        binding.btnRadarTab.isChecked = true
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
@@ -67,6 +72,7 @@ class StockDetailFragment : Fragment() {
                         binding.tvName.text = state.quote?.name?.ifBlank { state.code } ?: state.code
                         binding.tvPrice.text = state.quote?.latest?.let { String.format(Locale.CHINA, "%.2f", it) } ?: "--"
                         binding.tvChange.text = state.quote?.changeRatio?.let { String.format(Locale.CHINA, "%+.2f%%", it) } ?: "--"
+                        binding.tvQuoteStats.text = quoteStatsText(state)
                         val changeRatio = state.quote?.changeRatio
                         val quoteTone = when {
                             changeRatio == null || changeRatio == 0.0 -> com.locogo.astockguard.designsystem.R.color.astock_on_primary
@@ -126,6 +132,8 @@ class StockDetailFragment : Fragment() {
                             }
                         }
                         renderVolumeRadar(state)
+                        renderOrderBook(state.level2, state.period == ChartPeriod.MINUTE && state.minuteDataIsHistorical)
+                        renderBottomDecision(state)
                         binding.klineView.render(
                             state.period,
                             state.candles,
@@ -134,6 +142,7 @@ class StockDetailFragment : Fragment() {
                             state.minuteSignals
                         )
                         updatePeriodButtons(state.period)
+                        binding.minuteDateControls.visibility = if (state.period == ChartPeriod.MINUTE) View.VISIBLE else View.GONE
                         binding.btnMinuteDate.text = state.selectedMinuteDate.toString()
                         binding.btnNextDate.isEnabled = state.selectedMinuteDate.isBefore(com.locogo.astockguard.MarketRepository.marketDate())
                         binding.executePendingBindings()
@@ -160,6 +169,96 @@ class StockDetailFragment : Fragment() {
         binding.btnWeek.isChecked = period == ChartPeriod.WEEK
         binding.btnMonth.isChecked = period == ChartPeriod.MONTH
     }
+
+    /**
+     * 将实时快照压缩成同花顺式两行核心报价，保持空字段为“--”而不是伪造0值。
+     * 成交额和成交量使用中文紧凑单位，便于在窄屏中与开高低、昨收、均价同时展示。
+     */
+    private fun quoteStatsText(state: StockDetailUiState): String {
+        val quote = state.quote
+        return "今开 ${quote?.open?.let(::price) ?: "--"}  最高 ${quote?.high?.let(::price) ?: "--"}  " +
+            "最低 ${quote?.low?.let(::price) ?: "--"}  昨收 ${quote?.previousClose?.let(::price) ?: "--"}\n" +
+            "成交额 ${quote?.amount?.let(::compactNumber) ?: "--"}  成交量 ${quote?.volume?.let(::compactNumber) ?: "--"}  " +
+            "均价 ${quote?.vwap?.let(::price) ?: "--"}"
+    }
+
+    /**
+     * 渲染右侧盘口。卖盘按远端到卖一倒序展示，买盘按买一到远端顺序展示，符合常见行情终端阅读习惯。
+     * 历史分时、过期或模拟快照会明确标记；无有效档位时只展示不可用原因，不合成虚假十档。
+     */
+    private fun renderOrderBook(snapshot: Level2Snapshot?, historicalMinute: Boolean) = with(binding) {
+        if (historicalMinute) {
+            tvOrderBookStatus.text = "历史分时"
+            tvOrderBook.text = "实时盘口不与\n历史行情混用"
+            return@with
+        }
+        val flags = buildList {
+            if (snapshot?.simulated == true) add("模拟")
+            if (snapshot?.stale == true) add("过期")
+        }.joinToString("/")
+        tvOrderBookStatus.text = when {
+            snapshot == null -> "盘口不可用"
+            snapshot.source.contains("DEPTH_LIMITED", ignoreCase = true) && flags.isNotBlank() -> "五档盘口 · $flags"
+            snapshot.source.contains("DEPTH_LIMITED", ignoreCase = true) -> "五档盘口 · 实时"
+            flags.isNotBlank() -> "${snapshot.source} · $flags"
+            else -> "${snapshot.source} · 十档"
+        }
+        if (snapshot == null || snapshot.bids.isEmpty() && snapshot.asks.isEmpty()) {
+            tvOrderBook.text = snapshot?.message?.take(40)?.ifBlank { "暂无有效档位" } ?: "暂无有效档位"
+            return@with
+        }
+        val asks = snapshot.asks.take(10).mapIndexed { index, level ->
+            "卖${index + 1}" to level
+        }.reversed()
+        val bids = snapshot.bids.take(10).mapIndexed { index, level ->
+            "买${index + 1}" to level
+        }
+        tvOrderBook.text = (asks + bids).joinToString("\n") { (label, level) ->
+            String.format(Locale.CHINA, "%-3s %7.2f %s", label, level.price, compactVolume(level.volume))
+        }
+    }
+
+    /**
+     * 固定底栏只复述已经过领域层风控的动作，并同步展示缓存/历史限制。
+     * 页面不提供买卖按钮，避免视觉改造被误解为已获得真实账户自动交易权限。
+     */
+    private fun renderBottomDecision(state: StockDetailUiState) = with(binding) {
+        tvBottomAction.text = state.dynamicTPlan?.let(::dynamicPlanText) ?: "当前建议：等待实时数据"
+        tvBottomRisk.text = when {
+            state.minuteDataIsHistorical -> "历史回看 · 不生成实时动作"
+            state.minuteDataFromCache -> "缓存行情 · 禁止实时买卖提醒"
+            state.level2?.stale == true -> "盘口过期 · 已降低置信度 · 不自动下单"
+            else -> "仅作辅助 · 风险控制优先 · 不自动下单"
+        }
+    }
+
+    /** 在量能雷达、策略评分和提醒回测之间切换，未激活面板设为GONE以避免空白占位。 */
+    private fun showDetailPanel(panel: DetailPanel) = with(binding) {
+        panelRadar.visibility = if (panel == DetailPanel.RADAR) View.VISIBLE else View.GONE
+        panelStrategy.visibility = if (panel == DetailPanel.STRATEGY) View.VISIBLE else View.GONE
+        panelBacktest.visibility = if (panel == DetailPanel.BACKTEST) View.VISIBLE else View.GONE
+        btnRadarTab.isChecked = panel == DetailPanel.RADAR
+        btnStrategyTab.isChecked = panel == DetailPanel.STRATEGY
+        btnBacktestTab.isChecked = panel == DetailPanel.BACKTEST
+    }
+
+    /** 把大额数字格式化为万/亿；非有限值保持“--”，防止异常供应商字段污染报价头。 */
+    private fun compactNumber(value: Double): String = when {
+        !value.isFinite() -> "--"
+        kotlin.math.abs(value) >= 100_000_000 -> String.format(Locale.CHINA, "%.2f亿", value / 100_000_000)
+        kotlin.math.abs(value) >= 10_000 -> String.format(Locale.CHINA, "%.2f万", value / 10_000)
+        else -> String.format(Locale.CHINA, "%.0f", value)
+    }
+
+    /** 盘口手数采用最多四字符的紧凑格式，保证十档价格与数量在122dp列宽中保持对齐。 */
+    private fun compactVolume(value: Long): String = when {
+        kotlin.math.abs(value) >= 100_000_000 -> String.format(Locale.CHINA, "%.1f亿", value / 100_000_000.0)
+        kotlin.math.abs(value) >= 10_000 -> String.format(Locale.CHINA, "%.1f万", value / 10_000.0)
+        else -> value.toString()
+    }
+
+    /** 下方详情标签的稳定内部枚举，展示文案变化不会影响切换逻辑。 */
+    private enum class DetailPanel { RADAR, STRATEGY, BACKTEST }
 
     /**
      * 将领域层量能分类、动态T计划和证据渲染为详情页雷达卡片。
