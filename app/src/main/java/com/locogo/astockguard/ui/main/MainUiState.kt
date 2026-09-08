@@ -38,6 +38,7 @@ data class MainUiState(
     // 真实账户摘要。cashBalance 为空表示用户尚未配置，不能按 0 元现金计算总资产。
     val snapshot: MonitorSnapshot? = null,
     val positions: List<Position> = emptyList(),
+    val monitoredCodes: List<String> = emptyList(),
     val cashBalance: Double? = null,
     val importedAccountMetrics: List<com.locogo.astockguard.data.local.ImportedAccountMetricEntity> = emptyList(),
     // AI 是可选能力层；解析失败或不可用时，本地 E/M/R2 规则仍应独立工作。

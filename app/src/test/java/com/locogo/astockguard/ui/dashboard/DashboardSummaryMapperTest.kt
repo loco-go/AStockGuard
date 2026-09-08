@@ -56,6 +56,38 @@ class DashboardSummaryMapperTest {
     }
 
     @Test
+    fun breadthDeduplicatesPoolExcludesIndicesAndAccountsForMissingQuotes() {
+        val data = snapshot.copy(quotes = listOf(stock, stock,
+            Quote("600519.SH", latest = 99.99, previousClose = 100.0, changeRatio = 0.0),
+            Quote("600000.SH", latest = 10.0, previousClose = 10.0, changeRatio = null),
+            Quote("000002.SZ", latest = 0.0, previousClose = 10.0, changeRatio = 0.0),
+            Quote("600001.SH", latest = 15.0, previousClose = 10.0),
+            Quote("000001.SH", latest = 3200.0, changeRatio = 1.0)))
+        val result = DashboardSummaryMapper.market(data,
+            listOf("000001", "000001.SZ", "600519.SH", "600000.SH", "000002.SZ", "600010.SH", "000001.SH"))
+        assertEquals(5, result.trackedCount)
+        assertEquals(1, result.risingCount)
+        assertEquals(1, result.fallingCount)
+        assertEquals(1, result.flatCount)
+        assertEquals(2, result.unknownCount)
+        assertEquals(result.trackedCount, result.risingCount + result.fallingCount + result.flatCount + result.unknownCount)
+    }
+
+    @Test
+    fun breadthUsesPricesBeforeRoundedRatioAndRejectsNonFiniteData() {
+        val data = snapshot.copy(quotes = listOf(
+            Quote("000001.SZ", latest = 10.01, previousClose = 10.0, changeRatio = 0.0),
+            Quote("600519.SH", latest = 11.0, previousClose = null, changeRatio = -1.0),
+            Quote("600000.SH", latest = Double.NaN, changeRatio = 0.0)))
+        val result = DashboardSummaryMapper.market(data)
+        assertEquals(1, result.risingCount)
+        assertEquals(1, result.fallingCount)
+        assertEquals(0, result.flatCount)
+        assertEquals(1, result.unknownCount)
+        assertEquals(0, DashboardSummaryMapper.market(data, emptyList()).trackedCount)
+    }
+
+    @Test
     fun preOpenZeroQuoteUsesPreviousCloseAndDoesNotFakeTodayPnl() {
         val preOpenSnapshot = snapshot.copy(quotes = listOf(stock.copy(latest = 0.0, changeRatio = 0.0)))
 

@@ -4,10 +4,9 @@ import com.locogo.astockguard.data.local.ImportedAccountMetricEntity
 import com.locogo.astockguard.integration.ths.ThsAccountMetric
 import java.time.Instant
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** 账户导入值只覆盖展示；始终注明采集时间，跨日收益明确显示为历史值。 */
+/** 首页只保留标题和数值两行；来源与时间在导入页核对，跨日收益仍标明历史。 */
 object ImportedAccountPresenter {
     fun text(metric: ThsAccountMetric, values: List<ImportedAccountMetricEntity>, now: Long): String? {
         val value = values.find { it.metric == metric.name } ?: return null
@@ -18,7 +17,6 @@ object ImportedAccountPresenter {
             observed.toLocalDate() != Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
         val label = if (historicalToday) "历史当日收益" else metric.label
         val formatted = String.format(Locale.CHINA, "%.2f", value.value)
-        val source = if (value.source == "THS_MANUAL") "手工核对" else "同花顺导入"
-        return "$label\n$formatted ${metric.unit}\n$source · ${observed.format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))} 快照"
+        return "$label\n$formatted${if (metric == ThsAccountMetric.POSITION_PCT) "%" else ""}"
     }
 }

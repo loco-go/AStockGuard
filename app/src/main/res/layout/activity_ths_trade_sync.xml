@@ -21,7 +21,7 @@
             <Button android:id="@+id/btnConfirmPositions" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="确认导入所选股票" />
             <Button android:id="@+id/btnClearCandidates" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="清空候选，重新识别" />
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="账户数据导入" android:textSize="18sp" android:textStyle="bold" />
-            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="勾选今日收益、累计收益、当前仓位或总资产，核对后单独导入。金额单位为元，仓位单位为%。导入值为页面快照，首页会标明时间。" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="当日参考盈亏对应今日收益，浮动盈亏对应累计收益。勾选并核对后导入，金额单位为元，仓位单位为%。来源与采集时间在此页查看。" />
             <LinearLayout android:id="@+id/accountCandidateList" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
             <TextView android:id="@+id/tvAccountImportResult" android:layout_width="match_parent" android:layout_height="wrap_content" />
             <Button android:id="@+id/btnConfirmAccount" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="确认导入所选账户数据" />

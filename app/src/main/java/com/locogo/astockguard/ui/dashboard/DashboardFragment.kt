@@ -79,7 +79,7 @@ class DashboardFragment : Fragment(), DashboardHandlers {
             level2 = state.level2,
             news = state.newsRisk
         )
-        val market = DashboardSummaryMapper.market(snapshot)
+        val market = DashboardSummaryMapper.market(snapshot, state.monitoredCodes)
         val account = DashboardSummaryMapper.account(snapshot, state.positions, state.cashBalance)
         tvShanghaiIndex.text = indexText(market.indices[0])
         tvShenzhenIndex.text = indexText(market.indices[1])
@@ -88,7 +88,9 @@ class DashboardFragment : Fragment(), DashboardHandlers {
         applyTone(tvShenzhenIndex, market.indices[1].changePct)
         applyTone(tvChinextIndex, market.indices[2].changePct)
         tvTurnover.text = "两市成交额\n${market.turnover?.let(::money) ?: "--"}"
-        tvMarketBreadth.text = "涨/跌/平（${market.breadthScope}）\n${market.risingCount}/${market.fallingCount}/${market.flatCount}"
+        tvMarketBreadth.text = "${if (market.stale) "缓存" else ""}涨/跌/平（监控池${market.trackedCount}只）\n" +
+            "${market.risingCount}/${market.fallingCount}/${market.flatCount}" +
+            if (market.unknownCount > 0) " · 待行情${market.unknownCount}" else ""
         tvTotalAssets.text = "总资产\n${account.totalAssets?.let(::money) ?: "未配置现金"}"
         tvTodayPnl.text = "今日收益\n" + when (account.todayPnlState) {
             "PREOPEN" -> "待开盘"

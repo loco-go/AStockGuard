@@ -1,8 +1,8 @@
 package com.locogo.astockguard.integration.ths
 
 enum class ThsAccountMetric(val label: String, val unit: String, val aliases: List<String>) {
-    TODAY_PNL("今日收益", "元", listOf("今日收益", "当日收益", "今日盈亏", "当日盈亏")),
-    CUMULATIVE_PNL("累计收益", "元", listOf("累计收益", "累计盈亏", "总盈亏")),
+    TODAY_PNL("今日收益", "元", listOf("当日参考盈亏", "今日收益", "当日收益", "今日盈亏", "当日盈亏")),
+    CUMULATIVE_PNL("累计收益", "元", listOf("浮动盈亏", "累计收益", "累计盈亏", "总盈亏")),
     POSITION_PCT("当前仓位", "%", listOf("当前仓位", "仓位比例", "仓位")),
     TOTAL_ASSETS("总资产", "元", listOf("总资产", "总资产(元)", "总资产（元）"));
 

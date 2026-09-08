@@ -102,7 +102,7 @@ class ThsPositionImportViewModel(private val repository: ThsPositionImportReposi
         }
         viewModelScope.launch {
             runCatching { repository.confirmAccount(selected.mapNotNull { it.candidate }) }
-                .onSuccess { mutableAccountMessage.value = "已导入 ${selected.size} 项账户数据，首页显示来源和采集时间" }
+                .onSuccess { mutableAccountMessage.value = "已导入 ${selected.size} 项账户数据；来源和采集时间可在此页核对" }
                 .onFailure { mutableAccountMessage.value = "账户导入失败：${it.message}" }
         }
     }

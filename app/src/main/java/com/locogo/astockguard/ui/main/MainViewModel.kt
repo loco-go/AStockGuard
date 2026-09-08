@@ -53,7 +53,7 @@ class MainViewModel(
     private val cacheDao: CacheDao
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
-        MainUiState(positions = settings.positions(), cashBalance = settings.cashBalance)
+        MainUiState(positions = settings.positions(), cashBalance = settings.cashBalance, monitoredCodes = settings.allCodes())
     )
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
     init {
@@ -83,7 +83,8 @@ class MainViewModel(
         val positions = settings.positions()
         val cashBalance = settings.cashBalance
         val current = _uiState.value
-        if (positions == current.positions && cashBalance == current.cashBalance) return false
+        val monitoredCodes = settings.allCodes()
+        if (positions == current.positions && cashBalance == current.cashBalance && monitoredCodes == current.monitoredCodes) return false
 
         val positionCodes = positions.mapTo(hashSetOf()) { it.code }
         val nextCode = current.selectedCode?.takeIf(positionCodes::contains)
@@ -92,6 +93,7 @@ class MainViewModel(
         _uiState.update {
             it.copy(
                 positions = positions,
+                monitoredCodes = monitoredCodes,
                 cashBalance = cashBalance,
                 selectedCode = nextCode,
                 dailyBars = if (selectionChanged) emptyList() else it.dailyBars,
@@ -129,6 +131,7 @@ class MainViewModel(
         _uiState.update {
             it.copy(
                 snapshot = snapshot,
+                monitoredCodes = settings.allCodes(),
                 positions = positions,
                 cashBalance = cashBalance,
                 loading = false,

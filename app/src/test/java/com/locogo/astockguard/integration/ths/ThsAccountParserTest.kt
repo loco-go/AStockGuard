@@ -4,6 +4,13 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ThsAccountParserTest {
+    @Test fun `识别同花顺浮动盈亏与当日参考盈亏且不混入个股行`() {
+        val result = ThsAccountParser.parse(listOf("浮动盈亏", "-12,345.67", "当日参考盈亏(元)", "+321.50",
+            "市值/盈亏", "浮动盈亏", "900", "当日参考盈亏", "88"), 1).associateBy { it.metric }
+        assertEquals(-12345.67, result.getValue(ThsAccountMetric.CUMULATIVE_PNL).value, 0.001)
+        assertEquals(321.50, result.getValue(ThsAccountMetric.TODAY_PNL).value, 0.001)
+    }
+
     @Test fun `合并节点内的四项金额均能识别`() {
         val result = ThsAccountParser.parse(listOf("今日收益 -12.50 累计收益 +300.00 当前仓位 65.8% 总资产 10000.00"), 1)
         assertEquals(4, result.size)

@@ -31,7 +31,9 @@ data class DashboardMarketUi(
     val fallingCount: Int,
     val flatCount: Int,
     val breadthScope: String,
-    val stale: Boolean
+    val stale: Boolean,
+    val trackedCount: Int = 0,
+    val unknownCount: Int = 0
 )
 
 data class DashboardAccountUi(
@@ -45,9 +47,26 @@ data class DashboardAccountUi(
 )
 
 object DashboardSummaryMapper {
-    fun market(snapshot: MonitorSnapshot?): DashboardMarketUi {
+    fun market(snapshot: MonitorSnapshot?, monitoredCodes: List<String>? = null): DashboardMarketUi {
         val indexByCode = snapshot?.marketIndices.orEmpty().associateBy(Quote::code)
-        val tracked = snapshot?.quotes.orEmpty()
+        val indexCodes = indexByCode.keys + setOf("000001.SH", "399001.SZ", "399006.SZ")
+        val quotes = snapshot?.quotes.orEmpty().associateBy { com.locogo.astockguard.SettingsRepository.normalizeCode(it.code) }
+        val codes = (monitoredCodes ?: quotes.keys.toList()).map { com.locogo.astockguard.SettingsRepository.normalizeCode(it) }
+            .filter { it.isNotBlank() && it !in indexCodes }.distinct()
+        val directions = codes.map { code ->
+            val quote = quotes[code]
+            val latest = quote?.latest.validPrice()
+            val previous = quote?.previousClose.validPrice()
+            when {
+                latest != null && previous != null -> when {
+                    kotlin.math.abs(latest - previous) < 0.00000001 -> 0
+                    latest > previous -> 1
+                    else -> -1
+                }
+                latest != null && quote?.changeRatio?.isFinite() == true -> quote.changeRatio.compareTo(0.0)
+                else -> null
+            }
+        }
         return DashboardMarketUi(
             indices = listOf(
                 index("上证指数", indexByCode["000001.SH"]),
@@ -56,11 +75,13 @@ object DashboardSummaryMapper {
             ),
             turnover = listOfNotNull(indexByCode["000001.SH"]?.amount, indexByCode["399001.SZ"]?.amount)
                 .takeIf { it.isNotEmpty() }?.sumOf(::normalizeIndexTurnover),
-            risingCount = tracked.count { (it.changeRatio ?: 0.0) > 0.0 },
-            fallingCount = tracked.count { (it.changeRatio ?: 0.0) < 0.0 },
-            flatCount = tracked.count { it.changeRatio == 0.0 },
+            risingCount = directions.count { it != null && it > 0 },
+            fallingCount = directions.count { it != null && it < 0 },
+            flatCount = directions.count { it == 0 },
             breadthScope = "当前监控池",
-            stale = snapshot?.dataHealth?.isStale == true
+            stale = snapshot?.dataHealth?.isStale == true,
+            trackedCount = codes.size,
+            unknownCount = directions.count { it == null }
         )
     }
 
