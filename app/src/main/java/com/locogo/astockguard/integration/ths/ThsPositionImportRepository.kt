@@ -25,14 +25,14 @@ class ThsPositionImportRepository(
         accountPending.value = (accountPending.value.associateBy { it.metric } + values.associateBy { it.metric }).values.toList()
     }
 
-    suspend fun confirmAccount(values: List<ThsAccountCandidate>, edited: Set<ThsAccountMetric>) {
+    suspend fun confirmAccount(values: List<ThsAccountCandidate>) {
         require(values.isNotEmpty()) { "请先选择账户字段" }
         require(values.all { it.metric.valid(it.value) }) { "账户数值无效" }
         val now = System.currentTimeMillis()
         dao.upsertImportedAccountMetrics(values.map {
             com.locogo.astockguard.data.local.ImportedAccountMetricEntity(
                 it.metric.name, it.value, it.observedAt, now,
-                if (it.metric in edited) "THS_MANUAL" else "THS_CONFIRMED"
+                it.source
             )
         })
         ThsSyncBus.notifyDataChanged()

@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import com.locogo.astockguard.data.local.ImportedAccountMetricEntity
 
 data class ThsImportRow(
     val candidate: ThsPositionCandidate,
@@ -22,6 +23,23 @@ data class ThsAccountImportRow(
     val existing: Boolean = false,
     val edited: Boolean = false
 )
+
+/** 旧扫描不能盖过较新的导入/修正值；清空候选后仍返回四个可补全字段。 */
+internal fun reconcileThsAccountRows(
+    candidates: List<ThsAccountCandidate>, previous: List<ThsAccountImportRow>,
+    imported: List<ImportedAccountMetricEntity>
+): List<ThsAccountImportRow> = ThsAccountMetric.entries.map { metric ->
+    val old = previous.find { it.metric == metric }
+    val saved = imported.find { it.metric == metric.name }
+    val savedCandidate = saved?.let { ThsAccountCandidate(metric, it.value, it.observedAt, it.source) }
+    val candidate = listOfNotNull(savedCandidate, candidates.find { it.metric == metric }).maxByOrNull { it.observedAt }
+    if (old?.edited == true) old.copy(existing = saved != null)
+    else ThsAccountImportRow(metric, candidate, old?.selected ?: (saved != null), saved != null)
+}
+
+/** 数字输入框不支持科学计数法；否则 Android 的输入过滤可能吞掉 E 并改变金额。 */
+internal fun accountAmountInput(value: Double?): String = value?.takeIf { it.isFinite() }
+    ?.let { java.math.BigDecimal.valueOf(it).stripTrailingZeros().toPlainString() }.orEmpty()
 
 /** 已有股票首次默认选中；后续识别保留用户取消勾选和人工修正。 */
 internal fun reconcileThsImportRows(
@@ -45,19 +63,13 @@ class ThsPositionImportViewModel(private val repository: ThsPositionImportReposi
     val accountRows = mutableAccountRows.asStateFlow()
     private val mutableAccountMessage = MutableStateFlow("")
     val accountMessage = mutableAccountMessage.asStateFlow()
+    private var latestImportedAccount = emptyList<ImportedAccountMetricEntity>()
 
     init {
         viewModelScope.launch {
             combine(repository.accountCandidates, repository.importedAccount) { candidates, imported ->
-                ThsAccountMetric.entries.map { metric ->
-                    val old = accountRows.value.find { it.metric == metric }
-                    val saved = imported.find { it.metric == metric.name }
-                    val candidate = candidates.find { it.metric == metric } ?: saved?.let {
-                        ThsAccountCandidate(metric, it.value, it.observedAt)
-                    }
-                    if (old?.edited == true) old.copy(existing = saved != null)
-                    else ThsAccountImportRow(metric, candidate, old?.selected ?: (saved != null), saved != null)
-                }
+                latestImportedAccount = imported
+                reconcileThsAccountRows(candidates, accountRows.value, imported)
             }.collect { mutableAccountRows.value = it }
         }
         viewModelScope.launch {
@@ -74,7 +86,11 @@ class ThsPositionImportViewModel(private val repository: ThsPositionImportReposi
     fun editAccount(metric: ThsAccountMetric, value: Double) {
         require(metric.valid(value))
         mutableAccountRows.value = accountRows.value.map {
-            if (it.metric == metric) it.copy(candidate = ThsAccountCandidate(metric, value, System.currentTimeMillis()), edited = true) else it
+            if (it.metric == metric) it.copy(
+                candidate = it.candidate?.takeIf { candidate -> candidate.value == value }
+                    ?: ThsAccountCandidate(metric, value, System.currentTimeMillis(), "THS_MANUAL"),
+                edited = true
+            ) else it
         }
     }
 
@@ -85,7 +101,7 @@ class ThsPositionImportViewModel(private val repository: ThsPositionImportReposi
             return
         }
         viewModelScope.launch {
-            runCatching { repository.confirmAccount(selected.mapNotNull { it.candidate }, selected.filter { it.edited }.map { it.metric }.toSet()) }
+            runCatching { repository.confirmAccount(selected.mapNotNull { it.candidate }) }
                 .onSuccess { mutableAccountMessage.value = "已导入 ${selected.size} 项账户数据，首页显示来源和采集时间" }
                 .onFailure { mutableAccountMessage.value = "账户导入失败：${it.message}" }
         }
@@ -134,8 +150,9 @@ class ThsPositionImportViewModel(private val repository: ThsPositionImportReposi
     }
 
     fun clear() {
-        mutableAccountRows.value = emptyList()
         repository.clear()
+        // StateFlow 相同空列表不会再次发射，不能先置空后依赖仓库通知重建表单。
+        mutableAccountRows.value = reconcileThsAccountRows(emptyList(), emptyList(), latestImportedAccount)
         mutableRows.value = emptyList()
         mutableMessage.value = "已清空候选。请重新打开同花顺持仓页识别"
     }

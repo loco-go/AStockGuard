@@ -116,10 +116,10 @@ class ThsTradeSyncActivity : AppCompatActivity() {
         rows.forEach { row ->
             binding.accountCandidateList.addView(CheckBox(this).apply {
                 text = buildString {
-                    append("${row.metric.label}：${row.candidate?.value ?: "未识别"} ${row.metric.unit}")
+                    append("${row.metric.label}：${row.candidate?.let { accountAmountInput(it.value) } ?: "未识别"} ${row.metric.unit}")
                     if (row.existing) append("（已导入）")
                     row.candidate?.let {
-                        append("\n${if (row.edited) "手工核对" else "采集时间"}：")
+                        append("\n${if (it.source == "THS_MANUAL") "手工核对" else "采集时间"}：")
                         append(SimpleDateFormat("MM-dd HH:mm:ss", Locale.CHINA).format(Date(it.observedAt)))
                     }
                 }
@@ -132,7 +132,7 @@ class ThsTradeSyncActivity : AppCompatActivity() {
                     val input = EditText(this@ThsTradeSyncActivity).apply {
                         hint = "${row.metric.label}（${row.metric.unit}）"
                         inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL or InputType.TYPE_NUMBER_FLAG_SIGNED
-                        setText(row.candidate?.value?.toString().orEmpty())
+                        setText(accountAmountInput(row.candidate?.value))
                     }
                     val dialog = AlertDialog.Builder(this@ThsTradeSyncActivity).setTitle("${row.metric.label}（${row.metric.unit}）")
                         .setView(input).setNegativeButton("取消", null).setPositiveButton("保存", null).create()

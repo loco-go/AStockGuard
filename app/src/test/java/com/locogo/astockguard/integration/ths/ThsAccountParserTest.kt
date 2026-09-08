@@ -4,6 +4,25 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ThsAccountParserTest {
+    @Test fun `合并节点内的四项金额均能识别`() {
+        val result = ThsAccountParser.parse(listOf("今日收益 -12.50 累计收益 +300.00 当前仓位 65.8% 总资产 10000.00"), 1)
+        assertEquals(4, result.size)
+    }
+
+    @Test fun `表头万元亿元正确换算且不重复乘数值单位`() {
+        val result = ThsAccountParser.parse(listOf("总资产（万元）", "12.5", "累计收益(万元)", "-1.25万", "今日收益(元)", "25.50"), 1).associateBy { it.metric }
+        assertEquals(125000.0, result.getValue(ThsAccountMetric.TOTAL_ASSETS).value, 0.001)
+        assertEquals(-12500.0, result.getValue(ThsAccountMetric.CUMULATIVE_PNL).value, 0.001)
+        assertEquals(25.5, result.getValue(ThsAccountMetric.TODAY_PNL).value, 0.001)
+        assertEquals(200000000.0, ThsAccountParser.parse(listOf("总资产(亿元) 2"), 1).single().value, 0.001)
+    }
+
+    @Test fun `收益率字段不能当作金额并且合并持仓区及时截断`() {
+        assertTrue(ThsAccountParser.parse(listOf("今日收益(%) 12.5", "累计收益率 20"), 1).isEmpty())
+        val result = ThsAccountParser.parse(listOf("总资产 1000 持仓/可用 今日收益 999"), 1)
+        assertEquals(listOf(ThsAccountMetric.TOTAL_ASSETS), result.map { it.metric })
+    }
+
     @Test fun `四项账户数据支持负收益千分位万元与百分比`() {
         val result = ThsAccountParser.parse(listOf("今日收益", "-1,234.56", "累计收益：+2.5万", "仓位", "65.80%", "总资产(元)", "200,000.00"), 123L).associateBy { it.metric }
         assertEquals(4, result.size)
