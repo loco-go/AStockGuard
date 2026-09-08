@@ -44,6 +44,9 @@ class AppContainer(application: Application) {
     val signalLifecycle: SignalLifecycleManager by lazy { SignalLifecycleManager(database.cacheDao()) }
     val reviewRepository: ReviewRepository by lazy { ReviewRepository(database.cacheDao(), marketRepository) }
     val alertHistoryRepository: AlertHistoryRepository by lazy { AlertHistoryRepository(database.cacheDao()) }
+    val monitorMessageRepository by lazy {
+        com.locogo.astockguard.domain.review.MonitorMessageRepository(database.cacheDao())
+    }
     /** 详情页和后台监控共享同一量价协调器，避免形成第二套行情与策略编排链路。 */
     val intradayVolumeCoordinator: IntradayVolumeCoordinator by lazy {
         IntradayVolumeCoordinator(marketRepository, fundFlowRepository, level2Repository)

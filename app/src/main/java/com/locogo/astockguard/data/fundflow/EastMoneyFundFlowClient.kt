@@ -56,9 +56,11 @@ class EastMoneyFundFlowClient(
             for (i in 0 until diff.length()) {
                 val r = diff.optJSONObject(i) ?: continue
                 val name = r.optString("f14"); if (name.isBlank()) continue
+                val mainNet = r.optDouble("f62", Double.NaN)
+                if (!mainNet.isFinite()) continue
                 add(SectorFundFlow(
                     code = r.optString("f12"), name = name, type = type.uppercase(),
-                    changePct = r.optDouble("f3", 0.0), mainNet = r.optDouble("f62", 0.0), mainPct = r.optDouble("f184", 0.0),
+                    changePct = r.optDouble("f3", 0.0), mainNet = mainNet, mainPct = r.optDouble("f184", 0.0),
                     superLargeNet = r.optDouble("f66", 0.0), largeNet = r.optDouble("f72", 0.0),
                     mediumNet = r.optDouble("f78", 0.0), smallNet = r.optDouble("f84", 0.0),
                     leadStockName = r.optString("f204"), leadStockCode = r.optString("f205")

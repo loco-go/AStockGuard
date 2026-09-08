@@ -32,6 +32,12 @@ interface CacheDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insertStrategySignal(item: StrategySignalEntity): Long
     @Query("SELECT * FROM strategy_signal WHERE symbol = :symbol ORDER BY time DESC LIMIT :limit") suspend fun getStrategySignals(symbol: String, limit: Int = 100): List<StrategySignalEntity>
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insertAlertRecord(item: AlertRecordEntity): Long
+    @Query("SELECT * FROM alert_record WHERE code = :code AND alertType = :type ORDER BY signalAt DESC, id DESC LIMIT 1")
+    suspend fun latestTypedMessage(code: String, type: String): AlertRecordEntity?
+    @Query("SELECT * FROM alert_record WHERE (:type = '' OR alertType = :type OR (:type = 'DYNAMIC_T' AND (alertType = 'T_PLAN' OR (alertType = 'VOLUME_RADAR' AND action IN ('SELL_T', 'REDUCE', 'WAIT_BUYBACK'))))) ORDER BY signalAt DESC, id DESC LIMIT :limit")
+    fun observeMessages(type: String, limit: Int): kotlinx.coroutines.flow.Flow<List<AlertRecordEntity>>
+    @Query("UPDATE alert_record SET evidenceJson = :evidence WHERE id = :id")
+    suspend fun updateMessageEvidence(id: Long, evidence: String)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertAlertRecords(items: List<AlertRecordEntity>)
     @Query("SELECT * FROM alert_record WHERE code = :code AND status = 'PENDING' ORDER BY signalAt ASC")
     suspend fun getPendingAlertRecords(code: String): List<AlertRecordEntity>

@@ -36,6 +36,7 @@
         <activity
             android:name=".SettingsActivity"
             android:exported="false" />
+        <activity android:name=".ui.messages.MessageCenterActivity" android:exported="false" android:launchMode="singleTop" />
 
         <receiver
             android:name=".integration.ths.ThsScanActionReceiver"

@@ -58,6 +58,9 @@ class DashboardFragment : Fragment(), DashboardHandlers {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        binding.btnMessages.setOnClickListener {
+            startActivity(android.content.Intent(requireContext(), com.locogo.astockguard.ui.messages.MessageCenterActivity::class.java))
+        }
         binding.lifecycleOwner = viewLifecycleOwner
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {

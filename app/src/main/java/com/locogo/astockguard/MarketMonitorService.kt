@@ -43,6 +43,7 @@ class MarketMonitorService : Service() {
     private var lastNewsRisk = "E0"
     private var lastNewsRefreshAt = 0L
     private var lastTScanAt = 0L
+    private var lastSectorScanAt = 0L
     private var lastIntradayScanAt = 0L
     private var lastAuctionScanAt = 0L
     private val lastTStatus = mutableMapOf<String, String>()
@@ -86,6 +87,7 @@ class MarketMonitorService : Service() {
                     refreshNewsIfDue()
                     scanAuctionPlansIfDue(s)
                     scanVolumeRadarIfDue(s)
+                    scanSectorFlowIfDue(s)
                     scanIntradaySignalsIfDue(s)
                     val source = if (s.dataHealth.isStale) "缓存" else "实时"
                     val text = "$source ${s.assessment.eventRisk}/${s.assessment.marketPhase} 仓位${"%.1f".format(s.positionRatio)}% 上限${"%.0f".format(s.assessment.maxPositionRatio * 100)}%"
@@ -142,17 +144,16 @@ class MarketMonitorService : Service() {
                 val signal = radar.analysis.signal
                 val plan = radar.plan
                 val notificationNow = System.currentTimeMillis()
+                if (!com.locogo.astockguard.domain.review.MonitorMessagePolicy.fresh(radar) || !isAshareTradingTime(notificationNow)) return@runCatching
                 // 每轮先补齐已走完的5/15/30/60分钟结果；窗口不足时评价器会保持等待而不是提前判胜负。
                 alertHistoryRepository.evaluateVolumeRadar(
                     position.code, radar.minuteSeries.bars, radar.minuteSeries.intervalMinutes, notificationNow
                 )
                 // Room中的状态和唯一键同时负责跨进程冷却；只有成功落库的提醒才允许进入系统通知栏。
-                if (!alertHistoryRepository.recordVolumeRadarAlert(position.name, radar, notificationNow)) return@runCatching
-                NotificationHelper.alert(
-                    this,
-                    tNotificationId(position.code, radarNotificationType(plan.action)),
-                    "${position.name} · ${radarSignalLabel(signal.type)}",
-                    buildString {
+                // 两种提醒独立落库和去重，不能用量能冷却的提前返回吞掉做T状态。
+                appContainer.monitorMessageRepository.recordDynamicT(position.name, radar, notificationNow)?.let { publishMessage(it) }
+                if (alertHistoryRepository.recordVolumeRadarAlert(position.name, radar, notificationNow)) {
+                    val body = buildString {
                         append("量能").append(signal.volumeScore)
                         append("，买盘").append(signal.buyPressureScore)
                         append("，板块").append(signal.boardSyncScore ?: "不可用")
@@ -160,13 +161,39 @@ class MarketMonitorService : Service() {
                         append("。建议").append(radarActionLabel(plan.action))
                         if (plan.suggestedQuantity > 0) append(plan.suggestedQuantity).append("股")
                         append("。").append(plan.reasons.firstOrNull().orEmpty())
-                        append("。仅作辅助提醒，不自动下单。")
+                        append("。板块所属映射暂不可用，行业资金概览见消息页。")
                     }
-                )
+                    appContainer.monitorMessageRepository.latestVolume(position.code)?.let { record ->
+                        val message = appContainer.monitorMessageRepository.prepare(record,
+                            "${position.name} · 量能 · ${radarSignalLabel(signal.type)}", body)
+                        publishMessage(message)
+                    }
+                }
             }.onFailure { error ->
                 Log.w("MarketMonitor", "量能雷达扫描失败 ${position.code}: ${error.message}")
             }
         }
+    }
+
+    private suspend fun publishMessage(record: com.locogo.astockguard.data.local.AlertRecordEntity, allowNotification: Boolean = true) {
+        val evidence = org.json.JSONObject(record.evidenceJson)
+        val posted = allowNotification && runCatching {
+            NotificationHelper.message(this, record.alertType, record.code,
+                evidence.optString("messageTitle", record.name), evidence.optString("messageBody", record.reason))
+        }.getOrDefault(false)
+        appContainer.monitorMessageRepository.delivery(record, posted)
+    }
+
+    private suspend fun scanSectorFlowIfDue(snapshot: MonitorSnapshot) {
+        val now = System.currentTimeMillis()
+        if (snapshot.dataHealth.isStale || !isAshareTradingTime(now) || now - lastSectorScanAt < 5 * 60_000L) return
+        lastSectorScanAt = now
+        runCatching {
+            val flow = fundFlowRepository.sectors("INDUSTRY")
+            appContainer.monitorMessageRepository.recordSectorFlow(flow, System.currentTimeMillis())?.let {
+                publishMessage(it, org.json.JSONObject(it.evidenceJson).optBoolean("dataFresh") && isAshareTradingTime(System.currentTimeMillis()))
+            }
+        }.onFailure { Log.w("MarketMonitor", "板块资金消息刷新失败：${it.message}") }
     }
 
     /** 把动态动作映射为稳定通知编号尾数，使同一证券不同类型提醒不会相互覆盖。 */

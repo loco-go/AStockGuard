@@ -40,6 +40,7 @@
 
             <ProgressBar android:layout_width="22dp" android:layout_height="22dp" android:layout_marginEnd="8dp" android:indeterminateTint="@color/astock_gold" android:visibility="@{state.loading ? View.VISIBLE : View.GONE}" />
             <com.google.android.material.button.MaterialButton style="@style/Widget.MaterialComponents.Button.TextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:onClick="@{() -> handlers.onSettings()}" android:text="设置" android:textColor="@color/astock_on_primary" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnMessages" style="@style/Widget.MaterialComponents.Button.TextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="消息" android:textColor="@color/astock_on_primary" />
         </LinearLayout>
 
         <com.google.android.material.card.MaterialCardView
