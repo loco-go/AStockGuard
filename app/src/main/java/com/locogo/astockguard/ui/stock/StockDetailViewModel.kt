@@ -20,6 +20,8 @@ import com.locogo.astockguard.chart.StockKLine
 import com.locogo.astockguard.data.fundflow.StockFundFlow
 import com.locogo.astockguard.data.level2.Level2Snapshot
 import com.locogo.astockguard.data.repository.StrategySignalRepository
+import com.locogo.astockguard.data.repository.StockDetailDataSource
+import com.locogo.astockguard.data.repository.RepositoryStockDetailDataSource
 import com.locogo.astockguard.domain.strategy.ChartSignal
 import com.locogo.astockguard.domain.strategy.IntradayChartSignal
 import com.locogo.astockguard.domain.strategy.IntradayBacktestStats
@@ -33,6 +35,7 @@ import com.locogo.astockguard.domain.volume.IntradayVolumeCoordinator
 import com.locogo.astockguard.ui.chart.ChartDataMapper
 import kotlinx.coroutines.async
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -72,17 +75,18 @@ data class StockDetailUiState(
     val error: String? = null
 )
 
-class StockDetailViewModel(
-    private val marketRepository: MarketRepository,
-    private val strategySignalRepository: StrategySignalRepository,
-    private val settings: SettingsRepository,
-    private val intradayVolumeCoordinator: IntradayVolumeCoordinator
-) : ViewModel() {
+class StockDetailViewModel(private val dataSource: StockDetailDataSource) : ViewModel() {
+    constructor(marketRepository: MarketRepository, strategySignalRepository: StrategySignalRepository,
+        settings: SettingsRepository, intradayVolumeCoordinator: IntradayVolumeCoordinator) :
+        this(RepositoryStockDetailDataSource(marketRepository, strategySignalRepository, settings, intradayVolumeCoordinator))
     private val _state = MutableStateFlow(StockDetailUiState())
     val state: StateFlow<StockDetailUiState> = _state.asStateFlow()
     private var dailySource = emptyList<DailyBar>()
     private var fundFlow: StockFundFlow? = null
     private var minuteLoadJob: Job? = null
+    private var initialLoadJob: Job? = null
+    private var stockGeneration = 0L
+    private var minuteGeneration = 0L
     private var radarLoadJob: Job? = null
     private var lastRadarRefreshAt: Long = 0L
     private var latestAssessment: MarketAssessment? = null
@@ -90,26 +94,30 @@ class StockDetailViewModel(
     private var latestMarketDataStale: Boolean = true
 
     fun load(code: String) {
-        if (code.isBlank() || (_state.value.code == code && dailySource.isNotEmpty())) return
+        if (code.isBlank() || (_state.value.code == code && (dailySource.isNotEmpty() || _state.value.loading))) return
+        val generation = ++stockGeneration
+        val minuteRequest = ++minuteGeneration
+        initialLoadJob?.cancel()
+        minuteLoadJob?.cancel()
+        radarLoadJob?.cancel()
+        dailySource = emptyList()
+        fundFlow = null
+        lastRadarRefreshAt = 0L
         _state.value = StockDetailUiState(code = code, loading = true)
-        viewModelScope.launch {
-            val dailyRequest = async { runCatching { marketRepository.loadDailySeries(code, CHART_HISTORY_DAYS) } }
+        initialLoadJob = viewModelScope.launch {
+            val dailyRequest = async { runCatching { dataSource.daily(code, CHART_HISTORY_DAYS) } }
             val radarRequest = async {
                 runCatching {
-                    intradayVolumeCoordinator.load(
-                        code = code,
-                        position = settings.positions().firstOrNull { it.code == code },
-                        assessment = latestAssessment,
-                        exposureStatus = latestExposureStatus,
-                        marketDataStale = latestMarketDataStale
-                    )
+                    dataSource.radar(code, latestAssessment, latestExposureStatus, latestMarketDataStale)
                 }
             }
             val dailyResult = dailyRequest.await()
             val radarResult = radarRequest.await()
+            coroutineContext.ensureActive()
+            if (generation != stockGeneration) return@launch
             val radar = radarResult.getOrNull()
             val minuteResult = radarResult.map { it.minuteSeries }
-            fundFlow = radar?.fundFlow
+            if (minuteRequest == minuteGeneration) fundFlow = radar?.fundFlow
             val dailySeries = dailyResult.getOrNull()
             dailySource = dailySeries?.bars.orEmpty()
             var generatedSignal: ChartSignal? = null
@@ -125,7 +133,7 @@ class StockDetailViewModel(
                 val strategy = if (current.period == ChartPeriod.MINUTE) null else evaluate(candles, current.period)
                 val minuteEvaluation = buildMinuteEvaluation(minuteCandles, minuteSeries)
                 generatedSignal = strategy?.signal
-                current.copy(
+                val loaded = current.copy(
                     candles = candles,
                     dailySource = dailySeries?.source ?: "UNKNOWN",
                     dailyFromCache = dailySeries?.fromCache ?: true,
@@ -150,8 +158,14 @@ class StockDetailViewModel(
                         minuteResult.exceptionOrNull()?.message
                     ).distinct().joinToString("；").ifBlank { null }
                 )
+                if (minuteRequest == minuteGeneration) loaded else current.copy(
+                    candles = loaded.candles, dailySource = loaded.dailySource,
+                    dailyFromCache = loaded.dailyFromCache, dailyRealtimeMerged = loaded.dailyRealtimeMerged,
+                    dailyUpdatedAt = loaded.dailyUpdatedAt, strategy = loaded.strategy, signals = loaded.signals,
+                    loading = false, error = dailyResult.exceptionOrNull()?.message ?: current.error
+                )
             }
-            generatedSignal?.let { strategySignalRepository.persist(code, it) }
+            generatedSignal?.let { dataSource.persist(code, it) }
         }
     }
 
@@ -202,21 +216,19 @@ class StockDetailViewModel(
      */
     private fun refreshRadarIfDue() {
         val code = _state.value.code
+        val generation = stockGeneration
+        val minuteRequest = minuteGeneration
         val now = System.currentTimeMillis()
+        if (_state.value.loading || _state.value.minuteLoading) return
         if (code.isBlank() || _state.value.selectedMinuteDate != MarketRepository.marketDate()) return
         if (radarLoadJob?.isActive == true || now - lastRadarRefreshAt < RADAR_REFRESH_INTERVAL_MS) return
         lastRadarRefreshAt = now
         radarLoadJob = viewModelScope.launch {
             val result = runCatching {
-                intradayVolumeCoordinator.load(
-                    code = code,
-                    position = settings.positions().firstOrNull { it.code == code },
-                    assessment = latestAssessment,
-                    exposureStatus = latestExposureStatus,
-                    marketDataStale = latestMarketDataStale,
-                    now = System.currentTimeMillis()
-                )
+                dataSource.radar(code, latestAssessment, latestExposureStatus, latestMarketDataStale)
             }.getOrNull() ?: return@launch
+            coroutineContext.ensureActive()
+            if (generation != stockGeneration || minuteRequest != minuteGeneration) return@launch
             if (_state.value.code != code || _state.value.selectedMinuteDate != MarketRepository.marketDate()) return@launch
             fundFlow = result.fundFlow
             val minuteCandles = ChartDataMapper.aggregateMinutes(
@@ -264,6 +276,10 @@ class StockDetailViewModel(
             return
         }
         minuteLoadJob?.cancel()
+        radarLoadJob?.cancel()
+        lastRadarRefreshAt = 0L
+        val generation = stockGeneration
+        val minuteRequest = ++minuteGeneration
         _state.update {
             it.copy(
                 period = ChartPeriod.MINUTE,
@@ -281,7 +297,9 @@ class StockDetailViewModel(
             )
         }
         minuteLoadJob = viewModelScope.launch {
-            val result = runCatching { marketRepository.loadMinuteSeries(code, date) }
+            val result = runCatching { dataSource.minute(code, date) }
+            coroutineContext.ensureActive()
+            if (generation != stockGeneration || minuteRequest != minuteGeneration) return@launch
             if (_state.value.code != code || _state.value.selectedMinuteDate != date) return@launch
             val series = result.getOrNull()
             val minuteCandles = ChartDataMapper.aggregateMinutes(
