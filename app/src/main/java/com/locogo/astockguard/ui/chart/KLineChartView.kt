@@ -35,9 +35,10 @@ class KLineChartView @JvmOverloads constructor(
         webView.settings.domStorageEnabled = false
         webView.settings.allowFileAccess = false
         webView.settings.allowContentAccess = false
+        webView.settings.blockNetworkLoads = true
         webView.overScrollMode = View.OVER_SCROLL_NEVER
         webView.isHorizontalScrollBarEnabled = false
-        webView.webViewClient = WebViewClient()
+        webView.webViewClient = ChartAssetClient(context.assets)
         configureTouchInterop()
         addView(webView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
@@ -86,7 +87,7 @@ class KLineChartView @JvmOverloads constructor(
         } else {
             KLineHtmlBuilder.buildCandles(candles, signals, period)
         }
-        webView.loadDataWithBaseURL("https://appassets.androidplatform.net/", html, "text/html", "UTF-8", null)
+        webView.loadDataWithBaseURL(ChartAssetClient.PAGE_URL, html, "text/html", "UTF-8", null)
     }
 
     fun setBars(bars: List<DailyBar>) {

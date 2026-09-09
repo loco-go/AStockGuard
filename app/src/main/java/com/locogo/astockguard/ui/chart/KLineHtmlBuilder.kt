@@ -1,7 +1,7 @@
 package com.locogo.astockguard.ui.chart
 
 /*
- * 文件职责：生成本地 ECharts 页面与安全 JSON 数据；字符串转义必须防止行情名称破坏脚本结构。
+ * 文件职责：生成本地 KLineCharts/Canvas 页面与安全 JSON 数据。
  * 架构边界：生命周期内只收集可观察状态；耗时任务、持久化和网络请求交给 ViewModel/Repository。
  * 风险说明：本应用提供交易研究与决策辅助，不执行真实账户自动委托；任何历史统计或提示都不构成收益保证。
  */
@@ -33,12 +33,12 @@ object KLineHtmlBuilder {
         return """
 <!doctype html><html><head>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-<script src="https://cdn.jsdelivr.net/npm/klinecharts@10.0.2/dist/umd/klinecharts.min.js"></script>
+<script src="${ChartAssetClient.SCRIPT_URL}"></script>
 <style>html,body,#chart{width:100%;height:100%;margin:0;background:#fff;font-family:sans-serif}#empty{padding:24px;color:#667085}.badge{position:absolute;z-index:2;right:8px;top:6px;padding:4px 7px;border-radius:5px;background:#ffffffdf;color:#344054;font-size:11px;pointer-events:none}</style>
 </head><body><div id="period" class="badge"></div><div id="chart"></div><script>
 const rows=$data,signals=${ChartSignalOverlay.toJson(signals)};
 if(rows.length===0){document.getElementById('chart').innerHTML='<div id="empty">暂无K线数据</div>'}
-else if(typeof klinecharts==='undefined'){document.getElementById('chart').innerHTML='<div id="empty">图表组件加载失败，请检查网络后重试</div>'}
+else if(typeof klinecharts==='undefined'){document.getElementById('chart').innerHTML='<div id="empty">内置图表组件加载失败，请重新打开页面</div>'}
 else{
  const chart=klinecharts.init('chart',{locale:'zh-CN',timezone:'Asia/Shanghai',layout:{barSpaceLimit:{min:2,max:30},pane:{minHeight:80},yAxis:{position:'right',inside:false}}});
  const savedPosition=window.name||'realtime';let initialPositioned=false;
