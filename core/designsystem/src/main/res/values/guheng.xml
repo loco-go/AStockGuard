@@ -1,0 +1,23 @@
+<resources>
+    <!-- 品牌色与涨跌语义独立，避免将品牌操作误读为上涨信号。 -->
+    <color name="guheng_brand">#E52E35</color>
+    <color name="guheng_on_brand">#FFFFFF</color>
+    <color name="guheng_cache">#8A5A12</color>
+    <dimen name="guheng_page_spacing">8dp</dimen>
+    <dimen name="guheng_card_radius">8dp</dimen>
+    <color name="gh_background">#F4F5F7</color>
+    <color name="gh_card">#FFFFFF</color>
+    <color name="gh_text">#111318</color>
+    <color name="gh_secondary">#737780</color>
+    <color name="gh_line">#ECEEF1</color>
+    <color name="gh_red">#EA2635</color>
+    <color name="gh_green">#35A364</color>
+    <color name="gh_blush">#FFF5F5</color>
+    <color name="gh_pink">#FFE5E7</color>
+    <color name="gh_blue">#5C88EE</color>
+    <color name="gh_header_start">#E43335</color>
+    <color name="gh_header_end">#D92930</color>
+    <style name="TextAppearance.Guheng.Nav" parent="TextAppearance.MaterialComponents.Caption">
+        <item name="android:textSize">12sp</item>
+    </style>
+</resources>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 根据 img 参考图还原的 watchlist 页面；占位符由状态渲染器填入，不内置示例行情。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+<com.google.android.material.card.MaterialCardView style="@style/Widget.Guheng.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp" >
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="10dp">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" >
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="我的自选" android:textSize="16sp" android:textColor="@color/gh_text" android:textStyle="bold"/>
+<Space android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
+<TextView android:includeFontPadding="false" android:id="@+id/manageWatchlist" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="管理 ›" android:textSize="11sp" android:textColor="@color/gh_secondary" android:minHeight="28dp" android:gravity="center" android:paddingHorizontal="4dp"/>
+</LinearLayout>
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="当前监控证券" android:textSize="10sp" android:textColor="@color/gh_secondary" />
+<Space android:layout_width="1dp" android:layout_height="6dp"/>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" >
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" >
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="名称 / 代码" android:textSize="11sp" android:textColor="@color/gh_secondary" />
+</LinearLayout>
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" >
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="最新价" android:textSize="11sp" android:textColor="@color/gh_secondary" android:layout_gravity="end"/>
+</LinearLayout>
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" >
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="涨跌幅" android:textSize="11sp" android:textColor="@color/gh_secondary" android:layout_gravity="end"/>
+</LinearLayout>
+</LinearLayout>
+<LinearLayout android:id="@+id/watchlistRows" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical"/>
+</LinearLayout>
+</com.google.android.material.card.MaterialCardView>
+</LinearLayout>

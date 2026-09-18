@@ -3,10 +3,20 @@
   文件职责：主 Activity 的导航与 Fragment 容器。页面业务内容由子 Fragment 渲染，本布局只负责顶层结构和系统窗口区域。
   维护约束：资源名称属于代码契约，重命名时同步修改绑定代码并检查无障碍与深浅色效果。
 -->
-<layout xmlns:android="http://schemas.android.com/apk/res/android">
-    <androidx.fragment.app.FragmentContainerView
-        android:id="@+id/mainContainer"
-        android:name="com.locogo.astockguard.ui.dashboard.DashboardFragment"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <LinearLayout android:id="@+id/mainRoot" android:layout_width="match_parent"
+        android:layout_height="match_parent" android:orientation="vertical"
+        android:background="@color/gh_header_end">
+        <androidx.fragment.app.FragmentContainerView
+            android:id="@+id/mainContainer" android:layout_width="match_parent"
+            android:layout_height="0dp" android:layout_weight="1" />
+        <com.google.android.material.bottomnavigation.BottomNavigationView
+            android:id="@+id/mainNavigation" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:minHeight="60dp" android:background="@color/gh_card"
+            app:itemIconSize="23dp" app:itemTextAppearanceActive="@style/TextAppearance.Guheng.Nav" app:itemTextAppearanceInactive="@style/TextAppearance.Guheng.Nav"
+            app:itemIconTint="@color/guheng_navigation" app:itemTextColor="@color/guheng_navigation"
+            app:itemHorizontalTranslationEnabled="false" app:labelVisibilityMode="labeled"
+            app:menu="@menu/main_navigation" />
+    </LinearLayout>
 </layout>

@@ -1,0 +1,10 @@
+<resources>
+    <string name="nav_home">首页</string>
+    <string name="nav_market">行情</string>
+    <string name="nav_watchlist">自选</string>
+    <string name="nav_account">账户</string>
+    <string name="nav_profile">我的</string>
+    <string name="guheng_brand">股衡</string>
+    <string name="main_section_title">股衡 · %1$s</string>
+    <string name="main_section_search">搜索当前列表的名称或代码</string>
+</resources>

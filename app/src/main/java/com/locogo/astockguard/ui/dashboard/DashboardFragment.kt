@@ -47,17 +47,26 @@ class DashboardFragment : Fragment(), DashboardHandlers {
     private val host get() = requireActivity() as MainActivity
     private val viewModel get() = host.dashboardViewModel
     private val positionAdapter = PositionAdapter(::openStockDetail)
+    private var selectedPanel = Panel.DECISION
+    private var scrollPosition = 0
 
+    /** 创建首页布局和持仓列表，并恢复当前分析面板。 */
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentDashboardBinding.inflate(inflater, container, false)
         binding.handlers = this
         binding.listStrategies.layoutManager = LinearLayoutManager(requireContext())
         binding.listStrategies.adapter = positionAdapter
-        showPanel(Panel.DECISION)
+        savedInstanceState?.getString("dashboard_panel")?.let { saved ->
+            selectedPanel = Panel.entries.firstOrNull { it.name == saved } ?: Panel.DECISION
+        }
+        scrollPosition = savedInstanceState?.getInt("dashboard_scroll") ?: scrollPosition
+        showPanel(selectedPanel)
         return binding.root
     }
 
+    /** 绑定消息入口，在视图可见时订阅共享状态并恢复滚动。 */
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        binding.dashboardScroll.post { _binding?.dashboardScroll?.scrollTo(0, scrollPosition) }
         binding.btnMessages.setOnClickListener {
             startActivity(android.content.Intent(requireContext(), com.locogo.astockguard.ui.messages.MessageCenterActivity::class.java))
         }
@@ -69,6 +78,7 @@ class DashboardFragment : Fragment(), DashboardHandlers {
         }
     }
 
+    /** 将行情、账户、计划及分析状态映射到首页，保留数据来源和缺失提示。 */
     private fun render(state: MainUiState) = with(binding) {
         this.state = state
         val snapshot = state.snapshot
@@ -334,6 +344,7 @@ class DashboardFragment : Fragment(), DashboardHandlers {
         btnConceptFlow.isActivated = flowType == "CONCEPT"
     }
 
+    /** 只绘制当前回放游标之前的分钟数据和成交标记，避免展示未来结果。 */
     private fun renderReplayChart(state: MainUiState) {
         val visibleCount = (state.replayIndex + 1).coerceIn(0, state.minuteBars.size)
         val candles = ChartDataMapper.aggregateMinutes(state.minuteBars.take(visibleCount))
@@ -359,7 +370,9 @@ class DashboardFragment : Fragment(), DashboardHandlers {
 
     private enum class Panel { DECISION, CHART, FLOW, REVIEW }
 
+    /** 切换首页分析面板，并保存选择以便返回或重建时恢复。 */
     private fun showPanel(panel: Panel) = with(binding) {
+        selectedPanel = panel
         panelDecision.visibility = if (panel == Panel.DECISION) View.VISIBLE else View.GONE
         panelChart.visibility = if (panel == Panel.CHART) View.VISIBLE else View.GONE
         panelFlow.visibility = if (panel == Panel.FLOW) View.VISIBLE else View.GONE
@@ -370,32 +383,58 @@ class DashboardFragment : Fragment(), DashboardHandlers {
         btnReview.isActivated = panel == Panel.REVIEW
     }
 
+    /** 显示首页总览面板。 */
     override fun onDecisionTab() = showPanel(Panel.DECISION)
+    /** 显示图表和成交记录面板。 */
     override fun onChartTab() = showPanel(Panel.CHART)
+    /** 显示个股与板块资金面板。 */
     override fun onFlowTab() = showPanel(Panel.FLOW)
+    /** 显示复盘、账户流水和模拟盘面板。 */
     override fun onReviewTab() = showPanel(Panel.REVIEW)
+    /** 将行情刷新请求交给共享 ViewModel。 */
     override fun onRefresh() = viewModel.refresh()
+    /** 通过主 Activity 启动前台监控服务。 */
     override fun onStartMonitor() = host.startMonitor()
+    /** 通过主 Activity 停止监控服务。 */
     override fun onStopMonitor() = host.stopMonitor()
+    /** 打开设置页，复用既有配置同步流程。 */
     override fun onSettings() = host.openSettings()
+    /** 提交用户补充问题，由 ViewModel 发起 AI 分析。 */
     override fun onAnalyze() = viewModel.analyze(binding.etQuestion.text?.toString().orEmpty())
+    /** 强制刷新新闻风险数据。 */
     override fun onRefreshNews() = viewModel.refreshNews(force = true)
+    /** 请求刷新盘口数据。 */
     override fun onRefreshLevel2() = viewModel.refreshLevel2()
+    /** 打开真实买入成交的手工记录对话框。 */
     override fun onRecordBuy() = showTradeDialog("BUY")
+    /** 打开真实卖出成交的手工记录对话框。 */
     override fun onRecordSell() = showTradeDialog("SELL")
+    /** 打开账户流水记录对话框。 */
     override fun onRecordLedger() = showAccountLedgerDialog()
+    /** 切换并刷新行业资金排行。 */
     override fun onIndustryFlow() = viewModel.refreshSectorFlow("INDUSTRY")
+    /** 切换并刷新概念资金排行。 */
     override fun onConceptFlow() = viewModel.refreshSectorFlow("CONCEPT")
+    /** 清除手工买点锚定，交由 ViewModel 重算计划。 */
     override fun onClearAnchor() = viewModel.clearBuyAnchor()
+    /** 提交模拟买入操作，不写入真实账户成交。 */
     override fun onPaperBuy() = viewModel.paperTrade("BUY")
+    /** 提交模拟卖出操作，不写入真实账户成交。 */
     override fun onPaperSell() = viewModel.paperTrade("SELL")
+    /** 重置独立的模拟盘账户。 */
     override fun onResetPaper() = viewModel.resetPaper()
+    /** 重置历史回放游标与状态。 */
     override fun onReplayReset() = viewModel.resetReplay()
+    /** 将回放推进一个步骤。 */
     override fun onReplayStep() = viewModel.stepReplay()
+    /** 以既定速度启动历史回放。 */
     override fun onReplayPlay() = viewModel.startReplay(5)
+    /** 暂停回放并保留当前游标。 */
     override fun onReplayPause() = viewModel.pauseReplay()
+    /** 运行当前样本的完整回测。 */
     override fun onRunBacktest() = viewModel.runReplayBacktest()
 
+    /** 采集成交数量与价格，用户确认后交给 ViewModel 保存。 */
     private fun showTradeDialog(side: String) {
         val code = viewModel.uiState.value.selectedCode ?: return
         val quantityInput = EditText(requireContext()).apply {
@@ -425,6 +464,7 @@ class DashboardFragment : Fragment(), DashboardHandlers {
             .show()
     }
 
+    /** 采集流水类型、金额和备注，确认后记录账户资金变动。 */
     private fun showAccountLedgerDialog() {
         val types = AccountLedgerType.entries
         val typeSpinner = Spinner(requireContext()).apply {
@@ -456,7 +496,9 @@ class DashboardFragment : Fragment(), DashboardHandlers {
             .show()
     }
 
+    /** 打开持仓证券详情并保留首页返回栈，阻止状态保存后的重复跳转。 */
     private fun openStockDetail(code: String) {
+        if (parentFragmentManager.isStateSaved || parentFragmentManager.backStackEntryCount > 0) return
         viewModel.selectStock(code)
         parentFragmentManager.beginTransaction()
             .replace(R.id.mainContainer, StockDetailFragment.newInstance(code))
@@ -464,7 +506,9 @@ class DashboardFragment : Fragment(), DashboardHandlers {
             .commit()
     }
 
+    /** 保存滚动位置并释放图表、列表和绑定引用。 */
     override fun onDestroyView() {
+        scrollPosition = binding.dashboardScroll.scrollY
         binding.listStrategies.adapter = null
         binding.klineView.release()
         binding.replayKlineView.release()
@@ -472,15 +516,29 @@ class DashboardFragment : Fragment(), DashboardHandlers {
         super.onDestroyView()
     }
 
+    /** 保存首页分析面板和滚动位置，系统重建后恢复用户查看上下文。 */
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString("dashboard_panel", selectedPanel.name)
+        outState.putInt("dashboard_scroll", _binding?.dashboardScroll?.scrollY ?: scrollPosition)
+        super.onSaveInstanceState(outState)
+    }
+
+    /** 将价格格式化为两位小数。 */
     private fun price(value: Double) = String.format(Locale.CHINA, "%.2f", value)
+    /** 将毫秒时间戳转换为上海时区的时分秒。 */
     private fun clock(epochMs: Long): String = Instant.ofEpochMilli(epochMs).atZone(ZoneId.of("Asia/Shanghai"))
         .format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+    /** 将比例转换为带正负号的百分数文本。 */
     private fun pct(value: Double) = String.format(Locale.CHINA, "%+.2f%%", value * 100.0)
+    /** 将已为百分数口径的值格式化，避免重复乘以一百。 */
     private fun percentValue(value: Double) = String.format(Locale.CHINA, "%+.2f%%", value)
+    /** 显示指数名称、点位和涨跌幅，缺失数据保留占位符。 */
     private fun indexText(index: MarketIndexUi) = "${index.name}\n" +
         (index.value?.let { String.format(Locale.CHINA, "%.2f", it) } ?: "--") + "  " +
         (index.changePct?.let(::percentValue) ?: "")
+    /** 将盈亏金额格式化为带正负号的两位小数。 */
     private fun signedMoney(value: Double) = String.format(Locale.CHINA, "%+.2f", value)
+    /** 按正负值应用红涨绿跌语义，零值和缺失值使用中性色。 */
     private fun applyTone(view: android.widget.TextView, value: Double?) {
         val color = when {
             value == null || value == 0.0 -> com.locogo.astockguard.designsystem.R.color.astock_text_primary
@@ -489,6 +547,7 @@ class DashboardFragment : Fragment(), DashboardHandlers {
         }
         view.setTextColor(ContextCompat.getColor(requireContext(), color))
     }
+    /** 按金额大小选择元、万或亿的显示尺度。 */
     private fun money(value: Double) = when {
         kotlin.math.abs(value) >= 100_000_000 -> String.format(Locale.CHINA, "%.2f亿", value / 100_000_000)
         kotlin.math.abs(value) >= 10_000 -> String.format(Locale.CHINA, "%.2f万", value / 10_000)

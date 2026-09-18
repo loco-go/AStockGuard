@@ -1,0 +1,6 @@
+<resources>
+    <style name="Widget.Guheng.Card" parent="Widget.MaterialComponents.CardView">
+        <item name="cardCornerRadius">8dp</item><item name="cardElevation">0dp</item>
+        <item name="cardBackgroundColor">@color/gh_card</item><item name="strokeWidth">0dp</item>
+    </style>
+</resources>

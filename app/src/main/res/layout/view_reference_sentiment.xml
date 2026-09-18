@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 根据 img 参考图还原的 sentiment 页面；占位符由状态渲染器填入，不内置示例行情。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+<com.google.android.material.card.MaterialCardView style="@style/Widget.Guheng.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp" >
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="10dp">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" >
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="市场情绪" android:textSize="16sp" android:textColor="@color/gh_text" android:textStyle="bold"/>
+<Space android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
+<TextView android:includeFontPadding="false" android:id="@+id/sentimentInfo" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="ⓘ" android:textSize="11sp" android:textColor="@color/gh_secondary" android:minHeight="28dp" android:gravity="center" android:paddingHorizontal="4dp"/>
+</LinearLayout>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" >
+<com.locogo.astockguard.ui.main.MarketGraphicView android:id="@+id/sentimentGauge" android:layout_width="0dp" android:layout_height="145dp" android:layout_weight="1.1"/>
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_gh_blush" android:padding="12dp">
+<TextView android:includeFontPadding="false" android:id="@+id/sentimentAdvice" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="全市场情绪指标尚未接入；下方展示当前监控池的涨跌分布。" android:textSize="12sp" android:textColor="@color/gh_text" android:lineSpacingExtra="5dp"/>
+</LinearLayout>
+</LinearLayout>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" >
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_gh_blush" android:padding="8dp">
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="涨跌家数" android:textSize="12sp" android:textColor="@color/gh_text" />
+<Space android:layout_width="1dp" android:layout_height="5dp"/>
+<TextView android:includeFontPadding="false" android:id="@+id/sentimentBreadth" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textSize="19sp" android:textColor="@color/gh_red" android:textStyle="bold"/>
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="较昨日 --" android:textSize="9sp" android:textColor="@color/gh_secondary" />
+</LinearLayout>
+<Space android:layout_width="5dp" android:layout_height="1dp"/>
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_gh_blush" android:padding="8dp">
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="连板高度" android:textSize="12sp" android:textColor="@color/gh_text" />
+<Space android:layout_width="1dp" android:layout_height="5dp"/>
+<TextView android:includeFontPadding="false" android:id="@+id/sentimentStreak" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textSize="19sp" android:textColor="@color/gh_red" android:textStyle="bold"/>
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="较昨日 --" android:textSize="9sp" android:textColor="@color/gh_secondary" />
+</LinearLayout>
+<Space android:layout_width="5dp" android:layout_height="1dp"/>
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_gh_blush" android:padding="8dp">
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="炸板率" android:textSize="12sp" android:textColor="@color/gh_text" />
+<Space android:layout_width="1dp" android:layout_height="5dp"/>
+<TextView android:includeFontPadding="false" android:id="@+id/sentimentBroken" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textSize="19sp" android:textColor="@color/gh_green" android:textStyle="bold"/>
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="较昨日 --" android:textSize="9sp" android:textColor="@color/gh_secondary" />
+</LinearLayout>
+<Space android:layout_width="5dp" android:layout_height="1dp"/>
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_gh_blush" android:padding="8dp">
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="赚钱效应" android:textSize="12sp" android:textColor="@color/gh_text" />
+<Space android:layout_width="1dp" android:layout_height="5dp"/>
+<TextView android:includeFontPadding="false" android:id="@+id/sentimentProfit" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textSize="19sp" android:textColor="@color/gh_red" android:textStyle="bold"/>
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="较昨日 --" android:textSize="9sp" android:textColor="@color/gh_secondary" />
+</LinearLayout>
+</LinearLayout>
+<Space android:layout_width="1dp" android:layout_height="10dp"/>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" >
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="涨跌家数走势" android:textSize="16sp" android:textColor="@color/gh_text" android:textStyle="bold"/>
+<Space android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
+<TextView android:includeFontPadding="false" android:id="@+id/breadthHistoryInfo" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="近7日 · 近30日 · 近60日" android:textSize="11sp" android:textColor="@color/gh_secondary" android:minHeight="28dp" android:gravity="center" android:paddingHorizontal="4dp"/>
+</LinearLayout>
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="● 上涨家数     ● 下跌家数" android:textSize="10sp" android:textColor="@color/gh_secondary" />
+<com.locogo.astockguard.ui.main.MarketGraphicView android:id="@+id/breadthHistory" android:layout_width="match_parent" android:layout_height="145dp"/>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" >
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="连板高度趋势" android:textSize="16sp" android:textColor="@color/gh_text" android:textStyle="bold"/>
+<Space android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
+<TextView android:includeFontPadding="false" android:id="@+id/streakHistoryInfo" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="近7日 · 近30日 · 近60日" android:textSize="11sp" android:textColor="@color/gh_secondary" android:minHeight="28dp" android:gravity="center" android:paddingHorizontal="4dp"/>
+</LinearLayout>
+<com.locogo.astockguard.ui.main.MarketGraphicView android:id="@+id/streakHistory" android:layout_width="match_parent" android:layout_height="132dp"/>
+<TextView android:includeFontPadding="false" android:id="@+id/sentimentCoverage" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="历史统计待接入" android:textSize="9sp" android:textColor="@color/gh_secondary" />
+</LinearLayout>
+</com.google.android.material.card.MaterialCardView>
+</LinearLayout>

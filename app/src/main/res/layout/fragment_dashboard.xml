@@ -20,11 +20,13 @@
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="68dp"
-            android:background="@color/astock_primary_dark"
+            android:layout_height="wrap_content"
+            android:minHeight="68dp"
+            android:background="@color/guheng_brand"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingHorizontal="18dp">
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="8dp">
 
             <ImageView
                 android:layout_width="42dp"
@@ -34,13 +36,13 @@
                 android:src="@drawable/ic_brand_mark" />
 
             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/app_name" android:textColor="@color/astock_on_primary" android:textSize="21sp" android:textStyle="bold" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text='@{state.selectedCode ?? @string/brand_tagline}' android:textColor="#BFCFDC" android:textSize="12sp" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/guheng_brand" android:textColor="@color/guheng_on_brand" android:textSize="21sp" android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text='@{state.selectedCode ?? @string/brand_tagline}' android:textColor="@color/guheng_on_brand" android:textSize="12sp" />
             </LinearLayout>
 
             <ProgressBar android:layout_width="22dp" android:layout_height="22dp" android:layout_marginEnd="8dp" android:indeterminateTint="@color/astock_gold" android:visibility="@{state.loading ? View.VISIBLE : View.GONE}" />
-            <com.google.android.material.button.MaterialButton style="@style/Widget.MaterialComponents.Button.TextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:onClick="@{() -> handlers.onSettings()}" android:text="设置" android:textColor="@color/astock_on_primary" />
-            <com.google.android.material.button.MaterialButton android:id="@+id/btnMessages" style="@style/Widget.MaterialComponents.Button.TextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="消息" android:textColor="@color/astock_on_primary" />
+            <com.google.android.material.button.MaterialButton style="@style/Widget.MaterialComponents.Button.TextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:onClick="@{() -> handlers.onSettings()}" android:text="设置" android:textColor="@color/guheng_on_brand" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnMessages" style="@style/Widget.MaterialComponents.Button.TextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="消息" android:textColor="@color/guheng_on_brand" />
         </LinearLayout>
 
         <com.google.android.material.card.MaterialCardView
@@ -60,6 +62,7 @@
         </com.google.android.material.card.MaterialCardView>
 
         <androidx.core.widget.NestedScrollView
+            android:id="@+id/dashboardScroll"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"

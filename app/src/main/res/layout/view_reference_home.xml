@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 根据 img 参考图还原的 home 页面；占位符由状态渲染器填入，不内置示例行情。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+<com.google.android.material.card.MaterialCardView style="@style/Widget.Guheng.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp" >
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="10dp">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" >
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="大盘行情" android:textSize="16sp" android:textColor="@color/gh_text" android:textStyle="bold"/>
+<Space android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
+<TextView android:includeFontPadding="false" android:id="@+id/marketMore" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="更新 --" android:textSize="11sp" android:textColor="@color/gh_secondary" android:minHeight="28dp" android:gravity="center" android:paddingHorizontal="4dp"/>
+</LinearLayout>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" >
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_gh_blush" android:padding="6dp">
+<TextView android:includeFontPadding="false" android:id="@+id/indexName0" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="上证指数" android:textSize="12sp" android:textColor="@color/gh_text" android:layout_gravity="center_horizontal"/>
+<Space android:layout_width="1dp" android:layout_height="3dp"/>
+<TextView android:includeFontPadding="false" android:id="@+id/indexValue0" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textSize="21sp" android:textColor="@color/gh_red" android:textStyle="bold" android:layout_gravity="center_horizontal"/>
+<TextView android:includeFontPadding="false" android:id="@+id/indexChange0" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--   --" android:textSize="11sp" android:textColor="@color/gh_red" android:layout_gravity="center_horizontal"/>
+<com.locogo.astockguard.ui.main.MarketGraphicView android:id="@+id/indexGraph0" android:layout_width="match_parent" android:layout_height="43dp"/>
+<TextView android:includeFontPadding="false" android:id="@+id/indexRange0" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="等待行情" android:textSize="9sp" android:textColor="@color/gh_secondary" android:layout_gravity="center_horizontal"/>
+</LinearLayout>
+<Space android:layout_width="6dp" android:layout_height="1dp"/>
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_gh_blush" android:padding="6dp">
+<TextView android:includeFontPadding="false" android:id="@+id/indexName1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="深证成指" android:textSize="12sp" android:textColor="@color/gh_text" android:layout_gravity="center_horizontal"/>
+<Space android:layout_width="1dp" android:layout_height="3dp"/>
+<TextView android:includeFontPadding="false" android:id="@+id/indexValue1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textSize="21sp" android:textColor="@color/gh_red" android:textStyle="bold" android:layout_gravity="center_horizontal"/>
+<TextView android:includeFontPadding="false" android:id="@+id/indexChange1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--   --" android:textSize="11sp" android:textColor="@color/gh_red" android:layout_gravity="center_horizontal"/>
+<com.locogo.astockguard.ui.main.MarketGraphicView android:id="@+id/indexGraph1" android:layout_width="match_parent" android:layout_height="43dp"/>
+<TextView android:includeFontPadding="false" android:id="@+id/indexRange1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="等待行情" android:textSize="9sp" android:textColor="@color/gh_secondary" android:layout_gravity="center_horizontal"/>
+</LinearLayout>
+<Space android:layout_width="6dp" android:layout_height="1dp"/>
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_gh_blush" android:padding="6dp">
+<TextView android:includeFontPadding="false" android:id="@+id/indexName2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="创业板指" android:textSize="12sp" android:textColor="@color/gh_text" android:layout_gravity="center_horizontal"/>
+<Space android:layout_width="1dp" android:layout_height="3dp"/>
+<TextView android:includeFontPadding="false" android:id="@+id/indexValue2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textSize="21sp" android:textColor="@color/gh_red" android:textStyle="bold" android:layout_gravity="center_horizontal"/>
+<TextView android:includeFontPadding="false" android:id="@+id/indexChange2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--   --" android:textSize="11sp" android:textColor="@color/gh_red" android:layout_gravity="center_horizontal"/>
+<com.locogo.astockguard.ui.main.MarketGraphicView android:id="@+id/indexGraph2" android:layout_width="match_parent" android:layout_height="43dp"/>
+<TextView android:includeFontPadding="false" android:id="@+id/indexRange2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="等待行情" android:textSize="9sp" android:textColor="@color/gh_secondary" android:layout_gravity="center_horizontal"/>
+</LinearLayout>
+</LinearLayout>
+</LinearLayout>
+</com.google.android.material.card.MaterialCardView>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:baselineAligned="false">
+<com.google.android.material.card.MaterialCardView style="@style/Widget.Guheng.Card" android:layout_width="0dp" android:layout_height="wrap_content" android:minHeight="138dp" android:layout_weight="2">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="10dp">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" >
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="市场情绪" android:textSize="16sp" android:textColor="@color/gh_text" android:textStyle="bold"/>
+<Space android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
+<TextView android:includeFontPadding="false" android:id="@+id/sentimentMore" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="›" android:textSize="11sp" android:textColor="@color/gh_secondary" android:minHeight="28dp" android:gravity="center" android:paddingHorizontal="4dp"/>
+</LinearLayout>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" >
+<com.locogo.astockguard.ui.main.MarketGraphicView android:id="@+id/homeGauge" android:layout_width="80dp" android:layout_height="90dp"/>
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" >
+<TextView android:includeFontPadding="false" android:id="@+id/homeSentimentNote" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="全市场情绪待接入" android:textSize="10sp" android:textColor="@color/gh_secondary" />
+<Space android:layout_width="1dp" android:layout_height="8dp"/>
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="当前监控池" android:textSize="10sp" android:textColor="@color/gh_secondary" />
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" >
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" >
+<TextView android:includeFontPadding="false" android:id="@+id/breadthUp" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textSize="16sp" android:textColor="@color/gh_red" android:textStyle="bold"/>
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="上涨" android:textSize="10sp" android:textColor="@color/gh_secondary" />
+</LinearLayout>
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" >
+<TextView android:includeFontPadding="false" android:id="@+id/breadthFlat" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textSize="16sp" android:textColor="@color/gh_secondary" android:textStyle="bold"/>
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="平盘" android:textSize="10sp" android:textColor="@color/gh_secondary" />
+</LinearLayout>
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" >
+<TextView android:includeFontPadding="false" android:id="@+id/breadthDown" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textSize="16sp" android:textColor="@color/gh_green" android:textStyle="bold"/>
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="下跌" android:textSize="10sp" android:textColor="@color/gh_secondary" />
+</LinearLayout>
+</LinearLayout>
+</LinearLayout>
+</LinearLayout>
+</LinearLayout>
+</com.google.android.material.card.MaterialCardView>
+<Space android:layout_width="8dp" android:layout_height="1dp"/>
+<com.google.android.material.card.MaterialCardView style="@style/Widget.Guheng.Card" android:layout_width="0dp" android:layout_height="wrap_content" android:minHeight="138dp" android:layout_weight="1">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="10dp">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" >
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="涨停数量" android:textSize="16sp" android:textColor="@color/gh_text" android:textStyle="bold"/>
+<Space android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
+<TextView android:includeFontPadding="false" android:id="@+id/limitMore" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="›" android:textSize="11sp" android:textColor="@color/gh_secondary" android:minHeight="28dp" android:gravity="center" android:paddingHorizontal="4dp"/>
+</LinearLayout>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" >
+<TextView android:includeFontPadding="false" android:id="@+id/limitCount" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textSize="31sp" android:textColor="@color/gh_red" android:textStyle="bold"/>
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="只" android:textSize="12sp" android:textColor="@color/gh_secondary" />
+</LinearLayout>
+<TextView android:includeFontPadding="false" android:id="@+id/limitNote" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="全市场统计待接入" android:textSize="10sp" android:textColor="@color/gh_secondary" />
+<Space android:layout_width="1dp" android:layout_height="5dp"/>
+<TextView android:includeFontPadding="false" android:id="@+id/limitCompare" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="较昨日 --   连板股 --" android:textSize="10sp" android:textColor="@color/gh_secondary" />
+</LinearLayout>
+</com.google.android.material.card.MaterialCardView>
+</LinearLayout>
+<Space android:layout_width="1dp" android:layout_height="8dp"/>
+<com.google.android.material.card.MaterialCardView style="@style/Widget.Guheng.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp" >
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="10dp">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" >
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="今日机会" android:drawableStart="@drawable/ic_gh_fire" android:drawablePadding="5dp" android:textSize="16sp" android:textColor="@color/gh_text" android:textStyle="bold"/>
+<Space android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
+<TextView android:includeFontPadding="false" android:id="@+id/opportunityMore" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="更多 ›" android:textSize="11sp" android:textColor="@color/gh_secondary" android:minHeight="28dp" android:gravity="center" android:paddingHorizontal="4dp"/>
+</LinearLayout>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" >
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_gh_blush" android:padding="7dp">
+<TextView android:includeFontPadding="false" android:id="@+id/opportunityName0" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="待加载" android:textSize="13sp" android:textColor="@color/gh_text" android:textStyle="bold"/>
+<TextView android:includeFontPadding="false" android:id="@+id/opportunityChange0" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textSize="16sp" android:textColor="@color/gh_red" android:textStyle="bold"/>
+<com.locogo.astockguard.ui.main.MarketGraphicView android:id="@+id/opportunityGraph0" android:layout_width="match_parent" android:layout_height="28dp"/>
+<TextView android:includeFontPadding="false" android:id="@+id/opportunityNote0" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="主力净流入 --" android:textSize="9sp" android:textColor="@color/gh_secondary" />
+</LinearLayout>
+<Space android:layout_width="6dp" android:layout_height="1dp"/>
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_gh_blush" android:padding="7dp">
+<TextView android:includeFontPadding="false" android:id="@+id/opportunityName1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="待加载" android:textSize="13sp" android:textColor="@color/gh_text" android:textStyle="bold"/>
+<TextView android:includeFontPadding="false" android:id="@+id/opportunityChange1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textSize="16sp" android:textColor="@color/gh_red" android:textStyle="bold"/>
+<com.locogo.astockguard.ui.main.MarketGraphicView android:id="@+id/opportunityGraph1" android:layout_width="match_parent" android:layout_height="28dp"/>
+<TextView android:includeFontPadding="false" android:id="@+id/opportunityNote1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="主力净流入 --" android:textSize="9sp" android:textColor="@color/gh_secondary" />
+</LinearLayout>
+<Space android:layout_width="6dp" android:layout_height="1dp"/>
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_gh_blush" android:padding="7dp">
+<TextView android:includeFontPadding="false" android:id="@+id/opportunityName2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="待加载" android:textSize="13sp" android:textColor="@color/gh_text" android:textStyle="bold"/>
+<TextView android:includeFontPadding="false" android:id="@+id/opportunityChange2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textSize="16sp" android:textColor="@color/gh_red" android:textStyle="bold"/>
+<com.locogo.astockguard.ui.main.MarketGraphicView android:id="@+id/opportunityGraph2" android:layout_width="match_parent" android:layout_height="28dp"/>
+<TextView android:includeFontPadding="false" android:id="@+id/opportunityNote2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="主力净流入 --" android:textSize="9sp" android:textColor="@color/gh_secondary" />
+</LinearLayout>
+</LinearLayout>
+<TextView android:includeFontPadding="false" android:id="@+id/sectorSource" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="板块主力资金排行" android:textSize="9sp" android:textColor="@color/gh_secondary" android:layout_marginTop="5dp"/>
+</LinearLayout>
+</com.google.android.material.card.MaterialCardView>
+<com.google.android.material.card.MaterialCardView style="@style/Widget.Guheng.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp" >
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="10dp">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" >
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="风险提示" android:drawableStart="@drawable/ic_gh_shield" android:drawablePadding="5dp" android:textSize="16sp" android:textColor="@color/gh_text" android:textStyle="bold"/>
+<Space android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
+<TextView android:includeFontPadding="false" android:id="@+id/riskMore" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="更多 ›" android:textSize="11sp" android:textColor="@color/gh_secondary" android:minHeight="28dp" android:gravity="center" android:paddingHorizontal="4dp"/>
+</LinearLayout>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_gh_blush" android:padding="9dp">
+<TextView android:includeFontPadding="false" android:id="@+id/riskHeadline" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="等待风险评估" android:textSize="12sp" android:textColor="@color/gh_text" android:textStyle="bold"/>
+<Space android:layout_width="1dp" android:layout_height="4dp"/>
+<TextView android:includeFontPadding="false" android:id="@+id/riskDescription" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="行情与新闻更新后展示风险信息" android:textSize="11sp" android:textColor="@color/gh_secondary" />
+</LinearLayout>
+<Space android:layout_width="1dp" android:layout_height="6dp"/>
+<TextView android:includeFontPadding="false" android:id="@+id/riskSecondary" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="观察市场波动，执行既定计划" android:textSize="11sp" android:textColor="@color/gh_secondary" />
+</LinearLayout>
+</com.google.android.material.card.MaterialCardView>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_gh_banner" android:padding="14dp">
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="把握结构性机会 · 与优秀的中国企业同行" android:textSize="14sp" android:textColor="@color/guheng_on_brand" android:textStyle="bold"/>
+<Space android:layout_width="1dp" android:layout_height="5dp"/>
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="股衡  ·  专业  ·  理性  ·  长期" android:textSize="10sp" android:textColor="@color/guheng_on_brand" />
+<TextView android:includeFontPadding="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="━━  · · ·" android:textSize="10sp" android:textColor="@color/guheng_on_brand" android:layout_gravity="center_horizontal"/>
+</LinearLayout>
+</LinearLayout>

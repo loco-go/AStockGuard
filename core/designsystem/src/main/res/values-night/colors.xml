@@ -1,0 +1,24 @@
+<resources>
+    <color name="gh_background">#15171B</color>
+    <color name="gh_card">#212329</color>
+    <color name="gh_text">#F4F4F6</color>
+    <color name="gh_secondary">#AAAEB8</color>
+    <color name="gh_line">#353840</color>
+    <color name="gh_red">#FF7883</color>
+    <color name="gh_green">#61C893</color>
+    <color name="gh_blush">#302326</color>
+    <color name="gh_pink">#4A282E</color>
+    <color name="gh_blue">#89AAFF</color>
+    <color name="guheng_brand">#F29AA3</color>
+    <color name="guheng_on_brand">#391015</color>
+    <color name="guheng_cache">#E8BB77</color>
+    <color name="astock_surface">#141519</color>
+    <color name="astock_surface_card">#202227</color>
+    <color name="astock_surface_alt">#2A2D34</color>
+    <color name="astock_border">#444852</color>
+    <color name="astock_text_primary">#F0F1F4</color>
+    <color name="astock_text_secondary">#BBC0CA</color>
+    <color name="astock_positive">#FF939C</color>
+    <color name="astock_negative">#66D4AF</color>
+    <color name="astock_warning">#E8BB77</color>
+</resources>

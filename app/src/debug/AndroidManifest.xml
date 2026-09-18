@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 仅调试包提供固定样本视觉验收入口，正式包不包含此 Activity。 -->
+    <application>
+        <activity android:name="com.locogo.astockguard.ui.main.ReferencePreviewActivity" android:exported="true" />
+    </application>
+</manifest>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 共用参考图头部及栏目；页面内容使用独立 XML，不再拼成长文本卡片。 -->
+<layout xmlns:android="http://schemas.android.com/apk/res/android">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@color/gh_background">
+        <LinearLayout android:id="@+id/brandHeader" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingHorizontal="12dp" android:paddingVertical="8dp" android:background="@drawable/bg_gh_header">
+            <TextView android:id="@+id/sectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="股衡" android:textColor="#FFFFFF" android:textSize="25sp" android:textStyle="bold" android:layout_marginEnd="12dp"/>
+            <LinearLayout android:id="@+id/searchBox" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1" android:gravity="center_vertical" android:background="@drawable/bg_gh_search" android:paddingHorizontal="10dp">
+                <ImageView android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/ic_gh_search" android:importantForAccessibility="no"/>
+                <com.google.android.material.textfield.TextInputEditText android:id="@+id/sectionSearch" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@null" android:paddingStart="7dp" android:paddingEnd="0dp" android:textSize="12sp" android:textColor="#FFFFFF" android:textColorHint="#EFFFFFFF" android:hint="搜索股票 / 名称 / 代码" android:singleLine="true" android:inputType="text" android:imeOptions="actionSearch"/>
+            </LinearLayout>
+            <ImageButton android:id="@+id/headerMessages" android:layout_width="40dp" android:layout_height="40dp" android:layout_marginStart="4dp" android:background="?attr/selectableItemBackgroundBorderless" android:src="@drawable/ic_gh_bell" android:contentDescription="消息中心"/>
+        </LinearLayout>
+        <LinearLayout android:id="@+id/topTabs" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="38dp" android:orientation="horizontal"/>
+        <LinearLayout android:id="@+id/subTabs" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="34dp" android:orientation="horizontal" android:paddingHorizontal="8dp" android:visibility="gone"/>
+        <androidx.core.widget.NestedScrollView android:id="@+id/sectionScroll" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:clipToPadding="false">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingHorizontal="8dp" android:paddingTop="8dp" android:paddingBottom="8dp">
+                <FrameLayout android:id="@+id/sectionContent" android:layout_width="match_parent" android:layout_height="wrap_content"/>
+                <TextView android:id="@+id/sectionStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingVertical="4dp" android:textColor="@color/gh_secondary" android:textSize="9sp"/>
+            </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
+    </LinearLayout>
+</layout>
